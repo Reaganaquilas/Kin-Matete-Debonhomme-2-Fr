@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pionniers à encourager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    body {
+      background: #f1f4f6;
+      font-family: "Manrope", "Segoe UI", sans-serif;
+      color: #1f2937;
+    }
+    .page {
+      max-width: 1500px;
+      margin: 24px auto;
+      padding: 22px 22px 18px;
+      background: rgba(255, 255, 255, 0.98);
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+    }
+    .assembly-header {
+      border-bottom: 2px solid #dbe4f0;
+      padding-bottom: 12px;
+      margin-bottom: 18px;
+      background: #f5f7f8;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .assembly-title {
+      font-size: 1.12rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin: 0;
+      color: #0f172a;
+    }
+    .assembly-code {
+      font-size: 0.9rem;
+      color: #475569;
+      margin-top: 6px;
+      font-weight: 700;
+    }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: end;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .filters-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      gap: 12px;
+      margin: 0 0 18px;
+    }
+    .zone-selector {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 0 0 18px;
+    }
+    .zone-button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      border: 1px solid #d9e1e6;
+      background: #ffffff;
+      color: #0f172a;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 700;
+      text-align: left;
+      box-shadow: 0 4px 12px rgba(31, 55, 68, 0.05);
+      transition: all 0.2s ease;
+    }
+    .zone-button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 12px rgba(31, 55, 68, 0.08);
+    }
+    .zone-button .badge {
+      min-width: 36px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #eef2f5;
+      color: #214b63;
+      font-size: 0.8rem;
+      font-weight: 800;
+      padding: 5px 10px;
+    }
+    .encouragement-panel {
+      background: #ffffff;
+      border: 1px solid #d9e1e6;
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 2px 10px rgba(148, 163, 184, 0.08);
+    }
+    .encouragement-panel h5 {
+      margin: 0 0 12px;
+      font-size: 0.92rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #0f172a;
+    }
+    .encouragement-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .encouragement-list li {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.78rem;
+      color: #1f2937;
+    }
+    .display-value {
+      display: none;
+      font-size: 0.76rem;
+      color: #1f2937;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .row-editor {
+      display: block;
+    }
+    .table-cell-note {
+      color: #475569;
+      font-style: italic;
+    }
+    .report-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 23, 42, 0.5);
+      z-index: 2000;
+      padding: 20px;
+    }
+    .report-modal.show {
+      display: flex;
+    }
+    .report-modal-card {
+      width: min(560px, 100%);
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+    }
+    .report-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 16px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .report-modal-header h6 {
+      margin: 0;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      font-size: 0.8rem;
+    }
+    .report-modal-body {
+      padding: 14px 16px 16px;
+      max-height: 60vh;
+      overflow: auto;
+    }
+    .report-modal-body ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .report-modal-body li {
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      font-size: 0.82rem;
+    }
+    .report-modal-footer {
+      padding: 12px 16px 16px;
+      display: flex;
+      justify-content: flex-end;
+      border-top: 1px solid #e2e8f0;
+      background: #fff;
+    }
+    .summary-card {
+      background: #f5f7f8;
+      border: 1px solid #dbeafe;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.9);
+    }
+    .summary-card .label {
+      font-size: 0.72rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #475569;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .summary-card .value {
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.1;
+    }
+    .panel {
+      background: #f5f7f8;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(148, 163, 184, 0.08);
+    }
+    .panel h5 {
+      font-size: 0.96rem;
+      font-weight: 700;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    } 
+    .form-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .table-wrap {
+      overflow-x: auto;
+      margin-top: 18px;
+    }
+    .detail-pages {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 18px;
+      margin-top: 20px;
+    }
+    .detail-page {
+      border: 1px solid #dbeafe;
+      border-radius: 12px;
+      background: #ffffff;
+      box-shadow: 0 2px 10px rgba(148, 163, 184, 0.08);
+      overflow: hidden;
+    }
+    .detail-page-header {
+      padding: 10px 14px;
+      background: #edf4ff;
+      border-bottom: 1px solid #dbeafe;
+      font-size: 0.8rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #0f172a;
+    }
+    .detail-page-body {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(200px, 1fr));
+      gap: 10px 16px;
+      padding: 14px;
+    }
+    .detail-item {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px 10px;
+    }
+    .detail-item strong {
+      display: block;
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+    .detail-item span {
+      font-size: 0.8rem;
+      color: #0f172a;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1100px;
+      table-layout: fixed;
+      font-size: 0.72rem;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 5px 4px;
+      vertical-align: top;
+      text-align: left;
+      overflow-wrap: anywhere;
+      background: #ffffff;
+    }
+    th:nth-child(1) { width: 40px; }
+    th:nth-child(2), th:nth-child(3), th:nth-child(4) { width: 130px; }
+    th:nth-child(5) { width: 70px; }
+    th:nth-child(6) { width: 150px; }
+    th:nth-child(7) { width: 130px; }
+    th:nth-child(8) { width: 170px; }
+    th:nth-child(9) { width: 100px; }
+    th:nth-child(10) { width: 90px; }
+    th:nth-child(11) { width: 220px; }
+    td > .cell-stack,
+    td > .objective-cell,
+    td > .compact-field {
+      display: block;
+      width: 100%;
+      min-height: 100%;
+    }
+    .objective-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 66px;
+    }
+    th {
+      background: #e2e8f0;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+    }
+    tbody tr:nth-child(even) {
+      background: #f8fafc;
+    }
+    .summary-row th {
+      background: #dfeafe;
+      color: #0f172a;
+      text-transform: none;
+      letter-spacing: normal;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 0.68rem;
+      line-height: 1.3;
+      background: #f8fafc;
+      color: #0f172a;
+      border: 1px solid #d1d9e6;
+      min-width: 0;
+      max-width: 100%;
+      white-space: normal;
+      text-align: center;
+    }
+    .status-encourage {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .status-encouraged {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .status-bg {
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .two-selects {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 120px;
+    }
+    .compact-input,
+    .compact-select,
+    .compact-textarea {
+      width: 100%;
+      min-height: 30px;
+      padding: 4px 6px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      background: #fff;
+      font-size: 0.7rem;
+      color: #0f172a;
+      box-sizing: border-box;
+    }
+    .compact-textarea {
+      min-height: 60px;
+      resize: vertical;
+    }
+    input[type="date"].compact-input {
+      padding: 3px 5px;
+    }
+    textarea {
+      min-height: 58px;
+      resize: vertical;
+    }
+    .footer-note {
+      margin-top: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #0f172a;
+    }
+    @media (max-width: 980px) {
+      .filters-grid {
+        grid-template-columns: 1fr;
+      }
+      .summary-cards {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+      }
+      .toolbar {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+    }
+    @media print {
+      :root {
+        --page-size: 'A4 portrait';
+      }
+      body {
+        background: white !important;
+      }
+      body.landscape-print {
+        --page-size: 'A4 landscape';
+      }
+      .page {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+        border-radius: 0;
+      }
+      .toolbar,
+      .panel,
+      .filters-grid,
+      .footer-note {
+        display: none !important;
+      }
+      .table-wrap {
+        margin-top: 0;
+      }
+      table {
+        min-width: 100%;
+        font-size: 9px;
+      }
+      thead {
+        display: table-header-group;
+      }
+      .row-editor {
+        display: none !important;
+      }
+      .display-value {
+        display: block !important;
+      }
+      @page {
+        size: var(--page-size, 'A4 portrait');
+        margin: 8mm;
+        @bottom-center {
+          content: 'Page ' counter(page) ' / ' counter(pages);
+          font-size: 9px;
+          color: #475569;
+        }
+      }
+    }
+  </style>
+  <link rel="stylesheet" href="app-theme.css">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="assembly-header">
+      <h1 class="assembly-title">ASSEMBLEE LOCALE DE KINSHASA MATETE DE BONHOMME 2 FRANCAIS</h1>
+      <div class="assembly-code">Code de l’assemblée : 55954</div>
+    </div>
+
+    <div class="toolbar">
+      <div class="toolbar-actions">
+        <button id="exportPdfBtn" class="btn btn-outline-secondary btn-sm">Enregistrer PDF</button>
+        <button id="exportExcelBtn" class="btn btn-outline-secondary btn-sm">Exporter Excel</button>
+        <button id="printBtn" class="btn btn-success btn-sm">Imprimer</button>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <label class="form-label mb-0" for="printOrientation">Orientation</label>
+        <select id="printOrientation" class="form-select form-select-sm" style="width: 140px;">
+          <option value="portrait">Portrait</option>
+          <option value="landscape">Paysage</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="filters-grid">
+      <div class="panel">
+        <h5>Filtrage</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="serviceYear">Année de service</label>
+            <select id="serviceYear" class="form-select form-select-sm">
+              <option value="2023">2023</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026" selected>2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="periodMode">Période de référence</label>
+            <select id="periodMode" class="form-select form-select-sm">
+              <option value="month">Mois précis</option>
+              <option value="2months">2 derniers mois</option>
+              <option value="3months">3 derniers mois</option>
+              <option value="6months">6 derniers mois</option>
+              <option value="allyear">Toute l'année de service</option>
+            </select>
+          </div>
+          <div class="col-md-12" id="monthSelectWrap" style="display: none;">
+            <label class="form-label" for="monthSelect">Choisir le mois</label>
+            <select id="monthSelect" class="form-select form-select-sm"></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h5>Recherche / groupe</h5>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="statusFilter">Statut</label>
+            <select id="statusFilter" class="form-select form-select-sm">
+              <option value="all">Tous</option>
+              <option value="encourage">À encourager</option>
+              <option value="regular">Régulier</option>
+              <option value="irregular">Irrégulier</option>
+              <option value="inactive">Inactif</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="personSearch">Recherche individuelle</label>
+            <input id="personSearch" class="form-control form-control-sm" type="text" placeholder="Nom, postnom ou prénom" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="summary-cards" id="summaryCards"></div>
+
+    <div class="zone-selector">
+      <button type="button" class="zone-button" id="alreadyEncouragedBtn">
+        <span>Pionniers déjà encouragés</span>
+        <span class="badge" id="alreadyEncouragedCount">0</span>
+      </button>
+      <button type="button" class="zone-button" id="toEncourageBtn">
+        <span>Pionniers à encourager</span>
+        <span class="badge" id="toEncourageCount">0</span>
+      </button>
+    </div>
+
+    <div class="report-modal" id="reportModal" aria-hidden="true">
+      <div class="report-modal-card" role="dialog" aria-modal="true" aria-labelledby="reportModalTitle">
+        <div class="report-modal-header">
+          <h6 id="reportModalTitle">Liste</h6>
+          <button type="button" class="btn-close" id="closeReportModal" aria-label="Fermer"></button>
+        </div>
+        <div class="report-modal-body">
+          <ul id="reportModalList"></ul>
+        </div>
+        <div class="report-modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" id="closeReportModalBtn">Fermer</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap" id="tableWrap">
+      <table id="pioneerTable">
+        <thead id="tableHead"></thead>
+        <tbody id="pioneerTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="detail-pages" id="detailPages"></div>
+
+    <div class="footer-note">Service à plein temps</div>
+  </div>
+
+  <script>
+    const assemblyName = 'ASSEMBLEE LOCALE DE KINSHASA MATETE DE BONHOMME 2 FRANCAIS';
+    const assemblyCode = '55954';
+    let allPioneers = [];
+    let detailRecords = [];
+
+    function normalizeText(value) {
+      return (value || '').toString().trim().toLowerCase();
+    }
+
+    function monthKeysForServiceYear(year) {
+      const months = [];
+      for (let m = 9; m <= 12; m++) months.push({ key: `${year - 1}-${String(m).padStart(2,'0')}`, label: `${m}/${year - 1}` });
+      for (let m = 1; m <= 8; m++) months.push({ key: `${year}-${String(m).padStart(2,'0')}`, label: `${m}/${year}` });
+      return months;
+    }
+
+    function monthNameFromKey(key) {
+      const [year, month] = key.split('-').map(Number);
+      const labels = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+      return `${labels[month - 1]} ${year}`;
+    }
+
+    function isPPType(p) {
+      const text = [p.service || '', ...(p.roles || [])].join(' ').toLowerCase();
+      return /(^|\s)(pp|pionnier permanent)(\s|$)/.test(text) || /(ancien\s*pp|assistant\s*pp)/.test(text);
+    }
+
+    function isAncienType(p) {
+      const text = [p.service || '', ...(p.roles || [])].join(' ').toLowerCase();
+      return /(ancien\s*pp|ancien\b)/.test(text) && !/assistant\s*pp/.test(text);
+    }
+
+    function isPermanentPioneer(p) {
+      return isPPType(p);
+    }
+
+    function getPersonFullName(p) {
+      return [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ');
+    }
+
+    function getPeriodMonths() {
+      const year = Number(document.getElementById('serviceYear').value || 2026);
+      const months = monthKeysForServiceYear(year);
+      const mode = document.getElementById('periodMode').value;
+      const selectedMonth = document.getElementById('monthSelect')?.value;
+      const selectedIndex = months.findIndex(m => m.key === selectedMonth);
+
+      if (mode === 'month') {
+        return selectedMonth ? [months[selectedIndex] || months[months.length - 1]] : [months[months.length - 1]];
+      }
+      if (mode === '2months') {
+        return months.slice(-2);
+      }
+      if (mode === '3months') {
+        return months.slice(-3);
+      }
+      if (mode === '6months') {
+        return months.slice(-6);
+      }
+      if (mode === 'allyear') {
+        return months;
+      }
+      return [months[months.length - 1]];
+    }
+
+    function getPeriodLabel() {
+      const selectedMonth = document.getElementById('monthSelect')?.value;
+      const months = getPeriodMonths();
+      const labelFromMonth = v => monthNameFromKey(v.key || v);
+      const parts = months.map(labelFromMonth);
+      const mode = document.getElementById('periodMode').value;
+      if (mode === 'month') {
+        return selectedMonth ? monthNameFromKey(selectedMonth) : 'Mois courant';
+      }
+      if (mode === '2months') {
+        return '2 derniers mois';
+      }
+      if (mode === '3months') {
+        return '3 derniers mois';
+      }
+      if (mode === '6months') {
+        return '6 derniers mois';
+      }
+      if (mode === 'allyear') {
+        return 'Toute l\'année de service';
+      }
+      return parts.join(' à ');
+    }
+
+    function getPioneerHours(p, months) {
+      if (!p || !p.id) return 0;
+
+      const personId = String(p.id).trim();
+      const selectedKeys = months.map(m => m.key || m).filter(Boolean);
+      if (!selectedKeys.length) return 0;
+
+      return detailRecords.reduce((sum, record) => {
+        if (String(record.proclamateurId || '').trim() !== personId) return sum;
+        if (!selectedKeys.includes(record.month)) return sum;
+
+        const hoursValue = record ? (record.heures ?? record.hours ?? 0) : 0;
+        const value = Number(hoursValue || 0);
+        return sum + (Number.isFinite(value) ? value : 0);
+      }, 0);
+    }
+
+    function computeGoalLabel(hours, periodMode) {
+      if (periodMode === '3months') {
+        return hours < 150 ? 'À encourager – objectif 6 mois' : 'Objectif 6 mois atteint';
+      }
+      if (periodMode === '6months') {
+        return hours < 300 ? 'À encourager – objectif annuel' : 'Objectif annuel atteint';
+      }
+      if (periodMode === 'allyear') {
+        return hours < 600 ? 'À encourager – objectif annuel' : 'Objectif annuel atteint';
+      }
+      if (periodMode === 'month') {
+        return hours < 50 ? 'À encourager – objectif mensuel' : 'Objectif mensuel atteint';
+      }
+      if (periodMode === '2months') {
+        return hours < 100 ? 'À encourager – objectif 6 mois' : 'Objectif 6 mois atteint';
+      }
+      return 'À analyser';
+    }
+
+    function getAutoObservation(p, months) {
+      const monthKeys = months.map(month => month.key || month);
+      const personId = String(p.id || '').trim();
+      const missingSequence = [];
+
+      for (const monthKey of monthKeys) {
+        const hasPreaching = detailRecords.some(record => {
+          if (String(record.proclamateurId || '').trim() !== personId) return false;
+          if (record.month !== monthKey) return false;
+          const hours = Number(record.heures || record.hours || 0);
+          return Number.isFinite(hours) && hours > 0;
+        });
+        missingSequence.push(!hasPreaching);
+      }
+
+      let currentRun = 0;
+      let maxRun = 0;
+      for (const isMissing of missingSequence) {
+        if (isMissing) {
+          currentRun += 1;
+          maxRun = Math.max(maxRun, currentRun);
+        } else {
+          currentRun = 0;
+        }
+      }
+
+      const totalHours = getPioneerHours(p, months);
+      if (totalHours === 0 || maxRun >= 6) return 'Inactif';
+      if (maxRun >= 3) return 'Irrégulier';
+      return 'Régulier';
+    }
+
+    function computeStatusClass(statusText) {
+      if (statusText.includes('À encourager')) return 'status-encourage';
+      if (statusText.includes('encouragé')) return 'status-encouraged';
+      return 'status-bg';
+    }
+
+    function buildMonthOptions() {
+      const year = Number(document.getElementById('serviceYear').value || 2026);
+      const months = monthKeysForServiceYear(year);
+      const monthSelect = document.getElementById('monthSelect');
+      monthSelect.innerHTML = '';
+      months.forEach((m, index) => {
+        const opt = document.createElement('option');
+        opt.value = m.key;
+        opt.textContent = monthNameFromKey(m.key);
+        if (index === months.length - 1) opt.selected = true;
+        monthSelect.appendChild(opt);
+      });
+    }
+
+    function toggleMonthSelector() {
+      const mode = document.getElementById('periodMode').value;
+      const wrap = document.getElementById('monthSelectWrap');
+      const show = mode === 'month';
+      wrap.style.display = show ? 'block' : 'none';
+    }
+
+    function getAncientOptions() {
+      const unique = [];
+      const seen = new Set();
+      allPioneers
+        .filter(isAncienType)
+        .sort((a, b) => getPersonFullName(a).localeCompare(getPersonFullName(b), 'fr'))
+        .forEach(person => {
+          const name = getPersonFullName(person);
+          if (!name || seen.has(name)) return;
+          seen.add(name);
+          unique.push(person);
+        });
+      return unique;
+    }
+
+    function getGenderedStatusLabel(statusKey, p) {
+      const isFemale = ['F', 'FEMME', 'FÉMININ'].includes(String(p.sexe || '').trim().toUpperCase());
+      const map = {
+        regular: isFemale ? 'Régulière' : 'Régulier',
+        irregular: isFemale ? 'Irrégulière' : 'Irrégulier',
+        inactive: isFemale ? 'Inactive' : 'Inactif',
+        active: isFemale ? 'Active' : 'Actif',
+        encourage: 'À encourager'
+      };
+      return map[statusKey] || statusKey;
+    }
+
+    function getObservationLabel(p, observation) {
+      if (observation === 'Inactif' || observation === 'Inactive') return getGenderedStatusLabel('inactive', p);
+      if (observation === 'Irrégulier' || observation === 'Irrégulière') return getGenderedStatusLabel('irregular', p);
+      if (observation === 'Régulier' || observation === 'Régulière') return getGenderedStatusLabel('regular', p);
+      return observation;
+    }
+
+    function getPersonStatus(p, months, mode) {
+      const hours = getPioneerHours(p, months);
+      const observation = getAutoObservation(p, months);
+      const goal = computeGoalLabel(hours, mode);
+
+      if (observation === 'Inactif' || observation === 'Inactive') return 'inactive';
+      if (observation === 'Irrégulier' || observation === 'Irrégulière') return 'irregular';
+      if (goal.includes('À encourager')) return 'encourage';
+      return 'regular';
+    }
+
+    function getFilteredPioneers() {
+      const search = normalizeText(document.getElementById('personSearch').value);
+      const status = document.getElementById('statusFilter').value;
+      const months = getPeriodMonths();
+      const mode = document.getElementById('periodMode').value;
+      let list = allPioneers.filter(isPermanentPioneer);
+
+      if (search) {
+        list = list.filter(p => {
+          const searchable = [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ').toLowerCase();
+          return searchable.includes(search);
+        });
+      }
+
+      if (status !== 'all') {
+        list = list.filter(p => getPersonStatus(p, months, mode) === status);
+      }
+
+      return list.sort((a, b) => getPersonFullName(a).localeCompare(getPersonFullName(b), 'fr'));
+    }
+
+    function renderSummaryCards() {
+      const rows = getFilteredPioneers();
+      const mode = document.getElementById('periodMode').value;
+      const months = getPeriodMonths();
+      const stats = {
+        total: rows.length,
+        encouraged: rows.filter(isManuallyEncouraged).length,
+        toEncourage: rows.filter(p => !isManuallyEncouraged(p)).length,
+        regular: rows.filter(p => getPersonStatus(p, months, mode) === 'regular').length,
+        irregular: rows.filter(p => getPersonStatus(p, months, mode) === 'irregular').length,
+        inactive: rows.filter(p => getPersonStatus(p, months, mode) === 'inactive').length,
+      };
+
+      const cards = [
+        { label: 'Total', value: stats.total },
+        { label: 'Déjà encouragés', value: stats.encouraged },
+        { label: 'À encourager', value: stats.toEncourage },
+        { label: 'Régulier', value: stats.regular },
+        { label: 'Inactif', value: stats.inactive }
+      ];
+
+      document.getElementById('summaryCards').innerHTML = cards.map(card => `
+        <div class="summary-card">
+          <div class="label">${card.label}</div>
+          <div class="value">${card.value}</div>
+        </div>
+      `).join('');
+    }
+
+    function getReportStorage() {
+      try {
+        const raw = localStorage.getItem('pioneerEncouragementReport');
+        return raw ? JSON.parse(raw) : {};
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function getCurrentReportKey() {
+      const year = document.getElementById('serviceYear').value;
+      const mode = document.getElementById('periodMode').value;
+      const month = document.getElementById('monthSelect')?.value || '';
+      return `${year}|${mode}|${month}`;
+    }
+
+    function getCurrentReportData() {
+      const key = getCurrentReportKey();
+      const all = getReportStorage();
+      return all[key] || {};
+    }
+
+    function setCurrentReportData(data) {
+      const key = getCurrentReportKey();
+      const all = getReportStorage();
+      all[key] = data;
+      localStorage.setItem('pioneerEncouragementReport', JSON.stringify(all));
+      window.appSync?.syncNow('rapport d’encouragement modifié');
+    }
+
+    function saveCurrentTableStateFromValues() {
+      const reportData = {};
+      const rows = document.querySelectorAll('#pioneerTableBody tr[data-pioneer-id]');
+
+      rows.forEach(row => {
+        const pioneerId = row.dataset.pioneerId;
+        if (!pioneerId) return;
+
+        const selects = row.querySelectorAll('select[data-field]');
+        const payload = {
+          ancient1: row.querySelector('[data-field="ancient1"]')?.value || '',
+          ancient2: row.querySelector('[data-field="ancient2"]')?.value || '',
+          dateVisite: row.querySelector('[data-field="dateVisite"]')?.value || '',
+          encouraged: row.querySelector('[data-field="encouraged"]')?.value || 'non',
+          difficultes: row.querySelector('[data-field="difficultes"]')?.value || ''
+        };
+
+        reportData[pioneerId] = payload;
+      });
+
+      setCurrentReportData(reportData);
+    }
+
+    function getSavedFieldValue(p, field) {
+      const currentData = getCurrentReportData();
+      const value = currentData[String(p.id)] ? currentData[String(p.id)][field] : '';
+      return value || '';
+    }
+
+    function isManuallyEncouraged(p) {
+      const value = String(getSavedFieldValue(p, 'encouraged')).trim().toLowerCase();
+      return value === 'oui';
+    }
+
+    function renderZoneLists() {
+      const rows = getFilteredPioneers();
+      const mode = document.getElementById('periodMode').value;
+      const months = getPeriodMonths();
+      const encouraged = rows.filter(p => isManuallyEncouraged(p));
+      const notEncouraged = rows.filter(p => !isManuallyEncouraged(p));
+
+      document.getElementById('alreadyEncouragedCount').textContent = encouraged.length;
+      document.getElementById('toEncourageCount').textContent = notEncouraged.length;
+
+      document.getElementById('alreadyEncouragedBtn').dataset.list = encouraged.map(getPersonFullName).join('::');
+      document.getElementById('toEncourageBtn').dataset.list = notEncouraged.map(getPersonFullName).join('::');
+    }
+
+    function openReportModal(title, names) {
+      const modal = document.getElementById('reportModal');
+      const list = document.getElementById('reportModalList');
+      const titleEl = document.getElementById('reportModalTitle');
+      titleEl.textContent = title;
+      list.innerHTML = names.length
+        ? names.map(name => `<li>${name}</li>`).join('')
+        : '<li>Aucun pionnier dans cette liste.</li>';
+      modal.classList.add('show');
+      modal.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeReportModal() {
+      const modal = document.getElementById('reportModal');
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+
+    function renderTableHead() {
+      const head = document.getElementById('tableHead');
+      const mode = document.getElementById('periodMode').value;
+      const periodText = getPeriodLabel();
+      const objectif = mode === 'allyear' ? 'Objectif horaire annuel (600 h)' : mode === '6months' ? 'Objectif horaire annuel (600 h)' : mode === '3months' ? 'Objectif horaire de 6 mois' : mode === '2months' ? 'Objectif horaire de 6 mois' : 'Objectif horaire mensuel (50 h)';
+
+      head.innerHTML = `
+        <tr class="summary-row">
+          <th colspan="12">Assemblée : ${assemblyName} | Code : ${assemblyCode} | Objectif : ${objectif} | Période : ${periodText}</th>
+        </tr>
+        <tr>
+          <th style="width: 40px;">N°</th>
+          <th style="width: 180px;">Nom</th>
+          <th style="width: 180px;">Postnom</th>
+          <th style="width: 180px;">Prénom</th>
+          <th style="width: 120px;">Heures</th>
+          <th style="width: 180px;">Objectif</th>
+          <th style="width: 200px;">Observation</th>
+          <th style="width: 220px;">Anciens</th>
+          <th style="width: 140px;">Date visite</th>
+          <th style="width: 120px;">Visite effectuée</th>
+          <th style="width: 220px;">Difficultés du pionnier</th>
+        </tr>
+      `;
+    }
+
+    function renderDetailPages() {
+      const container = document.getElementById('detailPages');
+      const rows = getFilteredPioneers();
+      const months = getPeriodMonths();
+      const mode = document.getElementById('periodMode').value;
+      const savedData = getCurrentReportData();
+
+      if (!rows.length) {
+        container.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = rows.map((p, index) => {
+        const hours = getPioneerHours(p, months);
+        const objective = computeGoalLabel(hours, mode);
+        const observation = getAutoObservation(p, months);
+        const savedEntry = savedData[String(p.id)] || {};
+        const anciens = [savedEntry.ancient1, savedEntry.ancient2].filter(Boolean);
+        const dateVisite = savedEntry.dateVisite || 'Pas de date';
+        const visite = savedEntry.encouraged === 'oui' ? 'Oui' : 'Non';
+        const difficultes = savedEntry.difficultes && savedEntry.difficultes.trim() ? savedEntry.difficultes.trim() : 'Aucune difficulté mentionnée';
+
+        return `
+          <div class="detail-page">
+            <div class="detail-page-header">Fiche détaillée du pionnier ${index + 1} - ${getPersonFullName(p)}</div>
+            <div class="detail-page-body">
+              <div class="detail-item"><strong>Nom</strong><span>${p.nom || ''}</span></div>
+              <div class="detail-item"><strong>Postnom</strong><span>${p.postnom || ''}</span></div>
+              <div class="detail-item"><strong>Prénom</strong><span>${p.prenom || ''}</span></div>
+              <div class="detail-item"><strong>Heures</strong><span>${hours}</span></div>
+              <div class="detail-item"><strong>Objectif</strong><span>${objective}</span></div>
+              <div class="detail-item"><strong>Observation</strong><span>${getObservationLabel(p, observation)}</span></div>
+              <div class="detail-item"><strong>Anciens</strong><span>${anciens.length ? anciens.join(' ; ') : 'Pas d’anciens affectés'}</span></div>
+              <div class="detail-item"><strong>Date de visite</strong><span>${dateVisite}</span></div>
+              <div class="detail-item"><strong>Visite effectuée</strong><span>${visite}</span></div>
+              <div class="detail-item"><strong>Difficultés rencontrées</strong><span>${difficultes}</span></div>
+              <div class="detail-item"><strong>Période</strong><span>${getPeriodLabel()}</span></div>
+              <div class="detail-item"><strong>Statut</strong><span>${getObservationLabel(p, observation)}</span></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function formatAncientDisplay(savedEntry) {
+      const names = [savedEntry.ancient1, savedEntry.ancient2].filter(Boolean);
+      if (!names.length) return '';
+      return names.join(' ; ');
+    }
+
+    function formatDateDisplay(value) {
+      if (!value) return '';
+      return value;
+    }
+
+    function formatVisitDisplay(value) {
+      if (!value) return 'Non';
+      return value === 'oui' ? 'Oui' : 'Non';
+    }
+
+    function formatDifficultyDisplay(value) {
+      if (!value || !value.trim()) return '';
+      return value.trim();
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('pioneerTableBody');
+      const rows = getFilteredPioneers();
+      const months = getPeriodMonths();
+      const mode = document.getElementById('periodMode').value;
+      const ancientOptions = getAncientOptions();
+      const savedData = getCurrentReportData();
+
+      renderSummaryCards();
+      renderZoneLists();
+      renderTableHead();
+      renderDetailPages();
+      tbody.innerHTML = '';
+
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="12" class="text-center py-4">Aucun pionnier permanent trouvé pour ce filtre.</td></tr>';
+        return;
+      }
+
+      rows.forEach((p, index) => {
+        const hours = getPioneerHours(p, months);
+        const statusText = computeGoalLabel(hours, mode);
+        const observation = getAutoObservation(p, months);
+        const observationLabel = getObservationLabel(p, observation);
+        const selectAncients = ancientOptions.length ? ancientOptions : [{ nom: 'Aucun ancien', postnom: '', prenom: '' }];
+        const optionsHtml = selectAncients.map(person => {
+          const full = getPersonFullName(person) || 'Aucun ancien';
+          return `<option value="${full}">${full}</option>`;
+        }).join('');
+
+        const savedEntry = savedData[String(p.id)] || {};
+        const row = document.createElement('tr');
+        row.dataset.pioneerId = String(p.id);
+        row.innerHTML = `
+          <td>${index + 1}</td>
+          <td>${p.nom || ''}</td>
+          <td>${p.postnom || ''}</td>
+          <td>${p.prenom || ''}</td>
+          <td>${hours}</td>
+          <td class="objective-cell"><span class="status-pill ${computeStatusClass(statusText)}">${statusText}</span></td>
+          <td><input class="compact-input" value="${observationLabel}" readonly /></td>
+          <td>
+            <div class="row-editor cell-stack">
+              <div class="two-selects">
+                <select class="compact-select" data-field="ancient1">
+                  <option value=""></option>
+                  ${optionsHtml}
+                </select>
+                <select class="compact-select" data-field="ancient2">
+                  <option value=""></option>
+                  ${optionsHtml}
+                </select>
+              </div>
+            </div>
+            <div class="display-value">${formatAncientDisplay(savedEntry)}</div>
+          </td>
+          <td>
+            <div class="row-editor cell-stack"><input class="compact-input" type="date" data-field="dateVisite" value="${savedEntry.dateVisite || ''}" /></div>
+            <div class="display-value">${formatDateDisplay(savedEntry.dateVisite || '')}</div>
+          </td>
+          <td>
+            <div class="row-editor cell-stack">
+              <select class="compact-select" data-field="encouraged">
+                <option value="">-</option>
+                <option value="oui" ${savedEntry.encouraged === 'oui' ? 'selected' : ''}>Oui</option>
+                <option value="non" ${savedEntry.encouraged === 'non' ? 'selected' : ''}>Non</option>
+              </select>
+            </div>
+            <div class="display-value">${formatVisitDisplay(savedEntry.encouraged || 'non')}</div>
+          </td>
+          <td>
+            <div class="row-editor cell-stack"><textarea class="compact-textarea" rows="2" data-field="difficultes" placeholder="Difficultés...">${savedEntry.difficultes || ''}</textarea></div>
+            <div class="display-value">${formatDifficultyDisplay(savedEntry.difficultes || '')}</div>
+          </td>
+        `;
+
+        const ancient1 = row.querySelector('[data-field="ancient1"]');
+        const ancient2 = row.querySelector('[data-field="ancient2"]');
+        if (ancient1) ancient1.value = savedEntry.ancient1 || '';
+        if (ancient2) ancient2.value = savedEntry.ancient2 || '';
+
+        tbody.appendChild(row);
+      });
+    }
+
+    function exportPdf() {
+      saveCurrentTableStateFromValues();
+      const orientation = document.getElementById('printOrientation').value;
+      const page = document.querySelector('.page');
+      const opt = {
+        margin: 6,
+        filename: 'Pionniers_a_encourager.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: orientation === 'landscape' ? 'landscape' : 'portrait' }
+      };
+      html2pdf().set(opt).from(page).save();
+    }
+
+    function exportExcel() {
+      saveCurrentTableStateFromValues();
+      const rows = getFilteredPioneers().map((p, index) => {
+        const months = getPeriodMonths();
+        const mode = document.getElementById('periodMode').value;
+        const hours = getPioneerHours(p, months);
+        const goal = computeGoalLabel(hours, mode);
+        const saved = getCurrentReportData()[String(p.id)] || {};
+        return {
+          'N°': index + 1,
+          'Nom': p.nom || '',
+          'Postnom': p.postnom || '',
+          'Prénom': p.prenom || '',
+          'Heures': hours,
+          'Objectif': goal.replace(' – objectif', '').replace('Objectif ', '').replace('Objectif', '').trim(),
+          'Observation': getAutoObservation(p, months),
+          'Ancien 1': saved.ancient1 || '',
+          'Ancien 2': saved.ancient2 || '',
+          'Date visite': saved.dateVisite || '',
+          'Visite effectuée': saved.encouraged === 'oui' ? 'Oui' : 'Non',
+          'Difficultés du pionnier': saved.difficultes || '',
+          'Statut': goal
+        };
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, 'Pionniers');
+      XLSX.writeFile(wb, 'Pionniers_a_encourager.xlsx');
+    }
+
+    function printReport() {
+      saveCurrentTableStateFromValues();
+      const orientation = document.getElementById('printOrientation').value;
+      document.body.classList.toggle('landscape-print', orientation === 'landscape');
+      window.print();
+      setTimeout(() => document.body.classList.remove('landscape-print'), 300);
+    }
+
+    function loadPersistentData() {
+      const request = indexedDB.open('ProclamateursDB', 5);
+      request.onupgradeneeded = event => {
+        const database = event.target.result;
+        if (!database.objectStoreNames.contains('groupLeaders')) database.createObjectStore('groupLeaders', { keyPath: 'group' });
+      };
+      request.onsuccess = (event) => {
+        const db = event.target.result;
+
+        const proclamateursTx = db.transaction('proclamateurs', 'readonly');
+        const proclamateursStore = proclamateursTx.objectStore('proclamateurs');
+        const getAllPioneers = proclamateursStore.getAll();
+
+        const detailTx = db.transaction('detailPredication', 'readonly');
+        const detailStore = detailTx.objectStore('detailPredication');
+        const getAllDetail = detailStore.getAll();
+
+        getAllPioneers.onsuccess = () => {
+          allPioneers = getAllPioneers.result || [];
+        };
+
+        getAllDetail.onsuccess = () => {
+          detailRecords = getAllDetail.result || [];
+          renderTable();
+        };
+
+        getAllPioneers.onerror = getAllDetail.onerror = () => {
+          allPioneers = [
+            { id: 1, nom: 'MUKENDI', postnom: 'KASONGO', prenom: 'Jean', groupe: 'Groupe 1', service: 'PP', roles: ['PP'] },
+            { id: 2, nom: 'NGUYA', postnom: 'MALONGA', prenom: 'Léon', groupe: 'Groupe 2', service: 'Assistant PP', roles: ['Assistant PP'] },
+            { id: 3, nom: 'NDONGA', postnom: 'MUTOMBO', prenom: 'Grace', groupe: 'Groupe 3', service: 'Ancien PP', roles: ['Ancien PP'] },
+            { id: 4, nom: 'TUTU', postnom: 'MAYI', prenom: 'Patrice', groupe: 'Groupe 1', service: 'Ancien', roles: ['Ancien'] },
+            { id: 5, nom: 'KABILA', postnom: 'NSEK', prenom: 'Paul', groupe: 'Groupe 4', service: 'Ancien', roles: ['Ancien'] }
+          ];
+          detailRecords = [
+            { proclamateurId: 1, month: '2026-04', heures: 12 },
+            { proclamateurId: 1, month: '2026-05', heures: 18 },
+            { proclamateurId: 2, month: '2026-04', heures: 8 },
+            { proclamateurId: 2, month: '2026-05', heures: 9 },
+            { proclamateurId: 3, month: '2026-04', heures: 15 },
+            { proclamateurId: 3, month: '2026-05', heures: 20 }
+          ];
+          renderTable();
+        };
+      };
+      request.onerror = () => {
+        allPioneers = [
+          { id: 1, nom: 'MUKENDI', postnom: 'KASONGO', prenom: 'Jean', groupe: 'Groupe 1', service: 'PP', roles: ['PP'] },
+          { id: 2, nom: 'NGUYA', postnom: 'MALONGA', prenom: 'Léon', groupe: 'Groupe 2', service: 'Assistant PP', roles: ['Assistant PP'] },
+          { id: 3, nom: 'NDONGA', postnom: 'MUTOMBO', prenom: 'Grace', groupe: 'Groupe 3', service: 'Ancien PP', roles: ['Ancien PP'] },
+          { id: 4, nom: 'TUTU', postnom: 'MAYI', prenom: 'Patrice', groupe: 'Groupe 1', service: 'Ancien', roles: ['Ancien'] },
+          { id: 5, nom: 'KABILA', postnom: 'NSEK', prenom: 'Paul', groupe: 'Groupe 4', service: 'Ancien', roles: ['Ancien'] }
+        ];
+        detailRecords = [
+          { proclamateurId: 1, month: '2026-04', heures: 12 },
+          { proclamateurId: 1, month: '2026-05', heures: 18 },
+          { proclamateurId: 2, month: '2026-04', heures: 8 },
+          { proclamateurId: 2, month: '2026-05', heures: 9 },
+          { proclamateurId: 3, month: '2026-04', heures: 15 },
+          { proclamateurId: 3, month: '2026-05', heures: 20 }
+        ];
+        renderTable();
+      };
+    }
+
+    document.getElementById('serviceYear').addEventListener('change', () => {
+      buildMonthOptions();
+      toggleMonthSelector();
+      renderTable();
+    });
+
+    document.getElementById('periodMode').addEventListener('change', () => {
+      toggleMonthSelector();
+      renderTable();
+    });
+
+    document.getElementById('monthSelect').addEventListener('change', () => {
+      renderTable();
+    });
+
+    document.getElementById('statusFilter').addEventListener('change', () => {
+      renderTable();
+    });
+
+    document.getElementById('personSearch').addEventListener('input', () => {
+      renderTable();
+    });
+
+    document.getElementById('exportPdfBtn').addEventListener('click', exportPdf);
+    document.getElementById('exportExcelBtn').addEventListener('click', exportExcel);
+    document.getElementById('printBtn').addEventListener('click', printReport);
+
+    document.getElementById('alreadyEncouragedBtn').addEventListener('click', function() {
+      const rows = getFilteredPioneers();
+      const names = rows.filter(p => isManuallyEncouraged(p)).map(getPersonFullName);
+      openReportModal('Pionniers déjà encouragés', names);
+    });
+
+    document.getElementById('toEncourageBtn').addEventListener('click', function() {
+      const rows = getFilteredPioneers();
+      const names = rows.filter(p => !isManuallyEncouraged(p)).map(getPersonFullName);
+      openReportModal('Pionniers à encourager', names);
+    });
+
+    document.getElementById('closeReportModal').addEventListener('click', closeReportModal);
+    document.getElementById('closeReportModalBtn').addEventListener('click', closeReportModal);
+    document.getElementById('reportModal').addEventListener('click', function(event) {
+      if (event.target === this) closeReportModal();
+    });
+
+    document.getElementById('pioneerTableBody').addEventListener('input', function() {
+      saveCurrentTableStateFromValues();
+    });
+
+    document.getElementById('pioneerTableBody').addEventListener('change', function() {
+      saveCurrentTableStateFromValues();
+    });
+
+    const updateBtn = document.createElement('button');
+    updateBtn.type = 'button';
+    updateBtn.className = 'btn btn-primary btn-sm';
+    updateBtn.textContent = 'Mettre à jour';
+    updateBtn.addEventListener('click', saveCurrentTableStateFromValues);
+    document.querySelector('.toolbar-actions').appendChild(updateBtn);
+
+    buildMonthOptions();
+    toggleMonthSelector();
+    loadPersistentData();
+  </script>
+</body>
+</html>

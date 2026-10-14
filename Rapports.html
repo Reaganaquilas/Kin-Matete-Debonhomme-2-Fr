@@ -1,0 +1,1912 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rapports</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      background: #f1f4f6;
+      color: #1f2937;
+      font-family: "Manrope", "Segoe UI", sans-serif;
+    }
+    .sidebar {
+      min-height: 100vh;
+      background: #172f3d;
+      color: white;
+      padding: 24px 16px;
+      box-shadow: 6px 0 24px rgba(16, 45, 56, 0.12);
+    }
+    .sidebar h4 {
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+    }
+    .sidebar .nav-link {
+      color: white;
+      font-weight: 500;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      padding: 10px 12px;
+      transition: all 0.2s ease;
+    }
+    .sidebar .nav-link:hover {
+      background-color: rgba(255,255,255,0.15);
+      color: white;
+    }
+    .sidebar .nav-link.active {
+      background-color: rgba(255,255,255,0.22);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.2);
+    }
+    .content-area {
+      padding: 24px;
+    }
+    .card {
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06);
+      border: 1px solid #e5ebf3;
+      background: #ffffff;
+    }
+    .card h5, .card h6 {
+      font-weight: 700;
+      color: #0f4c81;
+    }
+    .table thead {
+      background: #e9eef2;
+      color: #0f4c81;
+    }
+    .table th {
+      font-weight: 600;
+    }
+    .btn-primary {
+      background: #214b63;
+      border: none;
+      box-shadow: none;
+    }
+    .btn-outline-primary {
+      border-color: #214b63;
+      color: #214b63;
+    }
+    .btn-outline-primary:hover, .btn-outline-primary.active {
+      background-color: #eef2f5;
+      color: white;
+    }
+    .form-control, .form-select {
+      border-radius: 10px;
+      border: 1px solid #d7e2ee;
+    }
+    hr {
+      border-top: 2px solid rgba(255,255,255,0.25);
+      margin: 18px 0;
+    }
+    .alert-warning {
+      border-radius: 12px;
+      background: #fff8e6;
+      color: #8a4b00;
+      border-color: #ffe7b3;
+    }
+    .summary-panel {
+      background: #ffffff;
+      border: 1px solid #e5ebf3;
+      border-radius: 16px;
+      padding: 1.1rem 1.2rem;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.8rem;
+      margin-top: 0.8rem;
+    }
+    .summary-metric {
+      background: white;
+      border: 1px solid #e8eef6;
+      border-radius: 12px;
+      padding: 0.8rem 0.9rem;
+    }
+    .summary-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+      margin-bottom: 0.25rem;
+    }
+    .summary-value {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #0f4c81;
+      line-height: 1.2;
+    }
+    .summary-list {
+      margin-top: 0.9rem;
+      padding-top: 0.8rem;
+      border-top: 1px solid #e5ebf3;
+      color: #4b5563;
+    }
+    .summary-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      background: #e8f2ff;
+      color: #214b63;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+  </style>
+  <link rel="stylesheet" href="app-theme.css">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Barre latérale -->
+    <div class="col-md-3 sidebar">
+      <h4 class="text-center mb-4">Rapports</h4>
+      <div class="nav flex-column nav-pills" id="rapportMenu" role="tablist">
+        <a class="nav-link active" data-access-feature="rapports:details" data-bs-toggle="pill" href="#details">Saisir Rapport de Prédication</a>
+        <a class="nav-link" data-access-feature="rapports:analyseAssemblee" data-bs-toggle="pill" href="#analyseAssemblee">Rapports de prédication saisis</a>
+        <hr>
+        <a class="nav-link" data-access-feature="rapports:assemblee" data-bs-toggle="pill" href="#assemblee">Moyennes - Assemblée</a>
+        <a class="nav-link" data-access-feature="rapports:groupe" data-bs-toggle="pill" href="#groupe">Moyennes - Groupe</a>
+        <a class="nav-link" data-access-feature="rapports:proclamateurs" data-bs-toggle="pill" href="#proclamateurs">Moyennes - Proclamateurs</a>
+        <hr>
+        <a class="nav-link" data-access-feature="rapports:pp" data-bs-toggle="pill" href="#pp">Pionniers Permanents</a>
+        <a class="nav-link" data-access-feature="rapports:pa" data-bs-toggle="pill" href="#pa">Pionniers Auxiliaires</a>
+        <hr>
+      </div>
+    </div>
+
+    <!-- Zone de contenu -->
+    <div class="col-md-9 content-area">
+      <div class="tab-content">
+
+        <!-- Détails -->
+        <div class="tab-pane fade show active" id="details">
+          <div class="card p-3">
+            <h5 class="text-primary">Détails Prédication</h5>
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <p class="mb-2"><strong>Mois sélectionné :</strong> <span id="currentMonthLabel">--</span></p>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Choisir le mois</label>
+                <input id="detailMonthPicker" type="month" class="form-control" onchange="onDetailMonthChange(this.value)">
+                <select id="detailMonthSelect" class="form-select d-none" onchange="onDetailMonthChange(this.value)"></select>
+              </div>
+              <div class="col-md-6">
+                <div class="row gx-2">
+                  <div class="col-md-6">
+                    <div class="input-group">
+                      <div class="input-group-text">
+                        <input class="form-check-input mt-0" type="checkbox" id="detailUseServiceYear" onchange="onDetailUseServiceYearChange(this.checked)" title="Limiter les mois à l'année de service sélectionnée">
+                      </div>
+                      <select id="detailServiceYearSelect" class="form-select" onchange="onDetailServiceYearChange(this.value)"></select>
+                    </div>
+                    <div class="form-text">Cochez pour utiliser l'année de service</div>
+                     <div id="detailServiceYearInfo" class="mt-2"></div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="row gx-2">
+                      <div class="col-6">
+                        <div class="form-check">
+                          <input class="form-check-input" type="checkbox" id="multiMonthModeToggle" onchange="setMultiMonthMode(this.checked)">
+                          <label class="form-check-label" for="multiMonthModeToggle">Mode multi-mois</label>
+                        </div>
+                      </div>
+                      <div class="col-6">
+                        <button type="button" id="multiMonthFinishBtn" class="btn btn-outline-secondary w-100" onclick="finishMultiMonthEntry()" style="display:none;">Terminer</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="row mb-4">
+              <div class="col-md-12">
+                <label class="form-label">Sélection</label>
+                <div class="btn-group w-100" role="group">
+                  <button type="button" class="btn btn-outline-primary" id="filterAllBtn" onclick="setDetailFilter('all')">TOUS</button>
+                  <button type="button" class="btn btn-outline-primary" id="filterGroupBtn" onclick="setDetailFilter('group')">GROUPE</button>
+                  <button type="button" class="btn btn-outline-primary" id="filterIndividualBtn" onclick="setDetailFilter('individual')">INDIVIDUEL</button>
+                </div>
+              </div>
+            </div>
+            <div id="detailGroupSelection" class="mb-4 d-none">
+              <div class="row gx-3 align-items-end">
+                <div class="col-md-5">
+                  <label class="form-label">Choisir un groupe</label>
+                  <select id="detailGroupSelect" class="form-select"></select>
+                </div>
+              </div>
+              <div class="mt-2 text-muted"><small id="detailGroupHelp">Sélectionnez un groupe pour afficher ses membres.</small></div>
+            </div>
+
+            <div id="detailIndividualSearch" class="mb-4 d-none">
+              <div class="row gx-3 align-items-end">
+                <div class="col-md-6">
+                  <label class="form-label">Rechercher par ID, nom, prénom ou groupe</label>
+                  <input type="search" id="detailSearchInput" class="form-control" placeholder="Saisissez un élément pour trouver un proclamateur" oninput="refreshDetailList()">
+                </div>
+                <div class="col-md-4">
+                  <button type="button" class="btn btn-secondary w-100" onclick="clearDetailSelection()">Effacer recherche</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="detailListContainer" class="table-responsive mb-4 d-none">
+              <table class="table table-hover align-middle">
+                <thead class="table-primary">
+                  <tr>
+                    <th>ID</th><th>Nom complet</th><th>Sert comme</th><th>Groupe</th><th>Statut</th><th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="detailListBody">
+                  <tr><td colspan="6" class="text-center">Chargement...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div id="detailSelectedCard" class="card border-secondary mb-4 d-none"></div>
+
+            <div id="detailFormCard" class="card p-3 d-none">
+              <h6 class="text-primary">Détails du proclamateur</h6>
+              <div id="detailFormInfo" class="mb-3"></div>
+              <div class="row gy-3">
+                <div class="col-md-3">
+                  <label class="form-label">A précher</label>
+                  <select id="detailAprecher" class="form-select">
+                    <option value="yes">Oui</option>
+                    <option value="no">Non</option>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Heure</label>
+                  <input type="number" id="detailHeure" class="form-control" min="0" value="0">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label">Nbre Cours biblique</label>
+                  <input type="number" id="detailCours" class="form-control" min="0" value="0">
+                </div>
+                <div class="col-md-3 d-none" id="detailEtudesWrapper">
+                  <label class="form-label">Nombre d'étude biblique</label>
+                  <input type="number" id="detailEtudes" class="form-control" min="0" value="0">
+                </div>
+              </div>
+              <div class="mt-4">
+                <button type="button" class="btn btn-success me-2" onclick="saveDetailRecord()">Valider</button>
+                <button type="button" class="btn btn-secondary" onclick="clearDetailSelection()">Annuler</button>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <button type="button" id="toggleDetailRecordsBtn" class="btn btn-outline-secondary" aria-expanded="false" aria-controls="detailRecordsPanel">
+                Afficher les enregistrements de prédication
+              </button>
+              <div id="detailRecordsPanel" class="card p-3 mt-3 d-none">
+                <h6>Enregistrements de prédication</h6>
+                <div class="table-responsive">
+                  <table class="table table-sm table-striped mb-0">
+                    <thead class="table-light">
+                      <tr><th>ID</th><th>Nom</th><th>Statut</th><th>A précher</th><th>Cours</th><th>Études</th><th>Heure</th><th></th></tr>
+                    </thead>
+                    <tbody id="detailRecordsBody">
+                      <tr><td colspan="8" class="text-center">Aucun enregistrement pour le mois courant.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Assistance aux Réunions -->
+        <div class="tab-pane fade" id="assistance">
+          <div class="card p-4">
+            <h5 class="mb-3">Assistance aux Réunions</h5>
+            <div class="border rounded-3 p-4 bg-light text-muted">
+              Cette section sera utilisée pour saisir et consulter l’assistance aux réunions.
+            </div>
+          </div>
+        </div>
+
+        <!-- Moyennes Assemblée -->
+        <div class="tab-pane fade" id="assemblee">
+          <div class="card p-3 mb-4">
+            <h5 class="text-primary">Moyennes - Assemblée</h5>
+            <div class="row gy-3">
+              <div class="col-md-3">
+                <label class="form-label">Période</label>
+                <select id="moyAssembleePeriodType" class="form-select" onchange="onSectionPeriodTypeChange('moyAssemblee', this.value)">
+                  <option value="month">Mois précis</option>
+                  <option value="serviceYear">Année de service</option>
+                  <option value="last3">3 derniers mois</option>
+                  <option value="last6">6 derniers mois</option>
+                </select>
+              </div>
+              <div class="col-md-3 d-none" id="moyAssembleeMonthPickerWrapper">
+                <label class="form-label">Mois sélectionné</label>
+                <input id="moyAssembleeMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-3 d-none" id="moyAssembleeServiceYearWrapper">
+                <label class="form-label">Année de service</label>
+                <select id="moyAssembleeServiceYearSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-3 d-none" id="moyAssembleeEndMonthWrapper">
+                <label class="form-label">Fin de période</label>
+                <input id="moyAssembleeEndMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-3 align-self-end">
+                <button type="button" class="btn btn-primary w-100" onclick="refreshAssemblyReport()">Mettre à jour</button>
+              </div>
+            </div>
+            <div class="mt-3 text-muted"><small id="moyAssembleePeriodHelp">Sélectionnez une période pour afficher les moyennes de l’assemblée.</small></div>
+          </div>
+          <div id="moyAssembleeSummary" class="mb-3"></div>
+          <div class="card p-3">
+            <div class="table-responsive">
+              <table class="table table-sm table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th>Catégorie</th>
+                    <th>Total</th>
+                    <th>Ayant prêché</th>
+                    <th>N’ayant pas prêché</th>
+                    <th>Total cours</th>
+                    <th>Total heures</th>
+                    <th>Moy. cours / membre</th>
+                    <th>Moy. heures / membre</th>
+                  </tr>
+                </thead>
+                <tbody id="moyAssembleeTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Moyennes Groupe -->
+        <div class="tab-pane fade" id="groupe">
+          <div class="card p-3 mb-4">
+            <h5 class="text-primary">Moyennes - Groupe</h5>
+            <div class="row gy-3">
+              <div class="col-md-3">
+                <label class="form-label">Période</label>
+                <select id="moyGroupePeriodType" class="form-select" onchange="onSectionPeriodTypeChange('moyGroupe', this.value)">
+                  <option value="month">Mois précis</option>
+                  <option value="serviceYear">Année de service</option>
+                  <option value="last3">3 derniers mois</option>
+                  <option value="last6">6 derniers mois</option>
+                </select>
+              </div>
+              <div class="col-md-3 d-none" id="moyGroupeMonthPickerWrapper">
+                <label class="form-label">Mois sélectionné</label>
+                <input id="moyGroupeMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-3 d-none" id="moyGroupeServiceYearWrapper">
+                <label class="form-label">Année de service</label>
+                <select id="moyGroupeServiceYearSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-3 d-none" id="moyGroupeEndMonthWrapper">
+                <label class="form-label">Fin de période</label>
+                <input id="moyGroupeEndMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Groupe</label>
+                <select id="moyGroupeGroupSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-4 align-self-end">
+                <button type="button" class="btn btn-primary w-100" onclick="refreshSectionReport('moyGroupe')">Mettre à jour</button>
+              </div>
+            </div>
+            <div class="mt-3 text-muted"><small id="moyGroupePeriodHelp">Sélectionnez une période pour afficher les moyennes de groupe.</small></div>
+          </div>
+          <div id="moyGroupeSummary" class="mb-3"></div>
+          <div class="card p-3">
+            <div class="table-responsive">
+              <table class="table table-sm table-striped mb-0">
+                <thead id="moyGroupeTableHead"></thead>
+                <tbody id="moyGroupeTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Moyennes Proclamateurs -->
+        <div class="tab-pane fade" id="proclamateurs">
+          <div class="card p-3 mb-4">
+            <h5 class="text-primary">Moyennes - Proclamateurs</h5>
+            <div class="row gy-3">
+              <div class="col-md-3">
+                <label class="form-label">Période</label>
+                <select id="moyProclamateursPeriodType" class="form-select" onchange="onSectionPeriodTypeChange('moyProclamateurs', this.value)">
+                  <option value="month">Mois précis</option>
+                  <option value="serviceYear">Année de service</option>
+                  <option value="last3">3 derniers mois</option>
+                  <option value="last6">6 derniers mois</option>
+                </select>
+              </div>
+              <div class="col-md-3 d-none" id="moyProclamateursMonthPickerWrapper">
+                <label class="form-label">Mois sélectionné</label>
+                <input id="moyProclamateursMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-3 d-none" id="moyProclamateursServiceYearWrapper">
+                <label class="form-label">Année de service</label>
+                <select id="moyProclamateursServiceYearSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-3 d-none" id="moyProclamateursEndMonthWrapper">
+                <label class="form-label">Fin de période</label>
+                <input id="moyProclamateursEndMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Groupe</label>
+                <select id="moyProclamateursGroupSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-4 align-self-end">
+                <button type="button" class="btn btn-primary w-100" onclick="refreshSectionReport('moyProclamateurs')">Mettre à jour</button>
+              </div>
+            </div>
+            <div class="mt-3 text-muted"><small id="moyProclamateursPeriodHelp">Sélectionnez une période et un groupe pour afficher les moyennes des proclamateurs.</small></div>
+          </div>
+          <div id="moyProclamateursSummary" class="mb-3"></div>
+          <div class="card p-3">
+            <div class="table-responsive">
+              <table class="table table-sm table-striped mb-0">
+                <thead id="moyProclamateursTableHead"></thead>
+                <tbody id="moyProclamateursTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pionniers Permanents -->
+        <div class="tab-pane fade" id="pp">
+          <div class="card p-3 mb-4">
+            <h5 class="text-primary">Pionniers Permanents</h5>
+            <div class="row gy-3">
+              <div class="col-md-3">
+                <label class="form-label">Période</label>
+                <select id="moyPpPeriodType" class="form-select" onchange="onSectionPeriodTypeChange('moyPp', this.value)">
+                  <option value="month">Mois précis</option>
+                  <option value="serviceYear">Année de service</option>
+                  <option value="last3">3 derniers mois</option>
+                  <option value="last6">6 derniers mois</option>
+                </select>
+              </div>
+              <div class="col-md-3 d-none" id="moyPpMonthPickerWrapper">
+                <label class="form-label">Mois sélectionné</label>
+                <input id="moyPpMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-3 d-none" id="moyPpServiceYearWrapper">
+                <label class="form-label">Année de service</label>
+                <select id="moyPpServiceYearSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-3 d-none" id="moyPpEndMonthWrapper">
+                <label class="form-label">Fin de période</label>
+                <input id="moyPpEndMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Groupe</label>
+                <select id="moyPpGroupSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-4 align-self-end">
+                <button type="button" class="btn btn-primary w-100" onclick="refreshSectionReport('moyPp')">Mettre à jour</button>
+              </div>
+            </div>
+            <div class="mt-3 text-muted"><small id="moyPpPeriodHelp">Sélectionnez une période et un groupe pour afficher les moyennes des pionniers permanents.</small></div>
+          </div>
+          <div id="moyPpSummary" class="mb-3"></div>
+          <div class="card p-3">
+            <div class="table-responsive">
+              <table class="table table-sm table-striped mb-0">
+                <thead id="moyPpTableHead"></thead>
+                <tbody id="moyPpTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pionniers Auxiliaires -->
+        <div class="tab-pane fade" id="pa">
+          <div class="card p-3 mb-4">
+            <h5 class="text-primary">Pionniers Auxiliaires</h5>
+            <div class="row gy-3">
+              <div class="col-md-3">
+                <label class="form-label">Période</label>
+                <select id="moyPaPeriodType" class="form-select" onchange="onSectionPeriodTypeChange('moyPa', this.value)">
+                  <option value="month">Mois précis</option>
+                  <option value="serviceYear">Année de service</option>
+                  <option value="last3">3 derniers mois</option>
+                  <option value="last6">6 derniers mois</option>
+                </select>
+              </div>
+              <div class="col-md-3 d-none" id="moyPaMonthPickerWrapper">
+                <label class="form-label">Mois sélectionné</label>
+                <input id="moyPaMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-3 d-none" id="moyPaServiceYearWrapper">
+                <label class="form-label">Année de service</label>
+                <select id="moyPaServiceYearSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-3 d-none" id="moyPaEndMonthWrapper">
+                <label class="form-label">Fin de période</label>
+                <input id="moyPaEndMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Groupe</label>
+                <select id="moyPaGroupSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-4 align-self-end">
+                <button type="button" class="btn btn-primary w-100" onclick="refreshSectionReport('moyPa')">Mettre à jour</button>
+              </div>
+            </div>
+            <div class="mt-3 text-muted"><small id="moyPaPeriodHelp">Sélectionnez une période et un groupe pour afficher les moyennes des pionniers auxiliaires.</small></div>
+          </div>
+          <div id="moyPaSummary" class="mb-3"></div>
+          <div class="card p-3">
+            <div class="table-responsive">
+              <table class="table table-sm table-striped mb-0">
+                <thead id="moyPaTableHead"></thead>
+                <tbody id="moyPaTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analyse Assemblée -->
+        <div class="tab-pane fade" id="analyseAssemblee">
+          <div class="card p-3 mb-4">
+            <h5 class="text-primary">Analyse de l’assemblée</h5>
+            <div class="row gy-3">
+              <div class="col-md-4">
+                <label class="form-label">Période</label>
+                <select id="analysePeriodType" class="form-select" onchange="onAnalysePeriodTypeChange(this.value)">
+                  <option value="month">Mois précis</option>
+                  <option value="serviceYear">Année de service</option>
+                  <option value="last3">3 derniers mois</option>
+                  <option value="last6">6 derniers mois</option>
+                </select>
+              </div>
+              <div class="col-md-4 d-none" id="analyseMonthPickerWrapper">
+                <label class="form-label">Mois sélectionné</label>
+                <input id="analyseMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-4 d-none" id="analyseServiceYearWrapper">
+                <label class="form-label">Année de service</label>
+                <select id="analyseServiceYearSelect" class="form-select"></select>
+              </div>
+              <div class="col-md-4 d-none" id="analyseEndMonthWrapper">
+                <label class="form-label">Fin de période</label>
+                <input id="analyseEndMonthPicker" type="month" class="form-control">
+              </div>
+              <div class="col-md-4 align-self-end">
+                <button type="button" class="btn btn-primary w-100" onclick="refreshAnalysisReport()">Mettre à jour</button>
+              </div>
+            </div>
+            <div class="mt-3 text-muted"><small id="analysePeriodHelp">Sélectionnez une période pour afficher le rapport.</small></div>
+          </div>
+
+          <div class="card p-3">
+            <h6>Résultats de l’analyse</h6>
+            <div id="analysisSummary" class="mb-3"></div>
+            <div class="mb-4" style="height: 280px;">
+              <canvas id="statsChart" aria-label="Graphique des statistiques mensuelles"></canvas>
+            </div>
+            <div id="analysisTables"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
+  <div id="toastNotification" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fermer"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  let db;
+  let proclamateurs = [];
+  let paSubscriptions = [];
+  let detailRecords = [];
+  let detailFilter = 'none';
+  let detailGroup = '';
+  let detailQuery = '';
+  let detailSelected = null;
+  let selectedDetailMonthKey = null;
+  let multiMonthMode = false; // mode de saisie multi-mois
+  let editOriginalRecordId = null; // track record being edited
+  let toastEl = null;
+  let toastBody = null;
+  let toast = null;
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonthKey = `${currentYear}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  selectedDetailMonthKey = currentMonthKey;
+  const months = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  let analysisPeriodType = 'month';
+  let analysisMonthKey = currentMonthKey;
+  let analysisServiceYear = currentYear;
+  let analysisEndMonthKey = currentMonthKey;
+  let statsChart = null;
+  const identityAliases = [
+    ['KALOMBO ESTHER', 'KALOMBO NGOYA ESTHER'],
+    ['KALOMBO REGINE', 'KALOMBO KAPINGA REGINE'],
+    ['KALOMBO WYLLIANA', 'KALOMBO KAPINGA WYLLIANA'],
+    ['KALOMBO SHITA ANGELA', 'KALOMBO MBOMBO ANGELA'],
+    ['MBO ISAAC', 'MBO NSUKA ISAAC'],
+    ['SUKASUKA KAPILA DORCAS', 'SUKASUKA KAPILA REBECCA'],
+    ['BUABUA SYLVIE', 'BUABUA SYLVIE'],
+    ['KIANA JOCHEL', 'KIANA JOCHEL'],
+    ['KALOMBO NZAJI NORBERT', 'KALOMBO NZAJI NORBY'],
+    ['BUABUA SEYA STEPHANE', 'SEYA STEPHANE'],
+    ['MBONGO STEVE', 'MBONGO SHITA STEVE'],
+    ['BUABUA SEYA GLORY', 'SEYA GLORY'],
+    ['LONGOMBE PLK', 'LONGOMBE KANZA PATRICK PLK'],
+    ['MUKWESO DELLY', 'MUKWESO PONIA DELLY'],
+    ['MANSWA ARMAND', 'MANSWA ARMAND ARMAND'],
+    ['MASWA ARMAND ARMAND', 'MANSWA ARMAND ARMAND'],
+    ['KIKWAMA MBWELEKA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS'],
+    ['KIKWAMA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS']
+  ];
+
+  function showToast(message, type = 'primary') {
+    if (toastEl && toastBody && toast) {
+      toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+      toastBody.textContent = message;
+      toast.show();
+      return;
+    }
+    if (toastBody) {
+      toastBody.textContent = message;
+    }
+    console.warn('Toast non disponible, message :', message);
+  }
+
+  function openDatabase() {
+    const request = indexedDB.open('ProclamateursDB', 5);
+    request.onupgradeneeded = event => {
+      const database = event.target.result;
+      if (!database.objectStoreNames.contains('proclamateurs')) {
+        database.createObjectStore('proclamateurs', { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains('pionniersAuxiliaire')) {
+        database.createObjectStore('pionniersAuxiliaire', { keyPath: 'proclamateurId' });
+      }
+      if (!database.objectStoreNames.contains('permanentCandidatures')) {
+        database.createObjectStore('permanentCandidatures', { keyPath: 'proclamateurId' });
+      }
+      if (!database.objectStoreNames.contains('detailPredication')) {
+        database.createObjectStore('detailPredication', { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains('groupLeaders')) {
+        database.createObjectStore('groupLeaders', { keyPath: 'group' });
+      }
+    };
+    request.onsuccess = event => {
+      db = event.target.result;
+      initializeReportPage();
+    };
+    request.onblocked = () => {
+      showToast('La base de données est bloquée par une autre fenêtre ouverte.', 'warning');
+    };
+    request.onerror = event => {
+      const errorMessage = event.target.error ? event.target.error.message : 'Erreur inconnue';
+      showToast(`Impossible d’ouvrir la base de données : ${errorMessage}`, 'danger');
+    };
+  }
+
+  function getObjectStore(name, mode = 'readonly') {
+    return db.transaction(name, mode).objectStore(name);
+  }
+
+  function normalizeIdentityName(value) {
+    return String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+  }
+
+  function getMemberFullName(member) {
+    return [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function getCanonicalIdentityName(name) {
+    const normalizedName = normalizeIdentityName(name);
+    const alias = identityAliases.find(([oldName, newName]) => [oldName, newName].some(value => normalizeIdentityName(value) === normalizedName));
+    return normalizeIdentityName(alias ? alias[1] : name);
+  }
+
+  function mergeLegacyReports() {
+    return new Promise(resolve => {
+      const transaction = db.transaction(['proclamateurs', 'detailPredication'], 'readwrite');
+      const peopleStore = transaction.objectStore('proclamateurs');
+      const reportsStore = transaction.objectStore('detailPredication');
+      const peopleRequest = peopleStore.getAll();
+      const reportsRequest = reportsStore.getAll();
+      let people = [];
+      peopleRequest.onsuccess = () => { people = peopleRequest.result || []; };
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => resolve(0);
+      reportsRequest.onsuccess = () => {
+        const reports = reportsRequest.result || [];
+        identityAliases.forEach(([oldName, newName]) => {
+          const targetNameKey = normalizeIdentityName(newName);
+          const oldNameKey = normalizeIdentityName(oldName);
+          const targets = people.filter(person => normalizeIdentityName(getMemberFullName(person)) === targetNameKey);
+          const sources = people.filter(person => normalizeIdentityName(getMemberFullName(person)) === oldNameKey);
+          if (!targets.length) return;
+          const reportCount = person => reports.filter(record => String(record.proclamateurId) === String(person.id)).length;
+          const target = targets.slice().sort((a, b) => reportCount(b) - reportCount(a))[0];
+          const sourceIds = new Set(sources.map(person => String(person.id)));
+          targets.forEach(person => {
+            if (String(person.id) !== String(target.id)) sourceIds.add(String(person.id));
+          });
+          const targetReports = reports.filter(record => String(record.proclamateurId) === String(target.id));
+          reports.filter(record => sourceIds.has(String(record.proclamateurId)) || normalizeIdentityName(record.nom) === oldNameKey).forEach(record => {
+            if (String(record.proclamateurId) === String(target.id)) return;
+            const existing = targetReports.find(item => item.month === record.month);
+            if (existing) {
+              reportsStore.put({
+                ...existing,
+                aprecher: existing.aprecher === 'yes' || record.aprecher === 'yes' ? 'yes' : 'no',
+                coursBiblique: Number(existing.coursBiblique || 0) + Number(record.coursBiblique || 0),
+                heures: Number(existing.heures || 0) + Number(record.heures || 0),
+                etudesBibliques: Number(existing.etudesBibliques || 0) + Number(record.etudesBibliques || 0),
+                nom: getMemberFullName(target),
+                updatedAt: new Date().toISOString()
+              });
+              reportsStore.delete(record.id);
+            } else {
+              const mergedRecord = { ...record, id: `${record.month}_${target.id}`, proclamateurId: target.id, nom: getMemberFullName(target) };
+              reportsStore.put(mergedRecord);
+              targetReports.push(mergedRecord);
+              if (mergedRecord.id !== record.id) reportsStore.delete(record.id);
+            }
+          });
+          sources.concat(targets.filter(person => String(person.id) !== String(target.id))).forEach(person => peopleStore.delete(person.id));
+        });
+      };
+    });
+  }
+
+  async function initializeReportPage() {
+    await mergeLegacyReports();
+    selectedDetailMonthKey = currentMonthKey;
+    document.getElementById('currentMonthLabel').textContent = formatMonthKey(selectedDetailMonthKey);
+    setSelectedDetailMonthValue(selectedDetailMonthKey);
+    document.getElementById('detailSearchInput').value = '';
+    document.getElementById('detailGroupSelect').innerHTML = '<option value="">-- Choisir un groupe --</option>';
+    loadProclamateurs();
+    loadPASubscriptions();
+    loadDetailRecords();
+    setDetailFilter('none');
+    populateAnalysisYearSelect();
+    setupAnalysisInputs();
+    setupSectionInputs();
+    populateSectionGroupSelects();
+    initializeChart();
+    populateDetailServiceYearSelect();
+  }
+
+  function formatMonthKey(monthKey) {
+    const [year, month] = monthKey.split('-');
+    return `${months[Number(month) - 1]} ${year}`;
+  }
+
+  function loadProclamateurs() {
+    const store = getObjectStore('proclamateurs');
+    const request = store.getAll();
+    request.onsuccess = () => {
+      proclamateurs = request.result || [];
+      window.__PROCL_LIST = proclamateurs;
+      populateGroupSelect();
+      populateSectionGroupSelects();
+      refreshDetailList();
+      refreshAllReports();
+      updateStatsChart();
+    };
+    request.onerror = () => showToast('Impossible de charger les proclamateurs.', 'danger');
+  }
+
+  function loadPASubscriptions() {
+    const store = getObjectStore('pionniersAuxiliaire');
+    const request = store.getAll();
+    request.onsuccess = () => {
+      paSubscriptions = request.result || [];
+      refreshDetailList();
+      refreshAllReports();
+      updateStatsChart();
+    };
+    request.onerror = () => showToast('Impossible de charger les souscriptions PA.', 'danger');
+  }
+
+  function loadDetailRecords() {
+    const store = getObjectStore('detailPredication');
+    const request = store.getAll();
+    request.onsuccess = () => {
+      detailRecords = request.result || [];
+      renderDetailRecords(detailRecords);
+      refreshAnalysisReport();
+      refreshAllReports();
+      updateStatsChart();
+    };
+    request.onerror = () => showToast('Impossible de charger les enregistrements de prédication.', 'danger');
+  }
+
+  function initializeChart() {
+    const ctx = document.getElementById('statsChart');
+    statsChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Enregistrements ce mois', 'Proclamateurs actifs', 'PA actifs'],
+        datasets: [{
+          label: `Statistiques ${formatMonthKey(currentMonthKey)}`,
+          data: [0, 0, 0],
+          backgroundColor: ['#0d6efd', '#28a745', '#ffc107']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } }
+      }
+    });
+    updateStatsChart();
+  }
+
+  function updateStatsChart() {
+    if (!statsChart) return;
+    const monthRecords = detailRecords.filter(record => record.month === currentMonthKey);
+    const activeProclamateurs = new Set(monthRecords.map(record => record.proclamateurId));
+    const activePA = new Set(paSubscriptions
+      .filter(record => record.selectedMonths && record.selectedMonths.includes(currentMonthKey))
+      .map(record => record.proclamateurId));
+    statsChart.data.datasets[0].data = [monthRecords.length, activeProclamateurs.size, activePA.size];
+    statsChart.data.datasets[0].label = `Statistiques ${formatMonthKey(currentMonthKey)}`;
+    statsChart.update();
+  }
+
+  function populateAnalysisYearSelect() {
+    const select = document.getElementById('analyseServiceYearSelect');
+    const years = [];
+    const startYear = currentYear - 3;
+    for (let year = startYear; year <= currentYear + 1; year++) {
+      years.push(year);
+    }
+    select.innerHTML = years.map(year => `<option value="${year}">${year}</option>`).join('');
+    select.value = currentYear;
+  }
+
+  function setupAnalysisInputs() {
+    document.getElementById('analyseMonthPicker').value = currentMonthKey;
+    document.getElementById('analyseEndMonthPicker').value = currentMonthKey;
+    document.getElementById('analyseServiceYearSelect').value = currentYear;
+    document.getElementById('analysePeriodType').value = 'month';
+    onAnalysePeriodTypeChange('month');
+  }
+
+  function setupSectionInputs() {
+    const sections = ['moyGroupe', 'moyProclamateurs', 'moyPp', 'moyPa', 'moyAssemblee'];
+    sections.forEach(section => {
+      const monthPicker = document.getElementById(`${section}MonthPicker`);
+      const endMonthPicker = document.getElementById(`${section}EndMonthPicker`);
+      const yearSelect = document.getElementById(`${section}ServiceYearSelect`);
+      const periodSelect = document.getElementById(`${section}PeriodType`);
+      if (monthPicker) monthPicker.value = currentMonthKey;
+      if (endMonthPicker) endMonthPicker.value = currentMonthKey;
+      if (yearSelect) {
+        yearSelect.innerHTML = Array.from({ length: 6 }, (_, index) => currentYear - 3 + index)
+          .map(year => `<option value="${year}">${year}</option>`)
+          .join('');
+        yearSelect.value = currentYear;
+      }
+      if (periodSelect) {
+        periodSelect.value = 'month';
+        onSectionPeriodTypeChange(section, 'month');
+      }
+    });
+  }
+
+  function populateSectionGroupSelects() {
+    const groups = [...new Set(proclamateurs.map(item => (item.groupe || '').toString().trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+    const sectionGroupSelectIds = ['moyGroupeGroupSelect', 'moyProclamateursGroupSelect', 'moyPpGroupSelect', 'moyPaGroupSelect'];
+    sectionGroupSelectIds.forEach(id => {
+      const select = document.getElementById(id);
+      if (!select) return;
+      select.innerHTML = `<option value="">-- Tous les groupes --</option>${groups.map(group => `<option value="${group}">${group}</option>`).join('')}`;
+    });
+  }
+
+  function getSectionLabel(section) {
+    const labels = {
+      moyGroupe: 'groupe',
+      moyProclamateurs: 'proclamateurs',
+      moyPp: 'pionniers permanents',
+      moyPa: 'pionniers auxiliaires'
+    };
+    return labels[section] || section;
+  }
+
+  function isPermanentMember(member) {
+    const service = (member.service || '').trim();
+    return ['Ancien PP', 'Assistant PP', 'PP'].includes(service);
+  }
+
+  function isAuxiliaryMember(member, start, end) {
+    const service = (member.service || '').trim();
+    if (['PA', 'Ancien PA', 'Assistant PA'].includes(service)) {
+      return true;
+    }
+    return isActivePA(member, start, end);
+  }
+
+  function onSectionPeriodTypeChange(section, value) {
+    const monthWrapper = document.getElementById(`${section}MonthPickerWrapper`);
+    const yearWrapper = document.getElementById(`${section}ServiceYearWrapper`);
+    const endWrapper = document.getElementById(`${section}EndMonthWrapper`);
+    const help = document.getElementById(`${section}PeriodHelp`);
+    if (help) {
+      if (value === 'month') {
+        help.textContent = 'Sélectionnez le mois que vous souhaitez analyser.';
+      } else if (value === 'serviceYear') {
+        help.textContent = 'Sélectionnez l’année de service désirée (1er septembre → 31 août).';
+      } else {
+        help.textContent = 'Sélectionnez la fin de période pour les derniers mois.';
+      }
+    }
+    if (monthWrapper) monthWrapper.classList.toggle('d-none', value !== 'month');
+    if (yearWrapper) yearWrapper.classList.toggle('d-none', value !== 'serviceYear');
+    if (endWrapper) endWrapper.classList.toggle('d-none', value !== 'last3' && value !== 'last6');
+  }
+
+  function getSelectedSectionRange(section) {
+    const type = document.getElementById(`${section}PeriodType`).value;
+    if (type === 'serviceYear') {
+      const year = Number(document.getElementById(`${section}ServiceYearSelect`).value);
+      return getServiceYearRange(year);
+    }
+    if (type === 'last3' || type === 'last6') {
+      const monthsCount = type === 'last3' ? 3 : 6;
+      const endMonth = document.getElementById(`${section}EndMonthPicker`).value || currentMonthKey;
+      const [year, month] = endMonth.split('-').map(Number);
+      const end = new Date(year, month - 1, 1);
+      end.setMonth(end.getMonth() + 1);
+      end.setDate(0);
+      const start = new Date(year, month - 1, 1);
+      start.setMonth(start.getMonth() - (monthsCount - 1));
+      return { start, end };
+    }
+    const monthKey = document.getElementById(`${section}MonthPicker`).value || currentMonthKey;
+    return getMonthRange(monthKey);
+  }
+
+  function getMonthKeysBetween(start, end) {
+    const keys = [];
+    const date = new Date(start.getFullYear(), start.getMonth(), 1);
+    while (date <= end) {
+      keys.push(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
+      date.setMonth(date.getMonth() + 1);
+    }
+    return keys;
+  }
+
+  function isRecordInRange(record, start, end) {
+    if (!record.month) return false;
+    const [year, month] = record.month.split('-').map(Number);
+    const recordStart = new Date(year, month - 1, 1);
+    const recordEnd = new Date(year, month, 0);
+    return recordStart >= start && recordEnd <= end;
+  }
+
+  function isActivePA(member, start, end) {
+    return paSubscriptions.some(record => {
+      if (String(record.proclamateurId) !== String(member.id) || !record.selectedMonths) return false;
+      return record.selectedMonths.some(monthKey => {
+        const [year, month] = monthKey.split('-').map(Number);
+        const date = new Date(year, month - 1, 1);
+        return date >= start && date <= end;
+      });
+    });
+  }
+
+  function refreshSectionReport(section) {
+    const group = document.getElementById(`${section}GroupSelect`).value;
+    const { start, end } = getSelectedSectionRange(section);
+    let members = proclamateurs.slice();
+    if (group) {
+      members = members.filter(item => (item.groupe || '').toLowerCase() === group.toLowerCase());
+    }
+    if (section === 'moyPp') {
+      members = members.filter(item => isPermanentMember(item));
+    }
+    if (section === 'moyPa') {
+      members = members.filter(item => isAuxiliaryMember(item, start, end));
+    }
+    if (section === 'moyProclamateurs') {
+      members = members.filter(item => !isPermanentMember(item) && !isAuxiliaryMember(item, start, end));
+    }
+    const monthKeys = getMonthKeysBetween(start, end);
+    const rows = members.map(member => {
+      const records = detailRecords.filter(record => record.proclamateurId === member.id && isRecordInRange(record, start, end));
+      const months = monthKeys.reduce((acc, key) => {
+        acc[key] = { aprecher: false, cours: 0, heures: 0 };
+        return acc;
+      }, {});
+      records.forEach(record => {
+        const key = record.month;
+        if (!months[key]) return;
+        months[key].aprecher = months[key].aprecher || record.aprecher === 'yes';
+        months[key].cours += Number(record.coursBiblique || 0);
+        months[key].heures += Number(record.heures || 0);
+      });
+      const totalAprecher = Object.values(months).filter(m => m.aprecher).length;
+      const totalCours = Object.values(months).reduce((sum, m) => sum + m.cours, 0);
+      const totalHeures = Object.values(months).reduce((sum, m) => sum + m.heures, 0);
+      const noPreach = Object.values(months).map(m => !m.aprecher);
+      const irregular = hasConsecutiveFalse(noPreach, 3);
+      const inactive = hasConsecutiveFalse(noPreach, 6);
+      const isPa = isAuxiliaryMember(member, start, end);
+      const isPp = isPermanentMember(member);
+      return {
+        id: member.id,
+        name: `${member.nom} ${member.postnom} ${member.prenom}`,
+        service: member.service || '-',
+        groupe: member.groupe || '-',
+        totalAprecher,
+        totalMonths: monthKeys.length,
+        totalCours,
+        totalHeures,
+        irregular,
+        inactive,
+        isPa,
+        isPp
+      };
+    });
+    const filteredRows = rows.filter(row => {
+      if (section === 'moyGroupe') return true;
+      if (section === 'moyProclamateurs') return true;
+      if (section === 'moyPp') return row.isPp;
+      if (section === 'moyPa') return row.isPa;
+      return true;
+    });
+    renderSectionReport(section, start, end, group, filteredRows);
+  }
+
+  function buildCategorySummary(memberList, monthKeys, start, end) {
+    const rows = memberList.map(member => {
+      const records = detailRecords.filter(record => record.proclamateurId === member.id && isRecordInRange(record, start, end));
+      const months = monthKeys.reduce((acc, key) => {
+        acc[key] = { aprecher: false, cours: 0, heures: 0 };
+        return acc;
+      }, {});
+
+      records.forEach(record => {
+        const key = record.month;
+        if (!months[key]) return;
+        months[key].aprecher = months[key].aprecher || record.aprecher === 'yes';
+        months[key].cours += Number(record.coursBiblique || 0);
+        months[key].heures += Number(record.heures || 0);
+      });
+
+      const totalAprecher = Object.values(months).filter(m => m.aprecher).length;
+      const totalCours = Object.values(months).reduce((sum, m) => sum + m.cours, 0);
+      const totalHeures = Object.values(months).reduce((sum, m) => sum + m.heures, 0);
+      return { totalAprecher, totalCours, totalHeures };
+    });
+
+    const totalMembers = rows.length;
+    const totalPreached = rows.filter(row => row.totalAprecher > 0).length;
+    const totalNotPreached = totalMembers - totalPreached;
+    const totalCours = rows.reduce((sum, row) => sum + row.totalCours, 0);
+    const totalHeures = rows.reduce((sum, row) => sum + row.totalHeures, 0);
+
+    return {
+      totalMembers,
+      totalPreached,
+      totalNotPreached,
+      totalCours,
+      totalHeures,
+      avgCours: totalMembers ? (totalCours / totalMembers).toFixed(1) : 0,
+      avgHeures: totalMembers ? (totalHeures / totalMembers).toFixed(1) : 0,
+      avgPreach: totalMembers ? (totalPreached / totalMembers).toFixed(1) : 0
+    };
+  }
+
+  function renderAssemblyReport(rows, start, end) {
+    const summary = document.getElementById('moyAssembleeSummary');
+    const body = document.getElementById('moyAssembleeTableBody');
+
+    const metrics = rows.map(row => `
+      <div class="summary-metric">
+        <div class="summary-label">${row.label}</div>
+        <div class="summary-value">${row.totalMembers}</div>
+      </div>
+    `).join('');
+
+    summary.innerHTML = `
+      <div class="summary-panel">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <h6 class="mb-1">Résumé de l’assemblée</h6>
+            <p class="text-muted small mb-0">${formatRange(start, end)}</p>
+          </div>
+          <span class="summary-badge">Moyennes générales</span>
+        </div>
+        <div class="summary-grid">
+          ${metrics}
+        </div>
+      </div>`;
+
+    body.innerHTML = rows.map(row => `
+      <tr>
+        <td>${row.label}</td>
+        <td>${row.totalMembers}</td>
+        <td>${row.totalPreached}</td>
+        <td>${row.totalNotPreached}</td>
+        <td>${row.totalCours}</td>
+        <td>${row.totalHeures}</td>
+        <td>${row.avgCours}</td>
+        <td>${row.avgHeures}</td>
+      </tr>`).join('');
+  }
+
+  function refreshAssemblyReport() {
+    const { start, end } = getSelectedSectionRange('moyAssemblee');
+    const monthKeys = getMonthKeysBetween(start, end);
+
+    const categories = [
+      {
+        label: 'Proclamateurs standards',
+        filter: item => !isPermanentMember(item) && !isAuxiliaryMember(item, start, end)
+      },
+      {
+        label: 'Pionniers Permanents',
+        filter: item => isPermanentMember(item)
+      },
+      {
+        label: 'Pionniers Auxiliaires',
+        filter: item => isAuxiliaryMember(item, start, end)
+      }
+    ];
+
+    const rows = categories.map(category => ({
+      label: category.label,
+      ...buildCategorySummary(proclamateurs.filter(category.filter), monthKeys, start, end)
+    }));
+
+    rows.unshift({
+      label: 'Tous les proclamateurs',
+      ...buildCategorySummary(proclamateurs, monthKeys, start, end)
+    });
+
+    renderAssemblyReport(rows, start, end);
+  }
+
+  function hasConsecutiveFalse(arr, count) {
+    let consecutive = 0;
+    for (const value of arr) {
+      if (value) {
+        consecutive += 1;
+        if (consecutive >= count) return true;
+      } else {
+        consecutive = 0;
+      }
+    }
+    return false;
+  }
+
+  function renderSectionReport(section, start, end, group, rows) {
+    const summary = document.getElementById(`${section}Summary`);
+    const head = document.getElementById(`${section}TableHead`);
+    const body = document.getElementById(`${section}TableBody`);
+    const totalMembers = rows.length;
+    const totalPp = rows.filter(row => row.isPp).length;
+    const totalPa = rows.filter(row => row.isPa).length;
+    const totalPreached = rows.filter(row => row.totalAprecher > 0).length;
+    const irregulars = rows.filter(row => row.irregular).map(row => row.name);
+    const inactives = rows.filter(row => row.inactive).map(row => row.name);
+    const totalCours = rows.reduce((sum, row) => sum + row.totalCours, 0);
+    const totalHeures = rows.reduce((sum, row) => sum + row.totalHeures, 0);
+    const avgCours = totalMembers ? (totalCours / totalMembers).toFixed(1) : 0;
+    const avgHeures = totalMembers ? (totalHeures / totalMembers).toFixed(1) : 0;
+    const avgPreach = totalMembers ? (totalPreached / totalMembers).toFixed(1) : 0;
+    const groupLabel = group ? ` du groupe ${group}` : '';
+    const typeLabel = getSectionLabel(section);
+    const irregularText = irregulars.length ? irregulars.join(', ') : 'Aucun';
+    const inactiveText = inactives.length ? inactives.join(', ') : 'Aucun';
+    const prefix = section === 'moyPp' ? 'PP' : section === 'moyPa' ? 'PA' : 'Proclamateur';
+    const totalNotPreached = totalMembers - totalPreached;
+    const isSpecialSummary = section === 'moyPp' || section === 'moyPa';
+    const summaryMetrics = [];
+
+    summaryMetrics.push({ label: `Total ${section === 'moyPp' ? 'Pionniers Permanents' : section === 'moyPa' ? 'Pionniers Auxiliaires' : 'Proclamateurs'}`, value: totalMembers });
+    if (isSpecialSummary) {
+      summaryMetrics.push(
+        { label: `${prefix} ayant prêché`, value: totalPreached },
+        { label: `${prefix} n'ayant pas prêché`, value: totalNotPreached },
+        { label: `Total cours biblique ${prefix} (EB)`, value: totalCours },
+        { label: `Total heure ${prefix}`, value: totalHeures }
+      );
+    } else {
+      summaryMetrics.push(
+        { label: 'Total cours biblique', value: totalCours },
+        { label: 'Total heures', value: totalHeures },
+        { label: 'Moy. cours / membre', value: avgCours },
+        { label: 'Moy. heures / membre', value: avgHeures }
+      );
+    }
+
+    summary.innerHTML = `
+      <div class="summary-panel">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+          <div>
+            <h6 class="mb-1">Résumé de la période</h6>
+            <p class="text-muted small mb-0">${formatRange(start, end)}</p>
+          </div>
+          <span class="summary-badge">${typeLabel}${groupLabel}</span>
+        </div>
+        <div class="summary-grid">
+          ${summaryMetrics.map(metric => `
+            <div class="summary-metric">
+              <div class="summary-label">${metric.label}</div>
+              <div class="summary-value">${metric.value}</div>
+            </div>
+          `).join('')}
+        </div>
+        <div class="summary-list">
+          <div class="mb-2"><strong>Irréguliers :</strong> ${irregulars.length} — ${irregularText}</div>
+          <div><strong>Inactifs :</strong> ${inactives.length} — ${inactiveText}</div>
+        </div>
+      </div>`;
+    head.innerHTML = `
+      <tr>
+        <th>ID</th>
+        <th>Nom</th>
+        <th>Service</th>
+        <th>Groupe</th>
+        <th>Mois prêchés</th>
+        <th>Total cours</th>
+        <th>Total heures</th>
+        <th>Irregular</th>
+        <th>Inactive</th>
+      </tr>`;
+    body.innerHTML = rows.map(row => `
+      <tr>
+        <td>${row.id}</td>
+        <td>${row.name}</td>
+        <td>${row.service}</td>
+        <td>${row.groupe}</td>
+        <td>${row.totalAprecher} / ${row.totalMonths}</td>
+        <td>${row.totalCours}</td>
+        <td>${row.totalHeures}</td>
+        <td>${row.irregular ? 'Oui' : 'Non'}</td>
+        <td>${row.inactive ? 'Oui' : 'Non'}</td>
+      </tr>`).join('');
+  }
+
+  function onAnalysePeriodTypeChange(value) {
+    analysisPeriodType = value;
+    const monthWrapper = document.getElementById('analyseMonthPickerWrapper');
+    const yearWrapper = document.getElementById('analyseServiceYearWrapper');
+    const endMonthWrapper = document.getElementById('analyseEndMonthWrapper');
+    if (value === 'month') {
+      document.getElementById('analysePeriodHelp').textContent = 'Sélectionnez le mois que vous souhaitez analyser.';
+    } else if (value === 'serviceYear') {
+      document.getElementById('analysePeriodHelp').textContent = 'Sélectionnez l’année de service désirée (1er septembre → 31 août).';
+    } else {
+      document.getElementById('analysePeriodHelp').textContent = 'Sélectionnez la fin de période pour les derniers mois.';
+    }
+    monthWrapper.classList.toggle('d-none', value !== 'month');
+    yearWrapper.classList.toggle('d-none', value !== 'serviceYear');
+    endMonthWrapper.classList.toggle('d-none', value !== 'last3' && value !== 'last6');
+    if (value === 'month') {
+      document.getElementById('analyseMonthPicker').value = currentMonthKey;
+      analysisMonthKey = currentMonthKey;
+    }
+    if (value === 'serviceYear') {
+      document.getElementById('analyseServiceYearSelect').value = currentYear;
+      analysisServiceYear = currentYear;
+    }
+    if (value === 'last3' || value === 'last6') {
+      document.getElementById('analyseEndMonthPicker').value = currentMonthKey;
+      analysisEndMonthKey = currentMonthKey;
+    }
+  }
+
+  function getServiceYearRange(serviceYear) {
+    const start = new Date(serviceYear - 1, 8, 1); // 1 Septembre de l'année précédente
+    const end = new Date(serviceYear, 7, 31); // 31 Août de l'année choisie
+    return { start, end };
+  }
+
+  function getMonthRange(monthKey) {
+    const [year, month] = monthKey.split('-').map(Number);
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0);
+    return { start, end };
+  }
+
+  function getSelectedAnalysisRange() {
+    if (analysisPeriodType === 'serviceYear') {
+      analysisServiceYear = Number(document.getElementById('analyseServiceYearSelect').value);
+      return getServiceYearRange(analysisServiceYear);
+    }
+    if (analysisPeriodType === 'last3' || analysisPeriodType === 'last6') {
+      const monthsCount = analysisPeriodType === 'last3' ? 3 : 6;
+      const endMonth = document.getElementById('analyseEndMonthPicker').value || currentMonthKey;
+      const [year, month] = endMonth.split('-').map(Number);
+      const end = new Date(year, month - 1, 1);
+      end.setMonth(end.getMonth() + 1);
+      end.setDate(0);
+      const start = new Date(year, month - 1, 1);
+      start.setMonth(start.getMonth() - (monthsCount - 1));
+      return { start, end };
+    }
+    analysisMonthKey = document.getElementById('analyseMonthPicker').value || currentMonthKey;
+    return getMonthRange(analysisMonthKey);
+  }
+
+  function formatDate(date) {
+    return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+  }
+
+  function formatRange(start, end) {
+    return `${formatDate(start)} → ${formatDate(end)}`;
+  }
+
+  function monthKeyToRange(monthKey) {
+    const [year, month] = monthKey.split('-').map(Number);
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 0);
+    return { start, end };
+  }
+
+  function refreshAllReports() {
+    refreshSectionReport('moyGroupe');
+    refreshSectionReport('moyProclamateurs');
+    refreshSectionReport('moyPp');
+    refreshSectionReport('moyPa');
+    refreshAssemblyReport();
+  }
+
+  function refreshAnalysisReport() {
+    const { start, end } = getSelectedAnalysisRange();
+    const filteredRecords = detailRecords.filter(record => {
+      if (!record.month) {
+        return false;
+      }
+      const monthRange = monthKeyToRange(record.month);
+      return monthRange.start >= start && monthRange.end <= end;
+    });
+    const grouped = {};
+    filteredRecords.forEach(record => {
+      const id = String(record.proclamateurId || '').trim();
+      const identityKey = getCanonicalIdentityName(record.nom) || id.toLowerCase();
+      if (!grouped[identityKey]) {
+        grouped[identityKey] = {
+          id,
+          name: record.nom,
+          service: record.service,
+          groupe: record.groupe,
+          months: {},
+          totalAprecher: 0,
+          totalCours: 0,
+          totalHeures: 0,
+          totalEtudes: 0,
+          countMonths: 0
+        };
+      }
+      const monthKey = `${record.month}`;
+      if (!grouped[identityKey].months[monthKey]) {
+        grouped[identityKey].months[monthKey] = { aprecher: false, cours: 0, heures: 0, etudes: 0 };
+      }
+      grouped[identityKey].months[monthKey].aprecher = grouped[identityKey].months[monthKey].aprecher || record.aprecher === 'yes';
+      grouped[identityKey].months[monthKey].cours += Number(record.coursBiblique || 0);
+      grouped[identityKey].months[monthKey].heures += Number(record.heures || 0);
+      grouped[identityKey].months[monthKey].etudes += Number(record.etudesBibliques || 0);
+    });
+    Object.values(grouped).forEach(item => {
+      item.countMonths = Object.keys(item.months).length;
+      item.totalAprecher = Object.values(item.months).filter(m => m.aprecher).length;
+      item.totalCours = Object.values(item.months).reduce((sum, m) => sum + m.cours, 0);
+      item.totalHeures = Object.values(item.months).reduce((sum, m) => sum + m.heures, 0);
+      item.totalEtudes = Object.values(item.months).reduce((sum, m) => sum + m.etudes, 0);
+    });
+    renderAnalysisReport(grouped, start, end);
+  }
+
+  function renderAnalysisReport(grouped, start, end) {
+    const summary = document.getElementById('analysisSummary');
+    const tables = document.getElementById('analysisTables');
+    const rows = Object.values(grouped).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'fr', { sensitivity: 'base' }));
+    summary.innerHTML = `<p><strong>Période :</strong> ${formatRange(start, end)}</p><p><strong>Proclamateurs trouvés :</strong> ${rows.length}</p>`;
+    if (!rows.length) {
+      tables.innerHTML = '<p class="text-center text-muted">Aucun enregistrement trouvé pour la période sélectionnée.</p>';
+      return;
+    }
+    const permanentServices = ['PP', 'Ancien PP', 'Assistant PP'];
+    const permanentRows = rows.filter(item => permanentServices.includes(String(item.service || '').trim()));
+    const otherRows = rows.filter(item => !permanentServices.includes(String(item.service || '').trim()));
+    const renderTable = (title, tableRows) => `
+      <section class="mb-4">
+        <h6 class="text-primary border-bottom pb-2">${title} (${tableRows.length})</h6>
+        ${tableRows.length ? `<div class="table-responsive"><table class="table table-sm table-striped mb-0">
+          <thead><tr><th>ID</th><th>Nom</th><th>Service</th><th>Groupe</th><th>Mois prêchés</th><th>Total cours</th><th>Total heures</th></tr></thead>
+          <tbody>${tableRows.map(item => `<tr><td>${item.id}</td><td>${item.name}</td><td>${item.service || '-'}</td><td>${item.groupe || '-'}</td><td>${item.totalAprecher} / ${item.countMonths}</td><td>${item.totalCours}</td><td>${item.totalHeures}</td></tr>`).join('')}</tbody>
+        </table></div>` : '<p class="text-muted mb-0">Aucun rapport dans cette catégorie.</p>'}
+      </section>`;
+    tables.innerHTML = renderTable('Pionniers permanents', permanentRows) + renderTable('Autres proclamateurs', otherRows);
+  }
+
+  function populateGroupSelect() {
+    const groupSelect = document.getElementById('detailGroupSelect');
+    const groups = [...new Set(proclamateurs.map(item => (item.groupe || '').toString().trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+    const escapeAttribute = value => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escapeText = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    groupSelect.innerHTML = `<option value="">-- Choisir un groupe --</option>${groups.map(group => `<option value="${escapeAttribute(group)}">${escapeText(group)}</option>`).join('')}`;
+    if (!groups.length) {
+      groupSelect.innerHTML = '<option value="">Aucun groupe trouvé</option>';
+    }
+  }
+
+  function selectDetailGroup(group) {
+    detailFilter = 'group';
+    detailGroup = group;
+    document.getElementById('detailGroupSelect').value = group;
+    document.getElementById('detailGroupHelp').textContent = group ? `Membres du groupe « ${group} ».` : 'Sélectionnez un groupe pour afficher ses membres.';
+    document.getElementById('detailGroupSelection').classList.remove('d-none');
+    document.getElementById('detailIndividualSearch').classList.add('d-none');
+    document.getElementById('filterAllBtn').classList.remove('active');
+    document.getElementById('filterGroupBtn').classList.add('active');
+    document.getElementById('filterIndividualBtn').classList.remove('active');
+    refreshDetailList();
+  }
+
+  function setDetailFilter(filter) {
+    detailFilter = filter;
+    detailQuery = '';
+    detailGroup = '';
+    document.getElementById('detailSearchInput').value = '';
+    document.getElementById('detailGroupSelect').value = '';
+    document.getElementById('detailGroupSelection').classList.toggle('d-none', filter !== 'group');
+    document.getElementById('detailIndividualSearch').classList.toggle('d-none', filter !== 'individual');
+    document.getElementById('filterAllBtn').classList.toggle('active', filter === 'all');
+    document.getElementById('filterGroupBtn').classList.toggle('active', filter === 'group');
+    document.getElementById('filterIndividualBtn').classList.toggle('active', filter === 'individual');
+    refreshDetailList();
+  }
+
+  function clearDetailSelection() {
+    detailSelected = null;
+    editOriginalRecordId = null;
+    detailGroup = '';
+    detailQuery = '';
+    document.getElementById('detailSearchInput').value = '';
+    document.getElementById('detailGroupSelect').value = '';
+    document.getElementById('detailSelectedCard').classList.add('d-none');
+    document.getElementById('detailFormCard').classList.add('d-none');
+    if (detailFilter === 'group') {
+      document.getElementById('detailGroupHelp').textContent = 'Sélectionnez un groupe pour afficher ses membres.';
+    }
+    refreshDetailList();
+  }
+
+  function refreshDetailList() {
+    detailQuery = document.getElementById('detailSearchInput') ? document.getElementById('detailSearchInput').value.trim().toLowerCase() : '';
+    detailGroup = document.getElementById('detailGroupSelect') ? document.getElementById('detailGroupSelect').value : detailGroup;
+    const helper = document.getElementById('detailGroupHelp');
+    const listContainer = document.getElementById('detailListContainer');
+    let list = [];
+
+    if (detailFilter === 'all') {
+      list = proclamateurs.slice();
+    } else if (detailFilter === 'group') {
+      helper.textContent = detailGroup ? `Membres du groupe « ${detailGroup} ».` : 'Sélectionnez un groupe pour afficher ses membres.';
+      if (detailGroup) {
+        list = proclamateurs.filter(item => (item.groupe || '').toLowerCase() === detailGroup.toLowerCase());
+      }
+    } else if (detailFilter === 'individual' && detailQuery) {
+      list = proclamateurs.filter(item => {
+        const normalized = [item.id, item.nom, item.postnom, item.prenom, item.groupe]
+          .filter(Boolean)
+          .join(' ').toLowerCase();
+        return normalized.includes(detailQuery);
+      });
+    }
+
+    listContainer.classList.toggle('d-none', detailFilter === 'none' || (detailFilter === 'group' && !detailGroup) || (detailFilter === 'individual' && !detailQuery));
+    renderDetailList(list);
+  }
+
+  function renderDetailList(items) {
+    const body = document.getElementById('detailListBody');
+    if (!items.length) {
+      const message = detailFilter === 'group' && !detailGroup
+        ? 'Sélectionnez un groupe pour voir ses membres.'
+        : 'Aucun proclamateur trouvé.';
+      body.innerHTML = `<tr><td colspan="6" class="text-center">${message}</td></tr>`;
+      return;
+    }
+    const activePAIds = paSubscriptions
+      .filter(record => record.selectedMonths && record.selectedMonths.includes(selectedDetailMonthKey))
+      .map(record => String(record.proclamateurId));
+    body.innerHTML = items.map(item => {
+      const status = getProclamateurStatus(item, activePAIds);
+      return `
+        <tr>
+          <td>${item.id}</td>
+          <td>${item.nom} ${item.postnom} ${item.prenom}</td>
+          <td>${item.service || '-'}</td>
+          <td>${item.groupe || '-'}</td>
+          <td>${status}</td>
+          <td class="text-center"><button class="btn btn-sm btn-outline-primary" type="button" onclick="selectDetail('${item.id}')">Choisir</button></td>
+        </tr>`;
+    }).join('');
+  }
+
+  function getProclamateurStatus(item, activePAIds) {
+    if (activePAIds.includes(String(item.id)) || ['PA', 'Ancien PA', 'Assistant PA'].includes(String(item.service || '').trim())) {
+      return 'Pionnier Auxiliaire actif';
+    }
+    if (['Ancien PP', 'Assistant PP', 'PP'].includes(item.service)) {
+      return 'Pionnier Permanent';
+    }
+    return 'Proclamateur';
+  }
+
+  function selectDetail(id) {
+    detailSelected = proclamateurs.find(item => String(item.id) === String(id)) || null;
+    if (!detailSelected) return;
+    const card = document.getElementById('detailSelectedCard');
+    const activePAIds = paSubscriptions
+      .filter(record => record.selectedMonths && record.selectedMonths.includes(selectedDetailMonthKey))
+      .map(record => String(record.proclamateurId));
+    const isPermanent = ['Ancien PP', 'Assistant PP', 'PP'].includes(String(detailSelected.service || '').trim());
+    const isAuxiliaire = ['PA', 'Ancien PA', 'Assistant PA'].includes(String(detailSelected.service || '').trim()) || activePAIds.includes(String(detailSelected.id));
+    const isSpecial = isPermanent || isAuxiliaire;
+    const detailEtudesWrapper = document.getElementById('detailEtudesWrapper');
+    detailEtudesWrapper.classList.toggle('d-none', !isSpecial);
+
+    document.getElementById('detailListContainer').classList.add('d-none');
+    card.classList.remove('d-none');
+    card.innerHTML = `
+      <div class="card-body">
+        <h6 class="card-title">${detailSelected.nom} ${detailSelected.postnom} ${detailSelected.prenom}</h6>
+        <p><strong>ID :</strong> ${detailSelected.id}</p>
+        <p><strong>Sert comme :</strong> ${detailSelected.service || '-'}</p>
+        <p><strong>Groupe :</strong> ${detailSelected.groupe || '-'}</p>
+        <p><strong>Statut de PA :</strong> ${isAuxiliaire ? 'Actif ce mois' : 'Non actif'}</p>
+      </div>`;
+    document.getElementById('detailFormCard').classList.remove('d-none');
+    document.getElementById('detailAprecher').value = 'yes';
+    document.getElementById('detailHeure').value = isSpecial ? 0 : '';
+    document.getElementById('detailCours').value = 0;
+    document.getElementById('detailEtudes').value = isSpecial ? 0 : 0;
+  }
+
+  function onDetailMonthChange(monthKey) {
+    selectedDetailMonthKey = monthKey || currentMonthKey;
+    document.getElementById('currentMonthLabel').textContent = formatMonthKey(selectedDetailMonthKey);
+    refreshDetailList();
+    renderDetailRecords(detailRecords);
+  }
+
+  function getSelectedDetailMonthValue() {
+    const select = document.getElementById('detailMonthSelect');
+    if (select && !select.classList.contains('d-none')) return select.value;
+    const picker = document.getElementById('detailMonthPicker');
+    return (picker && picker.value) ? picker.value : currentMonthKey;
+  }
+
+  function setSelectedDetailMonthValue(value) {
+    const select = document.getElementById('detailMonthSelect');
+    const picker = document.getElementById('detailMonthPicker');
+    if (select && !select.classList.contains('d-none')) {
+      select.value = value;
+    } else if (picker) {
+      picker.value = value;
+    }
+    selectedDetailMonthKey = value;
+    const lbl = document.getElementById('currentMonthLabel');
+    if (lbl) lbl.textContent = formatMonthKey(value);
+  }
+
+  function populateDetailServiceYearSelect() {
+    const select = document.getElementById('detailServiceYearSelect');
+    if (!select) return;
+    const years = Array.from({ length: 8 }, (_, i) => currentYear - 4 + i);
+    select.innerHTML = years.map(y => `<option value="${y}">${y}</option>`).join('');
+    select.value = currentYear;
+  }
+
+  function computeServiceYearFromMonth(monthKey) {
+    const mk = monthKey || selectedDetailMonthKey || currentMonthKey;
+    if (!mk) return currentYear;
+    const [y, m] = mk.split('-').map(Number);
+    return (m >= 9) ? (y + 1) : y;
+  }
+
+  function showDetailServiceYearInfo(serviceYear) {
+    const info = document.getElementById('detailServiceYearInfo');
+    if (!info) return;
+    const { start, end } = getServiceYearRange(Number(serviceYear));
+    info.innerHTML = `<div class="alert alert-info p-2" role="alert">Le rapport que vous saisissez concerne l'année de service <strong>${serviceYear}</strong> (${formatDate(start)} → ${formatDate(end)}). Nous affichons automatiquement l'année de service concernée.</div>`;
+  }
+
+  function onDetailUseServiceYearChange(checked) {
+    const use = !!checked;
+    const select = document.getElementById('detailServiceYearSelect');
+    const info = document.getElementById('detailServiceYearInfo');
+    if (use && select) {
+      // ensure select is populated
+      if (!select.options || select.options.length === 0) populateDetailServiceYearSelect();
+      const sy = computeServiceYearFromMonth(selectedDetailMonthKey || currentMonthKey);
+      select.value = sy;
+      applyServiceYearRangeToPicker(sy);
+      showDetailServiceYearInfo(sy);
+    } else {
+      // remove min/max restrictions and restore native picker
+      const picker = document.getElementById('detailMonthPicker');
+      if (picker) { picker.removeAttribute('min'); picker.removeAttribute('max'); }
+      if (info) info.innerHTML = '';
+      disableServiceYearPickerUI();
+      setSelectedDetailMonthValue(getSelectedDetailMonthValue() || currentMonthKey);
+    }
+  }
+
+  function onDetailServiceYearChange(value) {
+    const use = document.getElementById('detailUseServiceYear')?.checked;
+    if (!use) return;
+    const year = Number(value) || currentYear;
+    applyServiceYearRangeToPicker(year);
+    showDetailServiceYearInfo(year);
+  }
+
+  // When disabling service-year mode, revert to native month picker
+  function disableServiceYearPickerUI() {
+    const picker = document.getElementById('detailMonthPicker');
+    const monthSelect = document.getElementById('detailMonthSelect');
+    if (picker) picker.classList.remove('d-none');
+    if (monthSelect) monthSelect.classList.add('d-none');
+  }
+
+  function applyServiceYearRangeToPicker(serviceYear) {
+    const { start, end } = getServiceYearRange(Number(serviceYear));
+    const picker = document.getElementById('detailMonthPicker');
+    if (!picker) return;
+    const minKey = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}`;
+    const maxKey = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}`;
+    picker.min = minKey;
+    picker.max = maxKey;
+    // populate explicit month select (Sept -> Aug) and switch to it
+    const monthSelect = document.getElementById('detailMonthSelect');
+    if (monthSelect) {
+      monthSelect.innerHTML = '';
+      const options = [];
+      let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (cursor <= end) {
+        const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+        const label = formatMonthKey(key);
+        options.push(`<option value="${key}">${label}</option>`);
+        cursor.setMonth(cursor.getMonth() + 1);
+      }
+      monthSelect.innerHTML = options.join('');
+      // set selected month to current if within range, otherwise start
+      const cur = selectedDetailMonthKey || (picker.value || currentMonthKey);
+      if (cur < minKey || cur > maxKey) monthSelect.value = minKey; else monthSelect.value = cur;
+      // switch visibility: show select, hide native picker to avoid browser inconsistencies
+      monthSelect.classList.remove('d-none');
+      picker.classList.add('d-none');
+      selectedDetailMonthKey = monthSelect.value;
+      document.getElementById('currentMonthLabel').textContent = formatMonthKey(selectedDetailMonthKey);
+      refreshDetailList();
+      renderDetailRecords(detailRecords);
+      return;
+    }
+  }
+
+  // Retourne la clé mois suivante au format YYYY-MM
+  function nextMonthKey(monthKey) {
+    if (!monthKey) return null;
+    const [y, m] = monthKey.split('-').map(Number);
+    const d = new Date(y, m - 1, 1);
+    d.setMonth(d.getMonth() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
+
+  function setMultiMonthMode(enabled) {
+    multiMonthMode = !!enabled;
+    const finishBtn = document.getElementById('multiMonthFinishBtn');
+    if (finishBtn) finishBtn.style.display = multiMonthMode ? 'block' : 'none';
+    // Ensure picker reflects selected month when enabling
+    if (multiMonthMode && selectedDetailMonthKey) {
+      setSelectedDetailMonthValue(selectedDetailMonthKey);
+    }
+  }
+
+  function finishMultiMonthEntry() {
+    // Disable mode and clear selection to finish
+    multiMonthMode = false;
+    const chk = document.getElementById('multiMonthModeToggle');
+    if (chk) chk.checked = false;
+    const finishBtn = document.getElementById('multiMonthFinishBtn');
+    if (finishBtn) finishBtn.style.display = 'none';
+    clearDetailSelection();
+  }
+
+  function saveDetailRecord() {
+    if (!detailSelected) {
+      showToast('Aucun proclamateur sélectionné.', 'warning');
+      return;
+    }
+    const aPrecher = document.getElementById('detailAprecher').value;
+    const heure = Number(document.getElementById('detailHeure').value || 0);
+    const cours = Number(document.getElementById('detailCours').value || 0);
+    const etudes = Number(document.getElementById('detailEtudes').value || 0);
+    selectedDetailMonthKey = getSelectedDetailMonthValue() || currentMonthKey;
+    document.getElementById('currentMonthLabel').textContent = formatMonthKey(selectedDetailMonthKey);
+    const activePAIds = paSubscriptions
+      .filter(record => record.selectedMonths && record.selectedMonths.includes(selectedDetailMonthKey))
+      .map(record => String(record.proclamateurId));
+    const isPermanent = ['Ancien PP', 'Assistant PP', 'PP'].includes(String(detailSelected.service || '').trim());
+    const isAuxiliaire = ['PA', 'Ancien PA', 'Assistant PA'].includes(String(detailSelected.service || '').trim()) || activePAIds.includes(String(detailSelected.id));
+    const isSpecial = isPermanent || isAuxiliaire;
+    const record = {
+      id: `${selectedDetailMonthKey}_${detailSelected.id}`,
+      month: selectedDetailMonthKey,
+      proclamateurId: detailSelected.id,
+      nom: `${detailSelected.nom} ${detailSelected.postnom} ${detailSelected.prenom}`,
+      service: detailSelected.service || '',
+      groupe: detailSelected.groupe || '',
+      aprecher: aPrecher,
+      coursBiblique: cours,
+      heures: isSpecial ? heure : 0,
+      etudesBibliques: isSpecial ? etudes : 0,
+      special: isSpecial,
+      updatedAt: new Date().toISOString()
+    };
+    const store = getObjectStore('detailPredication', 'readwrite');
+    const existingRecordsRequest = store.getAll();
+    existingRecordsRequest.onsuccess = () => {
+      const existingRecord = existingRecordsRequest.result.find(item =>
+        String(item.proclamateurId) === String(record.proclamateurId) &&
+        item.month === record.month &&
+        item.id !== editOriginalRecordId
+      );
+      if (existingRecord) {
+        showToast('Un rapport existe déjà pour ce proclamateur et ce mois. Utilisez « Modifier » dans les enregistrements de prédication.', 'warning');
+        return;
+      }
+
+      const request = store.put(record);
+      request.onsuccess = () => {
+        showToast('Détails de prédication enregistrés.', 'success');
+        if (editOriginalRecordId && editOriginalRecordId !== record.id) {
+          try {
+            const delStore = getObjectStore('detailPredication', 'readwrite');
+            delStore.delete(editOriginalRecordId);
+          } catch (e) { /* ignore */ }
+        }
+        editOriginalRecordId = null;
+        if (multiMonthMode) {
+          const old = selectedDetailMonthKey;
+          const nxt = nextMonthKey(old || currentMonthKey);
+          if (nxt) {
+            selectedDetailMonthKey = nxt;
+            setSelectedDetailMonthValue(selectedDetailMonthKey);
+          }
+          loadDetailRecords();
+          renderDetailRecords(detailRecords);
+          refreshDetailList();
+        } else {
+          loadDetailRecords();
+        }
+      };
+      request.onerror = () => showToast('Impossible d’enregistrer le détail.', 'danger');
+    };
+    existingRecordsRequest.onerror = () => showToast('Impossible de vérifier les rapports déjà enregistrés.', 'danger');
+  }
+
+  function renderDetailRecords(records) {
+    const body = document.getElementById('detailRecordsBody');
+    const filtered = records.filter(record => record.month === selectedDetailMonthKey);
+    if (!filtered.length) {
+      body.innerHTML = '<tr><td colspan="8" class="text-center">Aucun enregistrement pour le mois sélectionné.</td></tr>';
+      return;
+    }
+    body.innerHTML = filtered.map(record => `
+      <tr>
+        <td>${record.proclamateurId}</td>
+        <td>${record.nom}</td>
+        <td>${record.special ? (['Ancien PP', 'Assistant PP', 'PP'].includes(record.service) ? 'Pionnier Permanent' : 'Pionnier Auxiliaire') : 'Proclamateur'}</td>
+        <td>${record.aprecher === 'yes' ? 'Oui' : 'Non'}</td>
+        <td>${record.coursBiblique}</td>
+        <td>${record.special ? record.etudesBibliques : '-'}</td>
+        <td>${record.special ? record.heures : '-'}</td>
+        <td>
+          <button class="btn btn-sm btn-outline-primary me-1" type="button" onclick="editDetailRecord('${record.id}')">Modifier</button>
+          <button class="btn btn-sm btn-outline-danger" type="button" onclick="deleteDetailRecord('${record.id}')">Supprimer</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function deleteDetailRecord(id) {
+    const store = getObjectStore('detailPredication', 'readwrite');
+    const request = store.delete(id);
+    request.onsuccess = () => {
+      showToast('Enregistrement supprimé.', 'success');
+      loadDetailRecords();
+    };
+    request.onerror = () => showToast('Impossible de supprimer l’enregistrement.', 'danger');
+  }
+
+  function editDetailRecord(recordId) {
+    const rec = detailRecords.find(r => r.id === recordId);
+    if (!rec) return showToast('Enregistrement introuvable.', 'warning');
+    // find proclamateur
+    const p = proclamateurs.find(pr => pr.id === rec.proclamateurId);
+    if (!p) return showToast('Proclamateur introuvable.', 'warning');
+    detailSelected = p;
+    editOriginalRecordId = rec.id;
+    // set up UI as if selected
+    selectDetail(p.id);
+    // populate form values from record
+    selectedDetailMonthKey = rec.month || selectedDetailMonthKey || currentMonthKey;
+    setSelectedDetailMonthValue(selectedDetailMonthKey);
+    document.getElementById('detailAprecher').value = rec.aprecher || 'no';
+    document.getElementById('detailHeure').value = rec.heures || 0;
+    document.getElementById('detailCours').value = rec.coursBiblique || 0;
+    document.getElementById('detailEtudes').value = rec.etudesBibliques || 0;
+    // show records for that month
+    renderDetailRecords(detailRecords);
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    toastEl = document.getElementById('toastNotification');
+    toastBody = document.getElementById('toastBody');
+    if (toastEl && toastBody) {
+      toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+    }
+
+    const searchInput = document.getElementById('detailSearchInput');
+    const groupSelect = document.getElementById('detailGroupSelect');
+    if (searchInput) {
+      searchInput.addEventListener('input', refreshDetailList);
+    }
+    if (groupSelect) {
+      groupSelect.addEventListener('change', () => selectDetailGroup(groupSelect.value));
+    }
+    const detailServiceSelect = document.getElementById('detailServiceYearSelect');
+    if (detailServiceSelect) detailServiceSelect.addEventListener('change', e => onDetailServiceYearChange(e.target.value));
+    const detailUseChk = document.getElementById('detailUseServiceYear');
+    if (detailUseChk) detailUseChk.addEventListener('change', e => onDetailUseServiceYearChange(e.target.checked));
+    const toggleRecordsButton = document.getElementById('toggleDetailRecordsBtn');
+    if (toggleRecordsButton) {
+      toggleRecordsButton.addEventListener('click', () => {
+        const panel = document.getElementById('detailRecordsPanel');
+        const isExpanded = toggleRecordsButton.getAttribute('aria-expanded') === 'true';
+        toggleRecordsButton.setAttribute('aria-expanded', String(!isExpanded));
+        toggleRecordsButton.textContent = isExpanded
+          ? 'Afficher les enregistrements de prédication'
+          : 'Masquer les enregistrements de prédication';
+        panel.classList.toggle('d-none', isExpanded);
+      });
+    }
+    openDatabase();
+  });
+</script>
+</body>
+</html>

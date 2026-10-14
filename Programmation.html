@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programmation des visites</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+  <style>
+    body { background: #f4f7fb; color: #1f2937; }
+    .sidebar {
+      min-height: 100vh;
+      background-color: #214b63;
+      color: white;
+      padding-top: 20px;
+    }
+    .sidebar .nav-link { color: white; font-weight: 500; }
+    .sidebar .nav-link.active { background-color: #173b4e; }
+    .content-area { padding: 24px; }
+    .card { border-radius: 12px; border: 1px solid #e0e7ef; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06); }
+    .btn-sm { margin-right: 5px; }
+    .table th { white-space: nowrap; }
+    .table td { vertical-align: middle; }
+    .status-badge { white-space: nowrap; }
+    .empty-state { padding: 2rem; color: #64748b; }
+    .pdf-report { background: #fff; padding: 12mm; color: #111827; }
+    .pdf-report h1 { font-size: 20px; text-align: center; margin-bottom: 14px; }
+    .pdf-report table { width: 100%; border-collapse: collapse; font-size: 9px; }
+    .pdf-report th, .pdf-report td { border: 1px solid #94a3b8; padding: 5px; text-align: left; }
+    .pdf-report th { background: #e8f1ff; }
+    .section-title { color: #214b63; font-weight: 700; }
+    .form-readonly { background-color: #eef4fb; }
+    @media (max-width: 768px) { .sidebar { min-height: auto; } .content-area { padding: 12px; } }
+  </style>
+  <link rel="stylesheet" href="app-theme.css">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+
+<div class="container-fluid">
+  <div class="row">
+    <!-- Barre latérale -->
+    <div class="col-md-3 sidebar">
+      <h4 class="text-center mb-4">Programmation</h4>
+      <div class="nav flex-column nav-pills" id="progMenu" role="tablist">
+        <a class="nav-link active" data-access-feature="programmation:epreuve" data-bs-toggle="pill" href="#epreuve">Mise à l'épreuve</a>
+        <a class="nav-link" data-access-feature="programmation:formation" data-bs-toggle="pill" href="#formation">Formation</a>
+        <a class="nav-link" data-access-feature="programmation:suivi" data-bs-toggle="pill" href="#suivi">Visites pastorales</a>
+      </div>
+    </div>
+
+    <!-- Zone de contenu -->
+    <div class="col-md-9 content-area">
+      <div class="tab-content">
+        <div class="tab-pane fade show active" id="epreuve">
+          <div class="card p-3 mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div><h5 class="section-title mb-1">Mise à l'épreuve</h5><p class="text-muted mb-0">Préparer un frère à devenir assistant ou ancien.</p></div>
+              <button type="button" class="btn btn-outline-primary" id="exportEpreuvesPdfBtn">Enregistrer en PDF</button>
+            </div>
+            <form id="epreuveForm" class="mt-3">
+              <input type="hidden" id="epreuveId">
+              <div class="row g-3">
+                <div class="col-md-6"><label class="form-label">Frère</label><select id="epreuveFrere" class="form-select" required><option value="">Sélectionner un frère</option></select></div>
+                <div class="col-md-6"><label class="form-label">Objectif</label><select id="epreuveObjectif" class="form-select" required><option value="Assistant">Assistant</option><option value="Ancien">Ancien</option></select></div>
+                <div class="col-md-4"><label class="form-label">Nom</label><input id="epreuveNom" class="form-control form-readonly" readonly></div>
+                <div class="col-md-4"><label class="form-label">Postnom</label><input id="epreuvePostnom" class="form-control form-readonly" readonly></div>
+                <div class="col-md-4"><label class="form-label">Prénom</label><input id="epreuvePrenom" class="form-control form-readonly" readonly></div>
+                <div class="col-md-4"><label class="form-label">Date de naissance</label><input id="epreuveNaissance" type="date" class="form-control form-readonly" readonly></div>
+                <div class="col-md-4"><label class="form-label">Âge actuel</label><input id="epreuveAge" class="form-control form-readonly" readonly></div>
+                <div class="col-md-4"><label class="form-label">Date du baptême</label><input id="epreuveBapteme" type="date" class="form-control form-readonly" readonly></div>
+                <div class="col-md-6"><label class="form-label">Suivi par - Ancien 1</label><select id="epreuveAncien1" class="form-select" required><option value="">Sélectionner un ancien</option></select></div>
+                <div class="col-md-6"><label class="form-label">Suivi par - Ancien 2</label><select id="epreuveAncien2" class="form-select" required><option value="">Sélectionner un ancien</option></select></div>
+              </div>
+              <button type="submit" class="btn btn-primary mt-3">Enregistrer la mise à l'épreuve</button>
+              <button type="button" class="btn btn-secondary mt-3" id="resetEpreuveBtn">Réinitialiser</button>
+            </form>
+          </div>
+          <div class="card p-3" id="epreuvesReport"><div class="table-responsive"><table class="table table-striped" id="epreuvesTable"><thead class="table-primary"><tr><th>Frère</th><th>Objectif</th><th>Date naissance</th><th>Âge</th><th>Baptême</th><th>Suivi par</th><th>Actions</th></tr></thead><tbody></tbody></table></div><div id="epreuvesEmpty" class="empty-state text-center">Aucune mise à l'épreuve enregistrée.</div></div>
+        </div>
+
+        <div class="tab-pane fade" id="formation">
+          <div class="card p-3 mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2"><div><h5 class="section-title mb-1">Formation des frères</h5><p class="text-muted mb-0">Enregistrer les formations prévues ou réalisées.</p></div><button type="button" class="btn btn-outline-primary" id="exportFormationsPdfBtn">Enregistrer en PDF</button></div>
+            <form id="formationForm" class="mt-3"><input type="hidden" id="formationId"><div class="row g-3"><div class="col-md-6"><label class="form-label">Frère</label><select id="formationFrere" class="form-select" required><option value="">Sélectionner un frère</option></select></div><div class="col-md-3"><label class="form-label">Date</label><input id="formationDate" type="date" class="form-control" required></div><div class="col-md-3"><label class="form-label">Formateur</label><input id="formationFormateur" class="form-control"></div><div class="col-md-6"><label class="form-label">Thème / sujet</label><input id="formationTheme" class="form-control" required></div><div class="col-md-6"><label class="form-label">Observation</label><textarea id="formationObservation" class="form-control" rows="1"></textarea></div></div><button type="submit" class="btn btn-primary mt-3">Enregistrer la formation</button><button type="button" class="btn btn-secondary mt-3" id="resetFormationBtn">Réinitialiser</button></form>
+          </div>
+          <div class="card p-3" id="formationsReport"><div class="table-responsive"><table class="table table-striped" id="formationsTable"><thead class="table-primary"><tr><th>Frère</th><th>Date</th><th>Thème</th><th>Formateur</th><th>Observation</th><th>Actions</th></tr></thead><tbody></tbody></table></div><div id="formationsEmpty" class="empty-state text-center">Aucune formation enregistrée.</div></div>
+        </div>
+
+        <div class="tab-pane fade" id="suivi">
+          <div class="card p-3 mb-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <div>
+                <h5 class="text-primary mb-1">Proclamateurs à visiter</h5>
+                <p class="text-muted mb-0">Irréguliers, inactifs et proclamateurs qui tendent à le devenir.</p>
+                <small id="dataStatus" class="text-muted"></small>
+              </div>
+              <div class="d-flex gap-2">
+                <select id="statutFilter" class="form-select" aria-label="Filtrer par statut">
+                  <option value="all">Tous les statuts</option><option value="simple">Visite Pastorale simple</option><option value="irregular">Irréguliers</option><option value="inactive">Inactifs</option><option value="tendingIrregular">Tendent à devenir irréguliers</option><option value="tendingInactive">Tendent à devenir inactifs</option>
+                </select>
+                <button type="button" class="btn btn-outline-primary" id="exportVisitsPdfBtn">PDF</button>
+              </div>
+            </div>
+            <div class="row g-2 mt-3">
+              <div class="col-md-8"><input type="search" id="searchInput" class="form-control" placeholder="Rechercher un nom, groupe ou téléphone"></div>
+              <div class="col-md-4"><button type="button" class="btn btn-outline-primary w-100" id="refreshBtn">Actualiser les statuts</button></div>
+            </div>
+          </div>
+
+          <div class="card p-3" id="visitsReport">
+            <div class="table-responsive">
+              <table class="table table-striped align-middle" id="visiteTable">
+                <thead class="table-primary"><tr>
+                  <th>Proclamateur</th><th>Statut</th><th>Groupe</th><th>Téléphone</th>
+                  <th>Date de la visite</th><th>Ancien(s) qui le visiteront</th><th>Visite effectuée</th><th>Observation</th><th>Action</th>
+                </tr></thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <div id="emptyState" class="empty-state text-center d-none">Aucun proclamateur correspondant.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  let programmationDb;
+  let proclamateursDb;
+  let proclamateurs = [];
+  let detailPredication = [];
+  let visites = [];
+  let epreuves = [];
+  let formations = [];
+
+  const escapeHtml = value => String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+  function openDatabase(name, version, upgrade) {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(name, version);
+      request.onupgradeneeded = event => upgrade(event.target.result);
+      request.onsuccess = event => resolve(event.target.result);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  function openProclamateursDatabase() {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('ProclamateursDB', 5);
+      request.onupgradeneeded = event => {
+        const database = event.target.result;
+        if (!database.objectStoreNames.contains('proclamateurs')) database.createObjectStore('proclamateurs', { keyPath: 'id' });
+        if (!database.objectStoreNames.contains('pionniersAuxiliaire')) database.createObjectStore('pionniersAuxiliaire', { keyPath: 'proclamateurId' });
+        if (!database.objectStoreNames.contains('permanentCandidatures')) database.createObjectStore('permanentCandidatures', { keyPath: 'proclamateurId' });
+        if (!database.objectStoreNames.contains('detailPredication')) database.createObjectStore('detailPredication', { keyPath: 'id' });
+        if (!database.objectStoreNames.contains('groupLeaders')) database.createObjectStore('groupLeaders', { keyPath: 'group' });
+      };
+      request.onsuccess = event => {
+        const database = event.target.result;
+        database.onversionchange = () => database.close();
+        resolve(database);
+      };
+      request.onerror = () => reject(request.error);
+      request.onblocked = () => reject(new Error('La base ProclamateursDB est ouverte dans une autre page. Fermez cette page puis réessayez.'));
+    });
+  }
+
+  function getAll(database, storeName) {
+    return new Promise((resolve, reject) => {
+      if (!database.objectStoreNames.contains(storeName)) {
+        resolve([]);
+        return;
+      }
+      let request;
+      try {
+        request = database.transaction(storeName, 'readonly').objectStore(storeName).getAll();
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  function getFullName(person) {
+    return [person.nom, person.postnom, person.prenom].filter(Boolean).join(' ').trim() || person.id;
+  }
+
+  function calculateAge(birthdate) {
+    if (!birthdate) return '';
+    const birth = new Date(`${birthdate}T00:00:00`);
+    if (Number.isNaN(birth.getTime())) return '';
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const beforeBirthday = today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate());
+    if (beforeBirthday) age -= 1;
+    return age >= 0 ? age : '';
+  }
+
+  function getPersonById(id) {
+    return proclamateurs.find(person => String(person.id) === String(id));
+  }
+
+  function buildPeopleFromReports(records) {
+    const peopleById = new Map();
+    records.forEach(record => {
+      const id = String(record.proclamateurId || '').trim();
+      if (!id || peopleById.has(id)) return;
+      peopleById.set(id, {
+        id,
+        nom: record.nom || record.nomComplet || '',
+        groupe: record.groupe || '',
+        telephone: record.telephone || ''
+      });
+    });
+    return [...peopleById.values()];
+  }
+
+  function getAncients() {
+    return proclamateurs.filter(person => ['ancien', 'ancien pp'].includes(String(person.service || '').trim().toLowerCase()));
+  }
+
+  function fillPersonSelect(selectId, people, placeholder) {
+    const select = document.getElementById(selectId);
+    const current = select.value;
+    select.innerHTML = `<option value="">${placeholder}</option>` + people.map(person => `<option value="${escapeHtml(person.id)}">${escapeHtml(getFullName(person))}</option>`).join('');
+    select.value = current;
+  }
+
+  function fillProgrammingSelects() {
+    fillPersonSelect('epreuveFrere', proclamateurs.filter(person => String(person.sexe || '').toUpperCase() !== 'F'), 'Sélectionner un frère');
+    fillPersonSelect('formationFrere', proclamateurs.filter(person => String(person.sexe || '').toUpperCase() !== 'F'), 'Sélectionner un frère');
+    fillPersonSelect('epreuveAncien1', getAncients(), 'Sélectionner un ancien');
+    fillPersonSelect('epreuveAncien2', getAncients(), 'Sélectionner un ancien');
+  }
+
+  function fillEpreuvePerson() {
+    const person = getPersonById(document.getElementById('epreuveFrere').value) || {};
+    document.getElementById('epreuveNom').value = person.nom || '';
+    document.getElementById('epreuvePostnom').value = person.postnom || '';
+    document.getElementById('epreuvePrenom').value = person.prenom || '';
+    document.getElementById('epreuveNaissance').value = person.birthdate || '';
+    document.getElementById('epreuveAge').value = calculateAge(person.birthdate);
+    document.getElementById('epreuveBapteme').value = person.baptismDate || '';
+  }
+
+  function putRecord(storeName, data, id) {
+    return new Promise((resolve, reject) => {
+      const store = programmationDb.transaction(storeName, 'readwrite').objectStore(storeName);
+      const request = id ? store.put({ ...data, id }) : store.add(data);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  function deleteRecord(storeName, id, callback) {
+    const request = programmationDb.transaction(storeName, 'readwrite').objectStore(storeName).delete(id);
+    request.onsuccess = callback;
+  }
+
+  function resetEpreuveForm() {
+    document.getElementById('epreuveForm').reset();
+    document.getElementById('epreuveId').value = '';
+    fillEpreuvePerson();
+  }
+
+  function resetFormationForm() {
+    document.getElementById('formationForm').reset();
+    document.getElementById('formationId').value = '';
+  }
+
+  function renderEpreuves() {
+    const tbody = document.querySelector('#epreuvesTable tbody');
+    tbody.innerHTML = epreuves.map(record => `<tr>
+      <td>${escapeHtml(record.nomComplet)}</td><td>${escapeHtml(record.objectif)}</td><td>${escapeHtml(record.birthdate || '-')}</td><td>${escapeHtml(record.age || '-')}</td><td>${escapeHtml(record.baptismDate || '-')}</td>
+      <td>${escapeHtml(record.ancien1 || '-')}<br>${escapeHtml(record.ancien2 || '-')}</td>
+      <td><button type="button" class="btn btn-sm btn-outline-primary" onclick="editEpreuve(${record.id})">Modifier</button><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEpreuve(${record.id})">Supprimer</button></td>
+    </tr>`).join('');
+    document.getElementById('epreuvesEmpty').classList.toggle('d-none', epreuves.length > 0);
+  }
+
+  function renderFormations() {
+    const tbody = document.querySelector('#formationsTable tbody');
+    tbody.innerHTML = formations.map(record => `<tr><td>${escapeHtml(record.nomComplet)}</td><td>${escapeHtml(record.date || '-')}</td><td>${escapeHtml(record.theme)}</td><td>${escapeHtml(record.formateur || '-')}</td><td>${escapeHtml(record.observation || '-')}</td><td><button type="button" class="btn btn-sm btn-outline-primary" onclick="editFormation(${record.id})">Modifier</button><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeFormation(${record.id})">Supprimer</button></td></tr>`).join('');
+    document.getElementById('formationsEmpty').classList.toggle('d-none', formations.length > 0);
+  }
+
+  function editEpreuve(id) {
+    const record = epreuves.find(item => item.id === id);
+    if (!record) return;
+    document.getElementById('epreuveId').value = record.id;
+    document.getElementById('epreuveFrere').value = record.frereId;
+    document.getElementById('epreuveObjectif').value = record.objectif;
+    document.getElementById('epreuveAncien1').value = record.ancien1Id;
+    document.getElementById('epreuveAncien2').value = record.ancien2Id;
+    fillEpreuvePerson();
+    bootstrap.Tab.getOrCreateInstance(document.querySelector('[href="#epreuve"]')).show();
+  }
+
+  function editFormation(id) {
+    const record = formations.find(item => item.id === id);
+    if (!record) return;
+    document.getElementById('formationId').value = record.id;
+    document.getElementById('formationFrere').value = record.frereId;
+    document.getElementById('formationDate').value = record.date || '';
+    document.getElementById('formationTheme').value = record.theme || '';
+    document.getElementById('formationFormateur').value = record.formateur || '';
+    document.getElementById('formationObservation').value = record.observation || '';
+    bootstrap.Tab.getOrCreateInstance(document.querySelector('[href="#formation"]')).show();
+  }
+
+  function removeEpreuve(id) { deleteRecord('epreuves', id, () => loadProgrammingRecords()); }
+  function removeFormation(id) { deleteRecord('formations', id, () => loadProgrammingRecords()); }
+
+  function getRecentMonthKeys(count = 6) {
+    const keys = [];
+    const current = new Date();
+    current.setDate(1);
+    for (let index = count - 1; index >= 0; index -= 1) {
+      const month = new Date(current.getFullYear(), current.getMonth() - index, 1);
+      keys.push(`${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`);
+    }
+    return keys;
+  }
+
+  function getMonthKey(record) {
+    return record.month ? String(record.month).slice(0, 7) : '';
+  }
+
+  function hasConsecutiveFalse(values, count) {
+    let consecutive = 0;
+    for (const value of values) {
+      if (value) {
+        consecutive += 1;
+        if (consecutive >= count) return true;
+      } else {
+        consecutive = 0;
+      }
+    }
+    return false;
+  }
+
+  function getReportStatus(person) {
+    const personId = String(person.id).trim();
+    const months = getRecentMonthKeys();
+    const activeMonths = new Set(detailPredication
+      .filter(record => String(record.proclamateurId || '').trim() === personId)
+      .filter(record => months.includes(getMonthKey(record)) && isPreachingRecord(record))
+      .map(getMonthKey));
+    const noPreach = months.map(month => !activeMonths.has(month));
+    const irregular = hasConsecutiveFalse(noPreach, 3);
+    const inactive = hasConsecutiveFalse(noPreach, 6);
+    if (inactive) return { key: 'inactive', label: 'Inactif', className: 'bg-danger' };
+    let currentRun = 0;
+    noPreach.forEach(isMissing => { currentRun = isMissing ? currentRun + 1 : 0; });
+    if (currentRun >= 4) return { key: 'tendingInactive', label: 'Tend à devenir inactif', className: 'bg-secondary' };
+    if (irregular) return { key: 'irregular', label: 'Irrégulier', className: 'bg-warning text-dark' };
+    if (currentRun >= 2) return { key: 'tendingIrregular', label: 'Tend à devenir irrégulier', className: 'bg-info text-dark' };
+    return { key: 'simple', label: 'Visite Pastorale simple', className: 'bg-primary' };
+  }
+
+  function isPreachingRecord(record) {
+    const value = record.aprecher;
+    return value === 'yes' || value === 'Oui' || value === 'oui' || value === true || value === 1;
+  }
+
+  const visitStatusOptions = [
+    ['simple', 'Visite Pastorale simple'], ['irregular', 'Irrégulier'], ['inactive', 'Inactif'],
+    ['tendingIrregular', 'Tend à devenir irrégulier'], ['tendingInactive', 'Tend à devenir inactif']
+  ];
+
+  function saveVisit(personId, field, value) {
+    const existing = visites.find(visit => String(visit.proclamateurId) === String(personId));
+    const data = { ...(existing || {}), proclamateurId: personId, [field]: value };
+    const store = programmationDb.transaction('visites', 'readwrite').objectStore('visites');
+    const request = existing ? store.put({ ...data, id: existing.id }) : store.add(data);
+    request.onsuccess = () => loadVisites();
+    request.onerror = () => alert('Impossible d’enregistrer cette visite.');
+  }
+
+  function renderTable() {
+    const filter = document.getElementById('statutFilter').value;
+    const search = document.getElementById('searchInput').value.trim().toLowerCase();
+    const rows = proclamateurs.map(person => {
+      const visit = visites.find(item => String(item.proclamateurId) === String(person.id)) || {};
+      const automaticStatus = getReportStatus(person);
+      const selectedStatus = visitStatusOptions.find(option => option[0] === visit.statut);
+      const status = selectedStatus ? { key: selectedStatus[0], label: selectedStatus[1], className: 'bg-primary' } : automaticStatus;
+      return { person, status, visit };
+    })
+      .filter(item => filter === 'all' || item.status.key === filter)
+      .filter(item => [getFullName(item.person), item.person.groupe, item.person.telephone].join(' ').toLowerCase().includes(search));
+    const tbody = document.querySelector('#visiteTable tbody');
+    tbody.innerHTML = rows.map(({ person, status }) => {
+      return `<tr>
+        <td><strong>${escapeHtml(getFullName(person))}</strong><br><small class="text-muted">${escapeHtml(person.id)}</small></td>
+        <td><select class="form-select form-select-sm" onchange="saveVisit('${escapeHtml(person.id)}', 'statut', this.value)">${visitStatusOptions.map(option => `<option value="${option[0]}" ${status.key === option[0] ? 'selected' : ''}>${option[1]}</option>`).join('')}</select></td>
+        <td>${escapeHtml(person.groupe || 'Non renseigné')}</td>
+        <td>${escapeHtml(person.telephone || 'Non renseigné')}</td>
+        <td><input type="date" class="form-control form-control-sm" value="${escapeHtml(visit.dateVisite || '')}" onchange="saveVisit('${escapeHtml(person.id)}', 'dateVisite', this.value)"></td>
+        <td><input type="text" class="form-control form-control-sm" placeholder="Nom(s) des anciens" value="${escapeHtml(visit.anciens || '')}" onchange="saveVisit('${escapeHtml(person.id)}', 'anciens', this.value)"></td>
+        <td><select class="form-select form-select-sm" onchange="saveVisit('${escapeHtml(person.id)}', 'effectuee', this.value)">
+          <option value="" ${!visit.effectuee ? 'selected' : ''}>Choisir</option><option value="Oui" ${visit.effectuee === 'Oui' ? 'selected' : ''}>Oui</option><option value="Non" ${visit.effectuee === 'Non' ? 'selected' : ''}>Non</option>
+        </select></td>
+        <td><textarea class="form-control form-control-sm" rows="2" placeholder="Observation de la visite" onchange="saveVisit('${escapeHtml(person.id)}', 'observation', this.value)">${escapeHtml(visit.observation || '')}</textarea></td>
+        <td><button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteVisit('${escapeHtml(person.id)}')">Effacer</button></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('emptyState').classList.toggle('d-none', rows.length > 0);
+  }
+
+  async function loadVisites() {
+    visites = await getAll(programmationDb, 'visites');
+    renderTable();
+  }
+
+  async function loadProgrammingRecords() {
+    [epreuves, formations] = await Promise.all([
+      getAll(programmationDb, 'epreuves'),
+      getAll(programmationDb, 'formations')
+    ]);
+    renderEpreuves();
+    renderFormations();
+    renderTable();
+  }
+
+  async function loadData() {
+    proclamateurs = await getAll(proclamateursDb, 'proclamateurs');
+    try {
+      detailPredication = await getAll(proclamateursDb, 'detailPredication');
+    } catch (error) {
+      detailPredication = [];
+      console.warn('Les rapports ne sont pas disponibles :', error);
+    }
+    if (!proclamateurs.length && detailPredication.length) {
+      proclamateurs = buildPeopleFromReports(detailPredication);
+    }
+    const dataStatus = document.getElementById('dataStatus');
+    if (dataStatus) {
+      dataStatus.textContent = `${proclamateurs.length} proclamateur(s) chargé(s), ${detailPredication.length} rapport(s) chargé(s)`;
+      dataStatus.className = proclamateurs.length ? 'text-muted' : 'text-danger';
+    }
+    fillProgrammingSelects();
+    try {
+      await loadVisites();
+    } catch (error) {
+      visites = [];
+      renderTable();
+      console.warn('Les visites existantes ne sont pas disponibles :', error);
+    }
+    try {
+      await loadProgrammingRecords();
+    } catch (error) {
+      epreuves = [];
+      formations = [];
+      renderEpreuves();
+      renderFormations();
+      renderTable();
+      console.warn('Les données de formation ne sont pas disponibles :', error);
+    }
+  }
+
+  function deleteVisit(personId) {
+    const visit = visites.find(item => String(item.proclamateurId) === String(personId));
+    if (!visit) return;
+    const request = programmationDb.transaction('visites', 'readwrite').objectStore('visites').delete(visit.id);
+    request.onsuccess = () => loadVisites();
+  }
+
+  function exportPdf() {
+    const report = document.getElementById('visitsReport').cloneNode(true);
+    report.classList.add('pdf-report');
+    report.querySelectorAll('input, textarea, select, button').forEach(element => {
+      const value = element.tagName === 'SELECT' ? element.options[element.selectedIndex]?.text : element.value;
+      const text = document.createElement('span');
+      text.textContent = value || '-';
+      element.replaceWith(text);
+    });
+    report.querySelector('#emptyState')?.remove();
+    const wrapper = document.createElement('div');
+    wrapper.appendChild(Object.assign(document.createElement('h1'), { textContent: 'Suivi des visites des proclamateurs' }));
+    wrapper.appendChild(report);
+    if (window.html2pdf) {
+      html2pdf().set({ margin: 8, filename: 'suivi-visites-proclamateurs.pdf', image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } }).from(wrapper).save();
+    } else {
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`<html><body>${wrapper.innerHTML}</body></html>`);
+      printWindow.document.close();
+      printWindow.print();
+    }
+  }
+
+  document.getElementById('statutFilter').addEventListener('change', renderTable);
+  document.getElementById('searchInput').addEventListener('input', renderTable);
+  document.getElementById('refreshBtn').addEventListener('click', loadData);
+  document.getElementById('exportVisitsPdfBtn').addEventListener('click', exportPdf);
+  document.getElementById('epreuveFrere').addEventListener('change', fillEpreuvePerson);
+  document.getElementById('resetEpreuveBtn').addEventListener('click', resetEpreuveForm);
+  document.getElementById('resetFormationBtn').addEventListener('click', resetFormationForm);
+
+  document.getElementById('epreuveForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const brother = getPersonById(document.getElementById('epreuveFrere').value);
+    const ancien1 = getPersonById(document.getElementById('epreuveAncien1').value);
+    const ancien2 = getPersonById(document.getElementById('epreuveAncien2').value);
+    if (!brother || !ancien1 || !ancien2) return;
+    const id = document.getElementById('epreuveId').value;
+    await putRecord('epreuves', {
+      frereId: brother.id, nomComplet: getFullName(brother), nom: brother.nom || '', postnom: brother.postnom || '', prenom: brother.prenom || '',
+      birthdate: brother.birthdate || '', age: calculateAge(brother.birthdate), baptismDate: brother.baptismDate || '', objectif: document.getElementById('epreuveObjectif').value,
+      ancien1Id: ancien1.id, ancien1: getFullName(ancien1), ancien2Id: ancien2.id, ancien2: getFullName(ancien2)
+    }, id ? Number(id) : null);
+    resetEpreuveForm();
+    await loadProgrammingRecords();
+  });
+
+  document.getElementById('formationForm').addEventListener('submit', async event => {
+    event.preventDefault();
+    const brother = getPersonById(document.getElementById('formationFrere').value);
+    if (!brother) return;
+    const id = document.getElementById('formationId').value;
+    await putRecord('formations', {
+      frereId: brother.id, nomComplet: getFullName(brother), date: document.getElementById('formationDate').value,
+      theme: document.getElementById('formationTheme').value, formateur: document.getElementById('formationFormateur').value,
+      observation: document.getElementById('formationObservation').value
+    }, id ? Number(id) : null);
+    resetFormationForm();
+    await loadProgrammingRecords();
+  });
+
+  function exportSectionPdf(elementId, title, fileName) {
+    const report = document.getElementById(elementId).cloneNode(true);
+    report.classList.add('pdf-report');
+    report.querySelectorAll('input, textarea, select, button').forEach(element => {
+      const value = element.tagName === 'SELECT' ? element.options[element.selectedIndex]?.text : element.value;
+      const text = document.createElement('span');
+      text.textContent = value || '-';
+      element.replaceWith(text);
+    });
+    const wrapper = document.createElement('div');
+    wrapper.appendChild(Object.assign(document.createElement('h1'), { textContent: title }));
+    wrapper.appendChild(report);
+    html2pdf().set({ margin: 8, filename: fileName, image: { type: 'jpeg', quality: 0.95 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } }).from(wrapper).save();
+  }
+
+  document.getElementById('exportEpreuvesPdfBtn').addEventListener('click', () => exportSectionPdf('epreuvesReport', 'Mises à l\'épreuve', 'mises-a-lepreuve.pdf'));
+  document.getElementById('exportFormationsPdfBtn').addEventListener('click', () => exportSectionPdf('formationsReport', 'Formation des frères', 'formations-freres.pdf'));
+
+  Promise.all([
+    openDatabase('ProgrammationDB', 2, database => {
+      if (!database.objectStoreNames.contains('visites')) database.createObjectStore('visites', { keyPath: 'id', autoIncrement: true });
+      if (!database.objectStoreNames.contains('epreuves')) database.createObjectStore('epreuves', { keyPath: 'id', autoIncrement: true });
+      if (!database.objectStoreNames.contains('formations')) database.createObjectStore('formations', { keyPath: 'id', autoIncrement: true });
+    }),
+    openProclamateursDatabase()
+  ]).then(([scheduleDatabase, peopleDatabase]) => {
+    programmationDb = scheduleDatabase;
+    proclamateursDb = peopleDatabase;
+    return loadData();
+  }).catch(error => {
+    console.error(error);
+    document.querySelector('#visiteTable tbody').innerHTML = '<tr><td colspan="9" class="text-center text-danger">Impossible de charger les données.</td></tr>';
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau de bord</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+  <style>
+    :root {
+      --primary: #214b63;
+      --primary-soft: #eef2f5;
+      --accent: #214b63;
+      --border: #d9e1e6;
+      --text: #243746;
+      --muted: #687984;
+      --bg: #f1f4f6;
+      --card: #ffffff;
+      --nav: #172f3d;
+      --shadow: 0 10px 24px rgba(31, 55, 68, 0.07);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Manrope", "Segoe UI", sans-serif;
+    }
+
+    .sidebar {
+      min-height: 100vh;
+      background: var(--nav);
+      padding: 28px 18px;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sidebar::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      right: -90px;
+      bottom: 12%;
+      border: 1px solid rgba(255,255,255,0.1);
+      transform: rotate(25deg);
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .brand-name {
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .brand-caption {
+      color: rgba(255,255,255,0.55);
+      background: transparent;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .menu-label {
+      margin: 0 12px 10px;
+      color: rgba(255,255,255,0.42);
+      font-size: 0.66rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .sidebar-menu {
+      display: grid;
+      gap: 5px;
+    }
+    .sidebar a {
+      display: block;
+      color: rgba(255,255,255,0.68);
+      padding: 11px 13px;
+      border-radius: 9px;
+      border: 0 !important;
+      margin: 0;
+      font-weight: 700;
+      text-decoration: none !important;
+      box-shadow: none !important;
+      transition: 0.2s ease;
+    }
+
+    .sidebar a:hover {
+      background: rgba(255,255,255,0.09);
+      color: #fff;
+      transform: translateX(3px);
+    }
+
+    .sidebar a.active {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+      box-shadow: none !important;
+    }
+    .sidebar a:focus-visible { outline: 2px solid rgba(255,255,255,0.75); outline-offset: 2px; }
+
+    .main {
+      padding: 38px clamp(20px, 4vw, 56px);
+      max-width: 1500px;
+    }
+
+    .user-info {
+      position: absolute;
+      right: clamp(20px, 4vw, 56px);
+      top: 30px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .data-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .data-tools-statuses { display: flex; flex-wrap: wrap; gap: 4px 14px; min-width: 0; }
+    .data-tools-actions { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+    .data-tools-actions .btn { white-space: nowrap; }
+    .data-tools-status { margin: 0; color: var(--primary); font-size: 0.74rem; font-weight: 700; }
+    .access-admin { display:none; position:fixed; top:28px; right:28px; z-index:1100; width:min(680px, calc(100vw - 40px)); max-height:calc(100vh - 56px); overflow:auto; margin:0; border-top:4px solid var(--primary); box-shadow:0 22px 60px rgba(23,47,61,.25); }
+    .access-admin.is-visible { display:block; }
+    .access-admin-link { display:none !important; }
+    .access-admin-link.is-visible { display:block !important; }
+    .access-admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:end; }
+    .access-pages { display:flex; flex-wrap:wrap; gap:8px 16px; padding:10px 0 2px; }
+    .access-pages label { color:var(--text); font-size:.78rem; font-weight:700; }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-kicker {
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .hero-title {
+      max-width: none;
+      margin: 0 0 24px;
+      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+      font-size: clamp(1rem, 2.55vw, 2.45rem);
+      font-weight: 700;
+      letter-spacing: 0.015em;
+      line-height: 1;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .hero-title .text-muted { color: var(--muted) !important; font-weight: 600; }
+
+    .period-panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--text);
+      box-shadow: 0 8px 20px rgba(31, 55, 68, 0.05);
+    }
+
+    .period-panel .form-label {
+      color: var(--muted);
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .period-panel .form-select,
+    .period-panel .form-control {
+      border: 1px solid var(--border);
+      background-color: #fff;
+      color: var(--text);
+    }
+
+    .period-panel .form-select option { color: var(--text); }
+    .period-panel .btn-primary { font-weight: 800; }
+    .period-panel #periodLabel { color: var(--muted) !important; font-size: 0.82rem; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .secondary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 30px 0 16px;
+    }
+
+    .section-kicker {
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .section-heading h2 {
+      margin: 4px 0 0;
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: right;
+    }
+
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 20px;
+      box-shadow: 0 8px 20px rgba(31, 55, 68, 0.05);
+      min-height: 170px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card.featured {
+      border-top: 3px solid var(--primary);
+    }
+
+    .stat-card.compact {
+      min-height: 132px;
+    }
+
+    .meeting-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      background: #fff;
+      border-left: 3px solid var(--primary);
+    }
+
+    .meeting-card .stat-title {
+      margin-bottom: 8px;
+    }
+
+    .meeting-card .stat-value {
+      font-size: 2.3rem;
+    }
+
+    .meeting-symbol {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--primary);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .weekend .meeting-symbol {
+      color: var(--accent);
+    }
+
+    .stat-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.02em;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 2.15rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--primary);
+    }
+
+    .stat-card.compact .stat-value {
+      font-size: 1.7rem;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .mini-box {
+      background: transparent;
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      padding: 12px 0 0;
+    }
+
+    .mini-label {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    .mini-value {
+      margin-top: 8px;
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1.1;
+    }
+
+    .status-list {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    #statusPanel {
+      padding: 26px;
+    }
+
+    .status-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .status-heading h2 {
+      margin: 4px 0 0;
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+
+    .status-heading p {
+      max-width: 520px;
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .status-accent { color: var(--primary) !important; }
+
+    .status-table {
+      font-size: 0.88rem;
+    }
+
+    .status-table th {
+      background: #f3f8ff;
+      color: #344054;
+      white-space: nowrap;
+    }
+
+    .status-table td {
+      vertical-align: top;
+    }
+
+    .category-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+      margin-bottom: 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #f8fafb;
+    }
+
+    #statusLists.has-active-category .category-tabs {
+      margin-bottom: 18px;
+    }
+
+    .category-tab {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 48px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      border-radius: 9px;
+      padding: 10px 14px;
+      font-family: "Manrope", "Segoe UI", sans-serif;
+      font-weight: 600;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      text-align: left;
+      transition: 0.2s ease;
+    }
+
+    .category-tab:hover {
+      border-color: #9eb4c0;
+      color: var(--primary);
+    }
+
+    .category-tab.active {
+      background: #eaf1f4;
+      border-color: var(--primary);
+      color: var(--primary);
+      box-shadow: none;
+    }
+
+    .category-tab .badge {
+      flex: 0 0 auto;
+      padding: 4px 7px;
+      background: #f1f4f6 !important;
+      color: var(--primary) !important;
+      font-weight: 700;
+    }
+
+    .category-tab.active .badge {
+      background: #fff !important;
+    }
+
+    .category-panel {
+      display: none;
+    }
+
+    .category-panel.active {
+      display: block;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      vertical-align: middle;
+    }
+
+    .pdf-report { position: absolute; left: -10000px; top: 0; display: block; width: 180mm; background: white; color: #111827; padding: 12mm; font-family: Arial, sans-serif; }
+    .pdf-report h1 { font-size: 18px; text-align: center; margin-bottom: 12px; }
+    .pdf-report h2 { font-size: 16px; border-bottom: 1px solid #111827; padding-bottom: 6px; }
+    .pdf-report h3 { font-size: 14px; margin-bottom: 8px; }
+    .pdf-report table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px; }
+    .pdf-report th, .pdf-report td { border: 1px solid #98a2b3; padding: 5px; text-align: left; }
+    .pdf-report th { background: #eaf2ff; }
+
+    @media (max-width: 991px) {
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 767px) {
+      .sidebar { min-height: auto; padding: 16px; }
+      .sidebar .d-flex.align-items-center.gap-3.mb-5 { margin-bottom: 18px !important; }
+      .sidebar-menu { grid-template-columns: 1fr; gap: 4px; }
+      .sidebar a { padding: 10px; font-size: 0.78rem; line-height: 1.3; }
+      .menu-label { margin-bottom: 6px; }
+      .main { padding: 16px; }
+      .user-info { position: static; margin-bottom: 12px; }
+      .hero-title { margin-bottom: 18px; font-size: 1.55rem; line-height: 1.12; white-space: normal; overflow-wrap: anywhere; }
+      .stat-grid, .secondary-grid { grid-template-columns: 1fr; }
+      .mini-grid { grid-template-columns: 1fr; }
+      .section-heading, .status-heading { align-items: flex-start; flex-direction: column; }
+      .section-note { text-align: left; }
+      .meeting-card { align-items: flex-start; flex-wrap: wrap; }
+      .meeting-card .stat-value { margin-left: auto; }
+      .category-tabs { grid-template-columns: 1fr; }
+      #statusPanel { padding: 18px; }
+      .data-tools { align-items: flex-start; flex-direction: column; }
+      .data-tools-statuses { width: 100%; }
+      .data-tools-actions { width: 100%; }
+      .data-tools-actions .btn { flex: 1 1 180px; }
+      .access-admin-grid { grid-template-columns:1fr; }
+      .panel { padding: 18px; }
+      .status-table { min-width: 620px; }
+      .table-responsive { overflow-x: auto; }
+    }
+  </style>
+  <link rel="stylesheet" href="app-theme.css">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <nav class="col-md-3 col-lg-2 sidebar">
+        <div class="d-flex align-items-center gap-3 mb-5">
+          <div class="brand-mark">DB</div>
+          <div>
+            <div class="brand-name">KIN MATETE</div>
+            <div class="brand-caption">Espace de suivi</div>
+          </div>
+        </div>
+        <div class="menu-label">Navigation</div>
+        <div class="sidebar-menu">
+          <a data-page="proclamateurs" href="Proclamateurs.html">Proclamateurs</a>
+          <a data-page="rapports" href="Rapports.html">Rapports</a>
+          <a data-page="programmation" href="Programmation.html">Programmation</a>
+          <a data-page="souscription" href="Souscription.html">Souscription</a>
+          <a data-page="assistance" href="assistance.html">Assistance aux Réunions</a>
+          <a data-page="pdf" href="pdf.html">Fichiers PDF</a>
+          <a href="#" id="accessAdminLink" class="access-admin-link">Gestion des accès</a>
+          <a href="connexion.html" id="logoutLink">Déconnexion</a>
+        </div>
+      </nav>
+      <main class="col-md-9 col-lg-10 main position-relative">
+        <div class="user-info" id="userInfo">Utilisateur connecté</div>
+        <div class="hero-kicker">Tableau de bord · Vue générale</div>
+        <h1 class="hero-title">ASSEMBLÉE LOCALE DE KIN MATETE DE BONHOMME 2 FRANÇAIS <span class="text-muted">(55954)</span></h1>
+        <section class="data-tools" aria-label="Actions">
+          <div class="data-tools-statuses">
+            <p id="dataBackupStatus" class="data-tools-status" role="status" aria-live="polite"></p>
+            <p id="syncStatus" class="data-tools-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="data-tools-actions">
+            <button id="exportDataBtn" type="button" class="btn btn-primary btn-sm">Sauvegarder les données</button>
+            <button id="importDataBtn" type="button" class="btn btn-primary btn-sm">Restaurer une sauvegarde</button>
+            <input id="importDataInput" type="file" accept="application/json,.json" hidden>
+          </div>
+        </section>
+        <section id="accessAdmin" class="panel access-admin" aria-label="Gestion des accès">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div><div class="hero-kicker">Administration</div><h2 class="h5 mb-1">Gérer les accès</h2></div>
+            <button id="closeAccessAdmin" type="button" class="btn btn-sm btn-outline-secondary">Fermer</button>
+          </div>
+          <p class="section-note mb-3">Sélectionnez les fonctionnalités visibles pour chaque utilisateur.</p>
+          <div class="access-admin-grid">
+            <div><label class="form-label" for="accessUserEmail">Email de l’utilisateur</label><input id="accessUserEmail" type="email" class="form-control" placeholder="utilisateur@example.com"></div>
+            <div><label class="form-label" for="accessUserRole">Rôle</label><select id="accessUserRole" class="form-select"><option value="proclamateur">Proclamateur</option><option value="assistant">Assistant</option><option value="ancien">Ancien</option><option value="responsable_predication">Responsable de prédication</option><option value="coordinateur">Coordinateur</option><option value="secretaire">Secrétaire</option></select></div>
+          </div>
+          <div class="mt-3"><span class="form-label d-block">Pages et sous-onglets autorisés</span><div id="accessPages" class="access-pages"></div></div>
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-3"><button id="saveAccessBtn" type="button" class="btn btn-primary">Enregistrer l’accès</button><span id="accessAdminStatus" class="data-tools-status" role="status" aria-live="polite"></span></div>
+          <div class="mt-4"><h3 class="h6 mb-2">Demandes en attente</h3><div id="accessRequests" class="small text-muted">Chargement...</div></div>
+          <div class="mt-4"><h3 class="h6 mb-2">Utilisateurs autorisés</h3><div id="accessUsers" class="small text-muted">Chargement...</div></div>
+        </section>
+        <div class="panel period-panel mb-4">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4"><label class="form-label">Période</label><select id="periodType" class="form-select"><option value="month">Mois précis</option><option value="last3">3 derniers mois</option><option value="last6">6 derniers mois</option><option value="serviceYear">Année de service</option></select></div>
+            <div class="col-md-4" id="monthWrapper"><label class="form-label">Mois</label><input id="monthPicker" type="month" class="form-control"></div>
+            <div class="col-md-4 d-none" id="serviceYearWrapper"><label class="form-label">Année de service</label><select id="serviceYearSelect" class="form-select"></select></div>
+            <div class="col-md-4 d-none" id="endMonthWrapper"><label class="form-label">Fin de période</label><input id="endMonthPicker" type="month" class="form-control"></div>
+            <div class="col-md-4"><button id="refreshBtn" class="btn btn-primary w-100">Mettre à jour</button></div>
+          </div>
+          <div id="periodLabel" class="text-muted mt-3"></div>
+        </div>
+        <div class="panel mt-4">
+          <div class="stat-grid">
+            <div class="stat-card featured">
+              <div class="stat-title">Proclamateurs actifs</div>
+              <div class="stat-value" id="homeProclamateursActifs">0</div>
+              <div class="mini-grid">
+                <div class="mini-box">
+                  <div class="mini-label">Nombre de fiches d'activité (S-4)</div>
+                  <div class="mini-value" id="homeProclamateursFiches">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Cours bibliques</div>
+                  <div class="mini-value" id="homeProclamateursCours">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-title">Pionniers Permanents</div>
+              <div class="stat-value" id="homePpTotal">0</div>
+              <div class="mini-grid">
+                <div class="mini-box">
+                  <div class="mini-label">Fiches d'activité (PP)</div>
+                  <div class="mini-value" id="homePpFiches">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Heures PP</div>
+                  <div class="mini-value" id="homePpHeures">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Cours bibliques</div>
+                  <div class="mini-value" id="homePpCours">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-title">Pionniers Auxiliaires</div>
+              <div class="stat-value" id="homePaTotal">0</div>
+              <div class="mini-grid">
+                <div class="mini-box">
+                  <div class="mini-label">Fiches d'activité (PA)</div>
+                  <div class="mini-value" id="homePaFiches">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Heures PA</div>
+                  <div class="mini-value" id="homePaHeures">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Cours bibliques</div>
+                  <div class="mini-value" id="homePaCours">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-heading">
+            <div>
+              <div class="section-kicker">Participation</div>
+              <h2>Statistiques des réunions</h2>
+            </div>
+            <div class="section-note">Moyenne des présences enregistrées</div>
+          </div>
+          <div class="secondary-grid">
+            <div class="stat-card compact meeting-card">
+              <div>
+                <div class="stat-title">Réunion de semaine</div>
+                <div class="small text-muted">Moyenne de présence</div>
+              </div>
+              <div class="stat-value" id="homeMoySemaine">0,0</div>
+              <div class="meeting-symbol">SEM</div>
+            </div>
+            <div class="stat-card compact meeting-card weekend">
+              <div>
+                <div class="stat-title">Réunion du week-end</div>
+                <div class="small text-muted">Moyenne de présence</div>
+              </div>
+              <div class="stat-value" id="homeMoyWeekend">0,0</div>
+              <div class="meeting-symbol">W-E</div>
+            </div>
+          </div>
+        </div>
+        <div class="panel mt-4" id="statusPanel">
+          <div class="status-heading mb-3">
+            <div>
+              <div class="section-kicker">Attention pastorale</div>
+              <h2>Proclamateurs à suivre</h2>
+              <p>Sélectionnez une catégorie pour afficher la liste correspondante et préparer le suivi.</p>
+            </div>
+            <button id="exportStatusPdfBtn" class="btn btn-outline-primary">Enregistrer en PDF</button>
+          </div>
+          <div id="statusLists"></div>
+        </div>
+        <div id="pdfReport" class="pdf-report"></div>
+      </main>
+    </div>
+  </div>
+  <script>
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthKey = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let proclamateurs = [], reports = [], paSubscriptions = [], groupLeaders = [], attendance = [], chart;
+    let submittedReportKeys = new Set();
+    const identityAliases = [
+      ['KALOMBO ESTHER', 'KALOMBO NGOYA ESTHER'],
+      ['KALOMBO REGINE', 'KALOMBO KAPINGA REGINE'],
+      ['KALOMBO WYLLIANA', 'KALOMBO KAPINGA WYLLIANA'],
+      ['KALOMBO ALICE', 'KALOMBO TSHINGUTA ALICE'],
+      ['KALOMBO SHITA ANGELA', 'KALOMBO MBOMBO ANGELA'],
+      ['MBO ISAAC', 'MBO NSUKA ISAAC'],
+      ['SUKASUKA KAPILA DORCAS', 'SUKASUKA KAPILA REBECCA'],
+      ['BUABUA SYLVIE', 'BUABUA SYLVIE'],
+      ['KIANA JOCHEL', 'KIANA JOCHEL'],
+      ['KALOMBO NZAJI NORBERT', 'KALOMBO NZAJI NORBY'],
+      ['KIKWAMA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCASY'],
+      ['BUABUA SEYA STEPHANE', 'SEYA STEPHANE'],
+      ['MBONGO STEVE', 'MBONGO SHITA STEVE'],
+      ['BUABUA SEYA GLORY', 'SEYA GLORY'],
+      ['LONGOMBE PLK', 'LONGOMBE KANZA PATRICK PLK'],
+      ['MUKWESO DELLY', 'MUKWESO PONIA DELLY'],
+      ['MANSWA ARMAND', 'MANSWA ARMAND ARMAND'],
+      ['MASWA ARMAND ARMAND', 'MANSWA ARMAND ARMAND'],
+      ['KIKWAMA MBWELEKA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS'],
+      ['KIKWAMA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS']
+    ];
+    const $ = id => document.getElementById(id);
+    const setText = (id, value) => {
+      const element = $(id);
+      if (!element) return;
+      element.textContent = value;
+    };
+    const setTextBoth = (primaryId, secondaryId, value) => {
+      setText(primaryId, value);
+      setText(secondaryId, value);
+    };
+    const dateFromMonth = key => { const [year, month] = key.split('-').map(Number); return new Date(year, month - 1, 1); };
+    const monthKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    function serviceYearRange(year) { return { start: new Date(year - 1, 8, 1), end: new Date(year, 7, 31) }; }
+    function monthRange(key) { const start = dateFromMonth(key); const end = new Date(start.getFullYear(), start.getMonth() + 1, 0); return { start, end }; }
+    function selectedRange() {
+      const type = $('periodType').value;
+      if (type === 'serviceYear') return serviceYearRange(Number($('serviceYearSelect').value));
+      const endKey = type === 'month' ? ($('monthPicker').value || currentMonthKey) : ($('endMonthPicker').value || currentMonthKey);
+      const end = monthRange(endKey).end;
+      const start = dateFromMonth(endKey);
+      if (type === 'last3') start.setMonth(start.getMonth() - 2);
+      if (type === 'last6') start.setMonth(start.getMonth() - 5);
+      return { start, end };
+    }
+    function monthsBetween(start, end) { const result = []; const cursor = new Date(start.getFullYear(), start.getMonth(), 1); while (cursor <= end) { result.push(monthKey(cursor)); cursor.setMonth(cursor.getMonth() + 1); } return result; }
+    function normalizeIdentityName(value) { return String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/gi, '').toLowerCase(); }
+    function memberFullName(member) { return [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim(); }
+    function canonicalIdentityName(value) {
+      const normalized = normalizeIdentityName(value);
+      const alias = identityAliases.find(([oldName, newName]) => oldName !== newName && [oldName, newName].some(name => normalizeIdentityName(name) === normalized));
+      return normalizeIdentityName(alias ? alias[1] : value);
+    }
+    function reportBelongsToMember(record, member) {
+      if (String(record.proclamateurId).trim() === String(member.id).trim()) return true;
+      return canonicalIdentityName(record.nom) === canonicalIdentityName(memberFullName(member));
+    }
+    function rebuildSubmittedReportIndex() {
+      submittedReportKeys = new Set();
+      const membersById = new Map(proclamateurs.map(member => [String(member.id).trim(), member]));
+      reports.forEach(record => {
+        if (!['yes', 'oui', 'true', '1'].includes(String(record.aprecher || '').trim().toLowerCase())) return;
+        const month = String(record.month || '').trim();
+        if (!month) return;
+        const member = membersById.get(String(record.proclamateurId || '').trim());
+        if (member) submittedReportKeys.add(`id:${String(member.id).trim()}|${month}`);
+        const name = member ? memberFullName(member) : record.nom;
+        if (name) submittedReportKeys.add(`name:${canonicalIdentityName(name)}|${month}`);
+      });
+    }
+    function reportWasSubmitted(memberId, key) {
+      const member = proclamateurs.find(item => String(item.id).trim() === String(memberId).trim());
+      return submittedReportKeys.has(`id:${String(memberId).trim()}|${key}`) || (member && submittedReportKeys.has(`name:${canonicalIdentityName(memberFullName(member))}|${key}`));
+    }
+    function longestNoRun(memberId, keys) { let current = 0; let longest = 0; for (const key of keys) { current = reportWasSubmitted(memberId, key) ? 0 : current + 1; longest = Math.max(longest, current); } return longest; }
+    function averageAttendance(type, range) { const values = attendance.filter(item => item.type === type && new Date(`${item.dateKey}T00:00:00`) >= range.start && new Date(`${item.dateKey}T00:00:00`) <= range.end).map(item => Number(item.attendees || 0)); return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0; }
+    function normalizeService(value) { return String(value || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+    function isYesAnswer(value) { return ['yes', 'oui', 'true', '1', 'y', 'o'].includes(String(value || '').trim().toLowerCase()); }
+    function matchesServiceSet(service, options) {
+      const normalized = normalizeService(service);
+      return options.some(option => normalized === normalizeService(option));
+    }
+    function isActiveProclamateur(member, months = []) {
+      if (!matchesServiceSet(member.service, ['PB', 'PNB', 'SSPT', 'Ancien', 'Assistant'])) return false;
+      return !months.length || !isAuxiliaryForRange(member, months);
+    }
+    function isAuxiliaryForRange(member, months) {
+      if (matchesServiceSet(member.service, ['PA'])) return true;
+      return paSubscriptions.some(record => String(record.proclamateurId) === String(member.id) && Array.isArray(record.selectedMonths) && record.selectedMonths.some(month => months.includes(String(month))));
+    }
+    function updateHomeStats() {
+      const range = selectedRange();
+      const months = monthsBetween(range.start, range.end).filter(key => key <= currentMonthKey);
+      const memberById = new Map(proclamateurs.map(member => [String(member.id), member]));
+      const relevantRecords = reports.filter(record => {
+        const month = String(record.month || '').trim();
+        return month && months.includes(month);
+      });
+
+      let fiches = 0;
+      let coursTotal = 0;
+      let ppCours = 0;
+      let paCours = 0;
+      let paHeures = 0;
+      let ppHeures = 0;
+      let paFiches = 0;
+      let ppFiches = 0;
+      const ficheMembers = new Set();
+      const paMembers = new Set();
+      const ppMembers = new Set();
+
+      relevantRecords.forEach(record => {
+        const member = memberById.get(String(record.proclamateurId)) || proclamateurs.find(item => reportBelongsToMember(record, item));
+        if (!member) return;
+
+        const service = normalizeService(member.service);
+        const isStandardProclamateur = isActiveProclamateur(member, months);
+        const isPa = isAuxiliaryForRange(member, months) || matchesServiceSet(service, ['assistant pa', 'ancien pa', 'pionnier auxiliaire', 'assistant pionnier auxiliaire', 'ancien pionnier auxiliaire']);
+        const isPp = matchesServiceSet(service, ['pp', 'assistant pp', 'ancien pp', 'pionnier permanent', 'assistant pionnier permanent', 'ancien pionnier permanent']);
+
+        if (isStandardProclamateur) {
+          coursTotal += Number(record.coursBiblique || 0);
+          if (isYesAnswer(record.aprecher)) ficheMembers.add(String(member.id));
+        }
+        if (isPa) {
+          paHeures += Number(record.heures || 0);
+          if (isYesAnswer(record.aprecher)) {
+            paMembers.add(String(member.id));
+            paCours += Number(record.coursBiblique || 0);
+          }
+        }
+        if (isPp) {
+          ppHeures += Number(record.heures || 0);
+          if (isYesAnswer(record.aprecher)) {
+            ppMembers.add(String(member.id));
+            ppCours += Number(record.coursBiblique || 0);
+          }
+        }
+      });
+
+      paFiches = paMembers.size;
+      ppFiches = ppMembers.size;
+
+      const active = proclamateurs.filter(item => isActiveProclamateur(item, months) && months.some(key => reportWasSubmitted(item.id, key))).length;
+      fiches = active;
+      const paTotal = proclamateurs.filter(item => isAuxiliaryForRange(item, months) || matchesServiceSet(String(item.service || '').trim(), ['Ancien PA', 'Assistant PA', 'pionnier auxiliaire', 'assistant pionnier auxiliaire', 'ancien pionnier auxiliaire', 'assistant pa', 'ancien pa'])).length;
+      const ppTotal = proclamateurs.filter(item => matchesServiceSet(String(item.service || '').trim(), ['PP', 'Ancien PP', 'Assistant PP', 'pionnier permanent', 'assistant pionnier permanent', 'ancien pionnier permanent'])).length;
+
+      setText('homeProclamateursActifs', active);
+      setText('homePpTotal', ppTotal);
+      setText('homePaTotal', paTotal);
+      setText('homeMoySemaine', averageAttendance('week', range).toFixed(1).replace('.', ','));
+      setText('homeMoyWeekend', averageAttendance('weekend', range).toFixed(1).replace('.', ','));
+      setText('homeProclamateursFiches', fiches);
+      setText('homeProclamateursCours', coursTotal);
+      setText('homePaHeures', paHeures);
+      setText('homePpHeures', ppHeures);
+      setText('homePaFiches', paFiches);
+      setText('homePpFiches', ppFiches);
+      setText('homePpCours', ppCours);
+      setText('homePaCours', paCours);
+
+      if ($('activeCount')) $('activeCount').textContent = active;
+      if ($('ppCount')) $('ppCount').textContent = ppTotal;
+      if ($('weekAverage')) $('weekAverage').textContent = averageAttendance('week', range).toFixed(1).replace('.', ',');
+      if ($('weekendAverage')) $('weekendAverage').textContent = averageAttendance('weekend', range).toFixed(1).replace('.', ',');
+    }
+    function openStore(databaseName, version, storeName) { return new Promise(resolve => { const request = indexedDB.open(databaseName, version); request.onupgradeneeded = event => { const database = event.target.result; if (databaseName === 'ProclamateursDB') { if (!database.objectStoreNames.contains('proclamateurs')) database.createObjectStore('proclamateurs', { keyPath: 'id' }); if (!database.objectStoreNames.contains('pionniersAuxiliaire')) database.createObjectStore('pionniersAuxiliaire', { keyPath: 'proclamateurId' }); if (!database.objectStoreNames.contains('permanentCandidatures')) database.createObjectStore('permanentCandidatures', { keyPath: 'proclamateurId' }); if (!database.objectStoreNames.contains('detailPredication')) database.createObjectStore('detailPredication', { keyPath: 'id' }); if (!database.objectStoreNames.contains('groupLeaders')) database.createObjectStore('groupLeaders', { keyPath: 'group' }); } if (databaseName === 'AssistanceDB' && !database.objectStoreNames.contains('attendance')) database.createObjectStore('attendance', { keyPath: 'id' }); }; request.onsuccess = event => { const db = event.target.result; if (!db.objectStoreNames.contains(storeName)) { resolve([]); return; } const get = db.transaction(storeName, 'readonly').objectStore(storeName).getAll(); get.onsuccess = () => { resolve(get.result || []); }; get.onerror = () => resolve([]); }; request.onerror = () => resolve([]); }); }
+    const backupDatabases = [
+      { name: 'ProclamateursDB', version: 5, stores: ['proclamateurs', 'detailPredication', 'pionniersAuxiliaire', 'permanentCandidatures', 'groupLeaders'] },
+      { name: 'AssistanceDB', version: 2, stores: ['attendance'] },
+      { name: 'ProgrammationDB', version: 2, stores: ['visites', 'epreuves', 'formations'] },
+      { name: 'GestionDB', version: 1, stores: ['tasks'] }
+    ];
+    function setBackupStatus(message, isError = false) { const status = $('dataBackupStatus'); if (status) { status.textContent = message; status.style.color = isError ? '#8b5960' : ''; } }
+    function backupStoreOptions(storeName) { return storeName === 'tasks' || ['visites', 'epreuves', 'formations'].includes(storeName) ? { keyPath: 'id', autoIncrement: true } : { keyPath: storeName === 'pionniersAuxiliaire' || storeName === 'permanentCandidatures' ? 'proclamateurId' : storeName === 'groupLeaders' ? 'group' : 'id' }; }
+    function addMissingBackupStores(database, config) { config.stores.forEach(storeName => { if (!database.objectStoreNames.contains(storeName)) database.createObjectStore(storeName, backupStoreOptions(storeName)); }); }
+    function openBackupDatabase(config) { return new Promise((resolve, reject) => { const firstRequest = indexedDB.open(config.name); firstRequest.onsuccess = event => { const database = event.target.result; const missing = config.stores.some(storeName => !database.objectStoreNames.contains(storeName)); if (!missing) { resolve(database); return; } const nextVersion = database.version + 1; database.close(); const upgradeRequest = indexedDB.open(config.name, nextVersion); upgradeRequest.onupgradeneeded = upgradeEvent => addMissingBackupStores(upgradeEvent.target.result, config); upgradeRequest.onsuccess = upgradeEvent => resolve(upgradeEvent.target.result); upgradeRequest.onerror = () => reject(upgradeRequest.error || new Error(`Impossible de mettre à niveau ${config.name}`)); upgradeRequest.onblocked = () => reject(new Error(`La base ${config.name} est utilisée par une autre page.`)); }; firstRequest.onerror = () => reject(firstRequest.error || new Error(`Impossible d’ouvrir ${config.name}`)); firstRequest.onblocked = () => reject(new Error(`La base ${config.name} est utilisée par une autre page.`)); }); }
+    function readBackupStore(database, storeName) { return new Promise((resolve, reject) => { if (!database.objectStoreNames.contains(storeName)) { resolve([]); return; } const request = database.transaction(storeName, 'readonly').objectStore(storeName).getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); }); }
+    async function createBackup() { const databases = []; for (const config of backupDatabases) { const database = await openBackupDatabase(config); const stores = {}; for (const storeName of config.stores) stores[storeName] = await readBackupStore(database, storeName); database.close(); databases.push({ name: config.name, version: database.version, stores }); } return { format: 'assemblee-backup', version: 1, createdAt: new Date().toISOString(), databases }; }
+    function downloadBackup(backup) { const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `sauvegarde-assemblee-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); }
+    async function restoreBackup(backup) { if (!backup || backup.format !== 'assemblee-backup' || backup.version !== 1 || !Array.isArray(backup.databases)) throw new Error('Format de sauvegarde non reconnu.'); for (const config of backupDatabases) { const source = backup.databases.find(item => item.name === config.name); const database = await openBackupDatabase(config); const transaction = database.transaction(config.stores, 'readwrite'); config.stores.forEach(storeName => { const store = transaction.objectStore(storeName); store.clear(); const records = source?.stores?.[storeName]; if (Array.isArray(records)) records.forEach(record => store.put(record)); }); await new Promise((resolve, reject) => { transaction.oncomplete = resolve; transaction.onerror = () => reject(transaction.error || new Error(`Restauration impossible pour ${config.name}`)); transaction.onabort = () => reject(transaction.error || new Error(`Restauration interrompue pour ${config.name}`)); }); database.close(); } }
+    async function handleDataExport() { try { setBackupStatus('Préparation de la sauvegarde...'); const backup = await createBackup(); downloadBackup(backup); setBackupStatus(`Sauvegarde créée le ${new Date().toLocaleString('fr-FR')}.`); } catch (error) { console.error(error); setBackupStatus(`Échec de la sauvegarde : ${error.message}`, true); } }
+    async function handleDataImport(event) { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; if (!window.confirm('La restauration remplacera les données locales actuelles. Une sauvegarde actuelle est-elle déjà enregistrée ?')) return; try { const backup = JSON.parse(await file.text()); setBackupStatus('Restauration en cours...'); await restoreBackup(backup); setBackupStatus('Restauration terminée. Rechargement de la page...'); window.setTimeout(() => window.location.reload(), 500); } catch (error) { console.error(error); setBackupStatus(`Échec de la restauration : ${error.message}`, true); } }
+    async function loadData() { [proclamateurs, reports, paSubscriptions, groupLeaders, attendance] = await Promise.all([openStore('ProclamateursDB', 5, 'proclamateurs'), openStore('ProclamateursDB', 5, 'detailPredication'), openStore('ProclamateursDB', 5, 'pionniersAuxiliaire'), openStore('ProclamateursDB', 5, 'groupLeaders'), openStore('AssistanceDB', 2, 'attendance')]); rebuildSubmittedReportIndex(); updateHomeStats(); render(); }
+    function escapeHtml(value) { return String(value || '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character])); }
+    function memberName(member) { return [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ') || member.id; }
+    function missingMonths(member, keys) { return keys.filter(key => !reportWasSubmitted(member.id, key)).join(', ') || '-'; }
+    function groupLeader(member) { return groupLeaders.find(item => String(item.group || '').trim().toLowerCase() === String(member.groupe || '').trim().toLowerCase())?.leaderName || 'Non défini'; }
+    function formatMonthKey(key) { const [year, month] = key.split('-').map(Number); return new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); }
+    function missingMonths(member, keys) { return keys.filter(key => !reportWasSubmitted(member.id, key)).map(formatMonthKey).join(', ') || '-'; }
+    function sortMembers(members) { return members.slice().sort((a, b) => { const groupCompare = String(a.groupe || '').localeCompare(String(b.groupe || ''), 'fr', { numeric: true, sensitivity: 'base' }); return groupCompare || memberName(a).localeCompare(memberName(b), 'fr', { sensitivity: 'base' }); }); }
+    function statusTable(members, keys, emptyText) {
+      if (!members.length) return `<div class="empty-state">${emptyText}</div>`;
+      const rows = sortMembers(members).map(member => `<tr><td>${escapeHtml(memberName(member))}<br><small class="text-muted">${escapeHtml(member.id)}</small></td><td>${escapeHtml(member.groupe || '-')}</td><td>${escapeHtml(groupLeader(member))}</td><td>${escapeHtml(member.telephone || '-')}</td><td>${escapeHtml(missingMonths(member, keys))}</td></tr>`).join('');
+      return `<div class="table-responsive"><table class="table table-sm table-striped status-table mb-0"><thead><tr><th>Nom</th><th>Groupe</th><th>Responsable</th><th>Téléphone</th><th>Mois sans OUI</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    function renderStatusLists(inactiveMembers, irregularMembers, tendingIrregularMembers, tendingInactiveMembers, keys, periodLabel) {
+      const categories = [
+        { key: 'inactive', label: 'Proclamateurs inactifs', count: inactiveMembers.length, color: 'status-accent', table: statusTable(inactiveMembers, keys, 'Aucun proclamateur inactif pour cette période.'), subtitle: 'exactement 6 mois consécutifs' },
+        { key: 'irregular', label: 'Proclamateurs irréguliers', count: irregularMembers.length, color: 'status-accent', table: statusTable(irregularMembers, keys, 'Aucun proclamateur irrégulier pour cette période.'), subtitle: 'exactement 3 mois consécutifs' },
+        { key: 'tendingIrregular', label: 'Proclamateurs qui tendent à devenir irréguliers', count: tendingIrregularMembers.length, color: 'status-accent', table: statusTable(tendingIrregularMembers, keys, 'Aucun proclamateur dans cette catégorie.'), subtitle: 'exactement 2 mois consécutifs' },
+        { key: 'tendingInactive', label: 'Proclamateurs qui tendent à devenir inactifs', count: tendingInactiveMembers.length, color: 'status-accent', table: statusTable(tendingInactiveMembers, keys, 'Aucun proclamateur dans cette catégorie.'), subtitle: '4 ou 5 mois consécutifs' }
+      ];
+
+      const tabButtons = categories.map(({ key, label, count }) => `
+        <button type="button" class="category-tab" data-category="${key}" aria-pressed="false">
+          ${label} <span class="badge bg-light text-dark">${count}</span>
+        </button>
+      `).join('');
+
+      const panels = categories.map(({ key, label, color, table, subtitle, count }) => `
+        <div class="category-panel" data-panel="${key}">
+          <div class="status-list">
+            <h3 class="h6 ${color}">${label} (${subtitle}) : ${count}</h3>
+            ${table}
+          </div>
+        </div>
+      `).join('');
+
+      $('statusLists').innerHTML = `
+        <div class="category-tabs">${tabButtons}</div>
+        <div class="tab-panels">${panels}</div>
+      `;
+
+      const tabs = $('statusLists').querySelectorAll('.category-tab');
+      const panelsEls = $('statusLists').querySelectorAll('.category-panel');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(item => {
+            const isActive = item === tab;
+            item.classList.toggle('active', isActive);
+            item.setAttribute('aria-pressed', String(isActive));
+          });
+          panelsEls.forEach(panel => {
+            panel.classList.toggle('active', panel.dataset.panel === tab.dataset.category);
+          });
+          $('statusLists').classList.add('has-active-category');
+        });
+      });
+
+      $('pdfReport').innerHTML = `<h1>ASSEMBLÉE LOCALE DE MATETE DE BONHOMME 2 FRANÇAIS (55954)</h1><h2>Liste des proclamateurs à suivre</h2><p>Période : ${escapeHtml(periodLabel)}</p>${categories.map(({ label, color, count, table, subtitle }) => `<h3 class="${color}">${label} (${subtitle}) : ${count}</h3>${table}`).join('')}`;
+    }
+    function render() {
+      const range = selectedRange(); const keys = monthsBetween(range.start, range.end).filter(key => key <= currentMonthKey); const historyEnd = new Date(range.end.getFullYear(), range.end.getMonth(), 1); const historyStart = new Date(historyEnd); historyStart.setMonth(historyStart.getMonth() - 5); const serviceYearEnd = historyEnd.getMonth() >= 8 ? historyEnd.getFullYear() + 1 : historyEnd.getFullYear(); const serviceStart = new Date(serviceYearEnd - 1, 8, 1); if (historyStart < serviceStart) historyStart.setTime(serviceStart.getTime()); const historyKeys = monthsBetween(historyStart, historyEnd).filter(key => key <= currentMonthKey);
+      const pp = proclamateurs.filter(item => ['PP', 'Ancien PP', 'Assistant PP'].includes(String(item.service || '').trim())).length;
+      const statusKeys = $('periodType').value === 'month' ? historyKeys : keys;
+      const active = proclamateurs.filter(item => isActiveProclamateur(item, keys) && keys.some(key => reportWasSubmitted(item.id, key))).length;
+      const irregularMembers = proclamateurs.filter(item => longestNoRun(item.id, statusKeys) === 3);
+      const inactiveMembers = proclamateurs.filter(item => longestNoRun(item.id, statusKeys) === 6);
+      const tendingIrregularMembers = proclamateurs.filter(item => longestNoRun(item.id, statusKeys) === 2);
+      const tendingInactiveMembers = proclamateurs.filter(item => [4, 5].includes(longestNoRun(item.id, statusKeys)));
+      const inactive = inactiveMembers.length;
+      const irregular = irregularMembers.length;
+      if ($('activeCount')) $('activeCount').textContent = active;
+      if ($('inactiveCount')) $('inactiveCount').textContent = inactive;
+      if ($('irregularCount')) $('irregularCount').textContent = irregular;
+      if ($('ppCount')) $('ppCount').textContent = pp;
+      if ($('weekAverage')) $('weekAverage').textContent = averageAttendance('week', range).toFixed(1).replace('.', ',');
+      if ($('weekendAverage')) $('weekendAverage').textContent = averageAttendance('weekend', range).toFixed(1).replace('.', ',');
+      $('periodLabel').textContent = `Période analysée : ${range.start.toLocaleDateString('fr-FR')} au ${range.end.toLocaleDateString('fr-FR')}`;
+      updateHomeStats();
+      renderStatusLists(inactiveMembers, irregularMembers, tendingIrregularMembers, tendingInactiveMembers, statusKeys, $('periodLabel').textContent.replace('Période analysée : ', ''));
+      if (chart) { chart.data.datasets[0].data = [active, inactive, irregular, pp]; chart.update(); }
+    }
+    async function exportStatusPdf() { const type = $('periodType').value; const suffix = type === 'serviceYear' ? `annee-service-${$('serviceYearSelect').value}` : type === 'month' ? $('monthPicker').value : `${type}-${$('endMonthPicker').value}`; const source = $('pdfReport'); const clone = source.cloneNode(true); clone.style.position = 'static'; clone.style.left = 'auto'; clone.style.width = '180mm'; clone.style.display = 'block'; document.body.appendChild(clone); try { await html2pdf().set({ margin: 10, filename: `proclamateurs-a-suivre-${suffix}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(clone).save(); } finally { clone.remove(); } }
+    const managedFeatures = [
+      ['proclamateurs', 'Proclamateurs'], ['proclamateurs:liste', '  Liste'], ['proclamateurs:maj', '  Mise à jour'], ['proclamateurs:import', '  Importer'], ['proclamateurs:contact', '  Contact d’urgence'],
+      ['rapports', 'Rapports'], ['rapports:details', '  Saisir rapport'], ['rapports:analyseAssemblee', '  Rapports saisis'], ['rapports:assemblee', '  Moyennes assemblée'], ['rapports:groupe', '  Moyennes groupe'], ['rapports:proclamateurs', '  Moyennes proclamateurs'], ['rapports:pp', '  Pionniers permanents'], ['rapports:pa', '  Pionniers auxiliaires'],
+      ['programmation', 'Programmation'], ['programmation:epreuve', '  Mise à l’épreuve'], ['programmation:formation', '  Formation'], ['programmation:suivi', '  Visites pastorales'],
+      ['souscription', 'Souscription'], ['souscription:permanent', '  Pionniers permanents'], ['souscription:auxiliaire', '  Pionniers auxiliaires'], ['souscription:listePermanent', '    Liste permanente'], ['souscription:candidaturePermanent', '    Candidatures'],
+      ['assistance', 'Assistance aux réunions'], ['assistance:week', '  Réunions de la semaine'], ['assistance:weekend', '  Réunion du week-end'], ['assistance:memorial', '  Mémorial'],
+      ['pdf', 'Fichiers PDF'], ['pdf:resp', '  Modifier responsable'], ['pdf:allgroups', '  Tous les groupes']
+    ];
+    const featureLabels = Object.fromEntries(managedFeatures);
+
+    function setupAccessAdmin() {
+      const panel = $('accessAdmin');
+      const pageContainer = $('accessPages');
+      if (!panel || !pageContainer) return;
+      const accessLink = $('accessAdminLink');
+      pageContainer.innerHTML = managedFeatures.map(([key, label]) => `<label><input type="checkbox" value="${key}"> ${label}</label>`).join('');
+      window.setTimeout(() => {
+        if (window.appAuthAccess?.isAdmin()) accessLink?.classList.add('is-visible');
+      }, 700);
+      window.addEventListener('app-access-ready', event => {
+        if (['owner', 'coordinateur', 'secretaire'].includes(event.detail?.role)) accessLink?.classList.add('is-visible');
+      }, { once: true });
+      accessLink?.addEventListener('click', event => { event.preventDefault(); panel.classList.add('is-visible'); });
+      $('closeAccessAdmin')?.addEventListener('click', () => panel.classList.remove('is-visible'));
+      function setEditor(user) {
+        $('accessUserEmail').value = user.email || '';
+        $('accessUserRole').value = user.role || 'proclamateur';
+        pageContainer.querySelectorAll('input').forEach(input => { input.checked = (user.pages || []).includes(input.value); });
+        $('accessAdminStatus').textContent = user.email ? `Modification de ${user.email}.` : '';
+      }
+      function renderAccessLists(data) {
+        const requests = $('accessRequests');
+        const users = $('accessUsers');
+        requests.innerHTML = data.requests?.length ? data.requests.map(user => `<div class="d-flex justify-content-between align-items-center border-bottom py-2"><span>${user.name || user.email}<br><small>${user.email}</small></span><button type="button" class="btn btn-sm btn-outline-primary" data-access-edit="${user.user_id}">Configurer</button></div>`).join('') : 'Aucune demande en attente.';
+        users.innerHTML = data.users?.length ? data.users.map(user => `<div class="d-flex justify-content-between align-items-center border-bottom py-2"><span>${user.name || user.email}<br><small>${user.email} · ${user.role}</small><br><small>${(user.pages || []).map(page => featureLabels[page] || page).join(', ') || 'Aucune fonctionnalité'}</small></span><span class="d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-primary" data-access-edit="${user.user_id}">Modifier</button><button type="button" class="btn btn-sm btn-outline-danger" data-access-revoke="${user.user_id}">Retirer</button></span></div>`).join('') : 'Aucun utilisateur autorisé.';
+        [...document.querySelectorAll('[data-access-edit]')].forEach(button => button.addEventListener('click', () => {
+          const user = [...(data.requests || []), ...(data.users || [])].find(item => item.user_id === button.dataset.accessEdit);
+          if (user) setEditor(user);
+        }));
+        [...document.querySelectorAll('[data-access-revoke]')].forEach(button => button.addEventListener('click', async () => {
+          if (!window.confirm('Retirer complètement l’accès de cet utilisateur ?')) return;
+          const { error } = await window.appAuth.client.rpc('revoke_assembly_user', { target_assembly_id: window.appAuth.config.assemblyId, target_user_id: button.dataset.accessRevoke });
+          if (error) { $('accessAdminStatus').textContent = error.message; return; }
+          await loadAccessLists();
+        }));
+      }
+      async function loadAccessLists() {
+        const { data, error } = await window.appAuth.client.rpc('list_assembly_access', { target_assembly_id: window.appAuth.config.assemblyId });
+        if (error) { $('accessRequests').textContent = error.message; $('accessUsers').textContent = 'Impossible de charger les utilisateurs.'; return; }
+        renderAccessLists(data || { requests: [], users: [] });
+      }
+      $('saveAccessBtn').addEventListener('click', async () => {
+        const email = $('accessUserEmail').value.trim();
+        const role = $('accessUserRole').value;
+        const pages = Array.from(pageContainer.querySelectorAll('input:checked')).map(input => input.value);
+        const status = $('accessAdminStatus');
+        if (!email) { status.textContent = 'Saisissez un email.'; return; }
+        status.textContent = 'Enregistrement...';
+        try {
+          const { error } = await window.appAuth.client.rpc('manage_assembly_user', { target_email: email, target_role: role, target_pages: pages });
+          if (error) throw error;
+          status.textContent = 'Accès enregistré.';
+          $('accessUserEmail').value = '';
+          pageContainer.querySelectorAll('input').forEach(input => { input.checked = false; });
+          await loadAccessLists();
+        } catch (error) {
+          status.textContent = error.message || 'Impossible d’enregistrer cet accès.';
+        }
+      });
+      loadAccessLists();
+    }
+    function setup() {
+      $('monthPicker').value = currentMonthKey;
+      $('endMonthPicker').value = currentMonthKey;
+      for (let year = currentYear - 3; year <= currentYear + 1; year++) {
+        $('serviceYearSelect').add(new Option(`${year} (1 sept. ${year - 1} - 31 août ${year})`, year));
+      }
+      $('serviceYearSelect').value = currentYear;
+      $('periodType').addEventListener('change', () => {
+        const type = $('periodType').value;
+        $('monthWrapper').classList.toggle('d-none', type !== 'month');
+        $('endMonthWrapper').classList.toggle('d-none', type !== 'last3' && type !== 'last6');
+        $('serviceYearWrapper').classList.toggle('d-none', type !== 'serviceYear');
+        render();
+      });
+      $('refreshBtn').addEventListener('click', render);
+      $('exportStatusPdfBtn').addEventListener('click', exportStatusPdf);
+      $('exportDataBtn').addEventListener('click', handleDataExport);
+      $('importDataBtn').addEventListener('click', () => $('importDataInput').click());
+      $('importDataInput').addEventListener('change', handleDataImport);
+      setupAccessAdmin();
+      loadData();
+    }
+    window.addEventListener('DOMContentLoaded', setup);
+  </script>
+</body>
+</html>

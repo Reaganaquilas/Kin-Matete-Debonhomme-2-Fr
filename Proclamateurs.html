@@ -1,0 +1,1159 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Proclamateurs</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    body { background-color: #f1f4f6; color: #243746; }
+    h2 { font-weight: 800; color: #243746; letter-spacing: -0.02em; }
+    .nav-tabs { border-bottom-color: #d9e1e6; gap: 4px; }
+    .nav-tabs .nav-link { border: 0; border-bottom: 3px solid transparent; color: #687984; font-weight: 700; }
+    .nav-tabs .nav-link:hover { color: #214b63; }
+    .nav-tabs .nav-link.active { background: transparent; border-bottom-color: #214b63; color: #214b63; }
+    .card { border: 1px solid #d9e1e6; border-radius: 12px; box-shadow: 0 10px 24px rgba(31,55,68,0.07); }
+    .form-label { font-weight: 600; }
+    .btn-primary { background-color: #214b63; border: none; font-weight: 600; }
+    .btn-primary:hover { background-color: #173b4e; }
+    .btn-outline-primary { border-color: #214b63; color: #214b63; }
+    .btn-outline-primary:hover { background-color: #eef2f5; }
+    .table-primary {
+      --bs-table-bg: #eef2f5;
+      --bs-table-color: #243746;
+      border-color: #d9e1e6;
+    }
+    .btn-outline-secondary { border-color: #b8c5cc; color: #687984; }
+    .btn-outline-secondary:hover { background-color: #eef2f5; color: #214b63; }
+    .action-buttons { display: inline-flex; gap: .35rem; flex-wrap: wrap; justify-content: center; }
+    .action-buttons .btn { min-width: 100px; }
+    .table-responsive { overflow-x: auto; }
+    .sortable { cursor: pointer; user-select: none; }
+    .sortable span { font-size: 0.85rem; }
+    .stats-summary { display: grid; grid-template-columns: minmax(220px, 320px); gap: 18px; }
+    .stat-panel { border: 1px solid #d9e1e6; border-top: 3px solid #214b63; border-radius: 12px; background: #fff; padding: 20px; box-shadow: 0 8px 20px rgba(31,55,68,0.05); }
+    .stat-panel h3 { font-size: 0.78rem; font-weight: 800; margin: 0 0 10px; color: #687984; letter-spacing: 0.08em; text-transform: uppercase; }
+    .stat-value { font-size: 2.4rem; font-weight: 800; color: #214b63; line-height: 1; }
+    .stat-caption { margin-top: 8px; color: #687984; font-size: 0.82rem; }
+  </style>
+  <link rel="stylesheet" href="app-theme.css">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+
+<div class="container mt-4">
+  <h2 class="page-title text-center">Gestion des Proclamateurs</h2>
+
+  <ul class="nav nav-tabs" id="proclamateursTabs" role="tablist">
+    <li class="nav-item"><button class="nav-link active" data-access-feature="proclamateurs:liste" data-bs-toggle="tab" data-bs-target="#liste">Liste Proclamateurs</button></li>
+    <li class="nav-item"><button class="nav-link" data-access-feature="proclamateurs:maj" data-bs-toggle="tab" data-bs-target="#maj">Mise à jour</button></li>
+    <li class="nav-item"><button class="nav-link" data-access-feature="proclamateurs:import" data-bs-toggle="tab" data-bs-target="#import">Importer</button></li>
+    <li class="nav-item"><button class="nav-link" data-access-feature="proclamateurs:contact" data-bs-toggle="tab" data-bs-target="#contact">Contact d'urgence</button></li>
+  </ul>
+
+  <div class="tab-content mt-3">
+
+    <div class="tab-pane fade show active" id="liste">
+      <div class="card p-3">
+        <h5 class="text-primary">Liste des Proclamateurs</h5>
+        <div class="row mb-3">
+          <div class="col-md-5 mb-2 mb-md-0">
+            <label class="form-label" for="searchInput">Rechercher un proclamateur</label>
+            <input type="search" id="searchInput" class="form-control" placeholder="Nom, prénom, ID, téléphone...">
+          </div>
+          <div class="col-md-4 mb-2 mb-md-0">
+            <label class="form-label" for="groupFilter">Afficher un groupe</label>
+            <select id="groupFilter" class="form-select">
+              <option value="">Choisir un groupe</option>
+            </select>
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <button type="button" class="btn btn-outline-primary w-100" id="showAllBtn">Afficher tous</button>
+          </div>
+        </div>
+        <p id="listFilterStatus" class="text-muted mb-3" role="status" aria-live="polite">Recherchez un proclamateur ou choisissez un groupe. Cliquez sur « Afficher tous » pour voir la liste complète.</p>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button type="button" class="btn btn-outline-primary" id="exportExcelBtn">Enregistrer en Excel</button>
+          <button type="button" class="btn btn-outline-primary" id="exportPdfBtn">Enregistrer en PDF</button>
+        </div>
+        <div id="statsSummary" class="stats-summary mt-3"></div>
+        <div class="table-responsive mt-3">
+          <table class="table table-striped align-middle">
+            <thead class="table-primary">
+              <tr>
+                <th class="sortable" onclick="changeSort('id')">ID <span id="sort-id"></span></th>
+                <th class="sortable" onclick="changeSort('nom')">Nom <span id="sort-nom"></span></th>
+                <th class="sortable" onclick="changeSort('postnom')">Postnom <span id="sort-postnom"></span></th>
+                <th class="sortable" onclick="changeSort('prenom')">Prénom <span id="sort-prenom"></span></th>
+                <th class="sortable" onclick="changeSort('sexe')">Sexe <span id="sort-sexe"></span></th>
+                <th class="sortable" onclick="changeSort('telephone')">Téléphone <span id="sort-telephone"></span></th>
+                <th class="sortable" onclick="changeSort('service')">Sert comme <span id="sort-service"></span></th>
+                <th class="sortable" onclick="changeSort('groupe')">Groupe <span id="sort-groupe"></span></th>
+                <th class="text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="proclamateursTableBody">
+              <tr><td colspan="9" class="text-center">Chargement...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="maj">
+      <div class="card p-4">
+        <h5 class="text-primary">Ajouter / Mettre à jour un Proclamateur</h5>
+        <form id="proclamateurForm">
+          <input type="hidden" id="proclamateurId">
+          <div class="mb-3">
+            <label class="form-label">ID Unique (automatique)</label>
+            <input type="text" class="form-control" id="idDisplay" disabled placeholder="Généré automatiquement">
+          </div>
+
+          <div class="row">
+            <div class="col-md-4 mb-3"><label class="form-label">Nom</label><input type="text" class="form-control" id="nom" required></div>
+            <div class="col-md-4 mb-3"><label class="form-label">Postnom</label><input type="text" class="form-control" id="postnom" required></div>
+            <div class="col-md-4 mb-3"><label class="form-label">Prénom</label><input type="text" class="form-control" id="prenom" required></div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Sexe</label>
+            <select class="form-select" id="sexe" required><option value="M">M</option><option value="F">F</option></select>
+          </div>
+
+          <div class="mb-3"><label class="form-label">Téléphone</label><input type="text" class="form-control" id="telephone" required></div>
+          <div class="mb-3"><label class="form-label">Adresse complète</label><input type="text" class="form-control" id="adresse" required></div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label">Date de Naissance</label><input type="date" class="form-control" id="birthdate"></div>
+            <div class="col-md-6 mb-3"><label class="form-label">Âge</label><input type="text" class="form-control" id="age" disabled placeholder="Calculé automatiquement"></div>
+          </div>
+
+          <div class="mb-3"><label class="form-label">Date de Baptême</label><input type="date" class="form-control" id="baptismDate"></div>
+
+          <div class="mb-3">
+            <label class="form-label">Sert comme</label>
+            <select class="form-select" id="service" required>
+              <option value="Ancien">Ancien</option><option value="Ancien PP">Ancien PP</option><option value="Assistant">Assistant</option>
+              <option value="Assistant PP">Assistant PP</option><option value="PB">PB</option><option value="PNB">PNB</option>
+              <option value="PP">PP</option><option value="SSPT">SSPT</option>
+            </select>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3"><label class="form-label">Personne à contacter</label><input type="text" class="form-control" id="contactName"></div>
+            <div class="col-md-6 mb-3"><label class="form-label">Numéro à contacter</label><input type="text" class="form-control" id="contactPhone"></div>
+          </div>
+
+          <div class="mb-3"><label class="form-label">Groupe</label><input type="text" class="form-control" id="groupe"></div>
+
+          <button type="submit" class="btn btn-primary mt-3" id="saveButton">Enregistrer</button>
+          <button type="button" class="btn btn-outline-secondary mt-3 ms-2" id="resetButton">Réinitialiser</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="import">
+      <div class="card p-3">
+        <h5 class="text-primary">Importer des Proclamateurs</h5>
+        <form id="importForm">
+          <div class="mb-3">
+            <label class="form-label">Fichier Excel ou CSV avec les mêmes colonnes</label>
+            <input type="file" class="form-control" id="importFile" accept=".csv,.xlsx,.xls" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Importer</button>
+          <p class="text-muted mt-2">Pour conserver les rapports, gardez la colonne ID dans le fichier exporté. Les autres en-têtes sont : Nom, Postnom, Prénom, Sexe, Téléphone, Adresse complète, Date de Naissance, Date de Baptême, Sert comme, Personne à contacter, Numéro à contacter, Groupe.</p>
+        </form>
+        <div id="importPreview" class="mt-4"></div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="contact">
+      <div class="card p-3">
+        <h5 class="text-primary">Contacts d’urgence</h5>
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <button type="button" class="btn btn-outline-primary" id="exportContactsExcelBtn">Enregistrer les contacts en Excel</button>
+          <button type="button" class="btn btn-outline-primary" id="exportContactsPdfBtn">Enregistrer les contacts en PDF</button>
+        </div>
+        <table class="table table-striped">
+          <thead class="table-primary">
+            <tr>
+              <th>ID</th><th>Nom</th><th>Postnom</th><th>Prénom</th>
+              <th>Adresse complète</th><th>Personne à contacter</th><th>Numéro à contacter</th>
+            </tr>
+          </thead>
+          <tbody id="contactTableBody">
+            <tr><td colspan="7" class="text-center">Chargement...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+  <div id="toastNotification" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+  let db;
+  let importRows = [];
+  const toastEl = document.getElementById('toastNotification');
+  const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+  let currentSearchText = '';
+  let currentGroup = '';
+  let showAllProclamateurs = false;
+  let currentSortField = 'nom';
+  let currentSortDirection = 'asc';
+  const identityAliases = [
+    ['KALOMBO ESTHER', 'KALOMBO NGOYA ESTHER'],
+    ['KALOMBO REGINE', 'KALOMBO KAPINGA REGINE'],
+    ['KALOMBO WYLLIANA', 'KALOMBO KAPINGA WYLLIANA'],
+    ['KALOMBO SHITA ANGELA', 'KALOMBO MBOMBO ANGELA'],
+    ['MBO ISAAC', 'MBO NSUKA ISAAC'],
+    ['SUKASUKA KAPILA DORCAS', 'SUKASUKA KAPILA REBECCA'],
+    ['KALOMBO NZAJI NORBERT', 'KALOMBO NZAJI NORBY'],
+    ['BUABUA SEYA STEPHANE', 'SEYA STEPHANE'],
+    ['MBONGO STEVE', 'MBONGO SHITA STEVE'],
+    ['BUABUA SEYA GLORY', 'SEYA GLORY'],
+    ['LONGOMBE PLK', 'LONGOMBE KANZA PATRICK PLK'],
+    ['MUKWESO DELLY', 'MUKWESO PONIA DELLY'],
+    ['MANSWA ARMAND', 'MANSWA ARMAND ARMAND'],
+    ['MASWA ARMAND ARMAND', 'MANSWA ARMAND ARMAND'],
+    ['KIKWAMA MBWELEKA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS'],
+    ['KIKWAMA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS']
+  ];
+
+  function changeSort(field) {
+    if (currentSortField === field) {
+      currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSortField = field;
+      currentSortDirection = 'asc';
+    }
+    updateSortHeaders();
+    refreshAllLists();
+  }
+
+  function updateSortHeaders() {
+    ['id', 'nom', 'postnom', 'prenom', 'sexe', 'telephone', 'service', 'groupe'].forEach(field => {
+      const element = document.getElementById(`sort-${field}`);
+      if (!element) return;
+      element.textContent = currentSortField === field ? (currentSortDirection === 'asc' ? '▲' : '▼') : '';
+    });
+  }
+
+  function itemMatchesSearch(item, text) {
+    if (!text) {
+      return true;
+    }
+    const normalizedSearch = text.toString().trim().toLowerCase();
+    return [
+      'id', 'nom', 'postnom', 'prenom', 'sexe', 'telephone', 'service', 'groupe',
+      'adresse', 'contactName', 'contactPhone', 'birthdate', 'baptismDate'
+    ].some(key => (item[key] || '').toString().toLowerCase().includes(normalizedSearch));
+  }
+
+  function sortProclamateurs(items, field = currentSortField, direction = currentSortDirection) {
+    return items.slice().sort((a, b) => {
+      const aValue = (a[field] || '').toString().toLowerCase();
+      const bValue = (b[field] || '').toString().toLowerCase();
+      if (field === 'id') {
+        return direction === 'asc'
+          ? aValue.localeCompare(bValue, 'fr', { numeric: true, sensitivity: 'base' })
+          : bValue.localeCompare(aValue, 'fr', { numeric: true, sensitivity: 'base' });
+      }
+      return direction === 'asc'
+        ? aValue.localeCompare(bValue, 'fr', { sensitivity: 'base' })
+        : bValue.localeCompare(aValue, 'fr', { sensitivity: 'base' });
+    });
+  }
+
+  function filterProclamateurs(items, requireSelection = true) {
+    if (requireSelection && !showAllProclamateurs && !currentSearchText.trim() && !currentGroup) return [];
+    return items.filter(item =>
+      itemMatchesSearch(item, currentSearchText) &&
+      (!currentGroup || String(item.groupe || '').trim() === currentGroup)
+    );
+  }
+
+  function updateGroupFilter(items) {
+    const select = document.getElementById('groupFilter');
+    const selectedGroup = currentGroup;
+    const groups = [...new Set(items.map(item => String(item.groupe || '').trim()).filter(Boolean))]
+      .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+    select.innerHTML = '<option value="">Choisir un groupe</option>' +
+      groups.map(group => `<option value="${group.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">${group.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</option>`).join('');
+    if (groups.includes(selectedGroup)) select.value = selectedGroup;
+    else currentGroup = '';
+  }
+
+  function renderImportPreview(rows) {
+    const preview = document.getElementById('importPreview');
+    if (!rows || !rows.length) {
+      preview.innerHTML = '<div class="alert alert-warning">Aucune donnée à prévisualiser.</div>';
+      return;
+    }
+
+    const headers = rows[0].map(cell => cell || '');
+    const dataRows = rows.slice(1, 6);
+    const rowCount = rows.length - 1;
+    preview.innerHTML = `
+      <div class="border rounded p-3 bg-white">
+        <h6 class="mb-3">Prévisualisation du fichier (${rowCount} ligne(s) de données)</h6>
+        <div class="table-responsive">
+          <table class="table table-sm table-bordered mb-0">
+            <thead>
+              <tr>${headers.map(header => `<th>${header}</th>`).join('')}</tr>
+            </thead>
+            <tbody>
+              ${dataRows.map(row => `<tr>${headers.map((_, index) => `<td>${row[index] || ''}</td>`).join('')}</tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="text-muted mt-2">Affichage des 5 premières lignes.</div>
+      </div>`;
+  }
+
+  function showImportError(message) {
+    const preview = document.getElementById('importPreview');
+    preview.innerHTML = `<div class="alert alert-danger">${message}</div>`;
+  }
+
+  function showToast(message, type = 'primary') {
+    toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+    document.getElementById('toastBody').textContent = message;
+    toast.show();
+  }
+
+  function openDatabase() {
+    const request = indexedDB.open('ProclamateursDB', 5);
+
+    request.onupgradeneeded = event => {
+      const database = event.target.result;
+      if (!database.objectStoreNames.contains('proclamateurs')) {
+        database.createObjectStore('proclamateurs', { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains('pionniersAuxiliaire')) {
+        database.createObjectStore('pionniersAuxiliaire', { keyPath: 'proclamateurId' });
+      }
+      if (!database.objectStoreNames.contains('permanentCandidatures')) {
+        database.createObjectStore('permanentCandidatures', { keyPath: 'proclamateurId' });
+      }
+      if (!database.objectStoreNames.contains('detailPredication')) {
+        database.createObjectStore('detailPredication', { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains('groupLeaders')) {
+        database.createObjectStore('groupLeaders', { keyPath: 'group' });
+      }
+    };
+
+    request.onsuccess = event => {
+      db = event.target.result;
+      updateSortHeaders();
+      getAllProclamateurs(items => mergeLegacyIdentityRecords(items, refreshAllLists));
+    };
+
+    request.onblocked = () => {
+      showToast('La base de données est bloquée par une autre fenêtre ouverte.', 'warning');
+    };
+
+    request.onerror = event => {
+      const errorMessage = event.target.error ? event.target.error.message : 'Erreur inconnue';
+      showToast(`Impossible d’ouvrir la base de données : ${errorMessage}`, 'danger');
+    };
+  }
+
+  function makePrimaryKey(nom, postnom, prenom, index) {
+    const initials = [nom, postnom, prenom]
+      .map(value => value.trim().charAt(0).toUpperCase())
+      .join('');
+    return `${initials}${String(index).padStart(3, '0')}`;
+  }
+
+  function getExistingIdMap(items) {
+    return items.reduce((map, item) => {
+      const match = String(item.id).match(/^([A-Z]{3})(\d{3})$/);
+      if (match) {
+        const initials = match[1];
+        const suffix = Number(match[2]);
+        map[initials] = Math.max(map[initials] || 0, suffix);
+      }
+      return map;
+    }, {});
+  }
+
+  function generateNextId(nom, postnom, prenom, existingMap) {
+    const initials = [nom, postnom, prenom]
+      .map(value => value.trim().charAt(0).toUpperCase())
+      .join('');
+    const nextNumber = (existingMap[initials] || 0) + 1;
+    existingMap[initials] = nextNumber;
+    return `${initials}${String(nextNumber).padStart(3, '0')}`;
+  }
+
+  function addProclamateur(data) {
+    getAllProclamateurs(items => {
+      const existingMap = getExistingIdMap(items);
+      const customId = generateNextId(data.nom, data.postnom, data.prenom, existingMap);
+      const transaction = db.transaction('proclamateurs', 'readwrite');
+      const store = transaction.objectStore('proclamateurs');
+      const request = store.add({ ...data, id: customId });
+
+      request.onsuccess = () => {
+        showToast('Proclamateur ajouté avec succès.', 'success');
+        refreshAllLists();
+        resetForm();
+      };
+
+      request.onerror = () => showToast('Erreur lors de l’ajout.', 'danger');
+    });
+  }
+
+  function updateProclamateur(id, data) {
+    const transaction = db.transaction('proclamateurs', 'readwrite');
+    const store = transaction.objectStore('proclamateurs');
+    const request = store.put({ ...data, id });
+
+    request.onsuccess = () => {
+      showToast('Proclamateur modifié avec succès.', 'success');
+      refreshAllLists();
+      resetForm();
+    };
+
+    request.onerror = () => showToast('Erreur lors de la modification.', 'danger');
+  }
+
+  function normalizeHeader(value) {
+    return (value || '').toString().normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  }
+
+  function mapHeaders(headers) {
+    const expectedMap = {
+      id: 'id',
+      identifiant: 'id',
+      idunique: 'id',
+      nom: 'nom',
+      prenom: 'prenom',
+      postnom: 'postnom',
+      sexe: 'sexe',
+      telephone: 'telephone',
+      tel: 'telephone',
+      telephoneportable: 'telephone',
+      adressecomplete: 'adresse',
+      adresse: 'adresse',
+      datenaissance: 'birthdate',
+      datedenaissance: 'birthdate',
+      datedebapteme: 'baptismDate',
+      datebapteme: 'baptismDate',
+      datebapt: 'baptismDate',
+      datebaptisme: 'baptismDate',
+      sertcomme: 'service',
+      personneacontacter: 'contactName',
+      personneacontact: 'contactName',
+      numerocontacter: 'contactPhone',
+      numeroacontacter: 'contactPhone',
+      numerocontact: 'contactPhone',
+      numarocontacter: 'contactPhone',
+      grouoe: 'groupe',
+      groupe: 'groupe'
+    };
+
+    return headers.map(header => {
+      const normalized = normalizeHeader(header);
+      if (expectedMap[normalized]) {
+        return expectedMap[normalized];
+      }
+      if (normalized.includes('bapt')) {
+        return 'baptismDate';
+      }
+      if (normalized.includes('nais') || normalized.includes('birth')) {
+        return 'birthdate';
+      }
+      if (normalized.includes('adresse')) {
+        return 'adresse';
+      }
+      if (normalized.includes('personne') && normalized.includes('contacter')) {
+        return 'contactName';
+      }
+      if (normalized.includes('numero') && normalized.includes('contacter')) {
+        return 'contactPhone';
+      }
+      if (normalized.includes('groupe')) {
+        return 'groupe';
+      }
+      return null;
+    });
+  }
+
+  function normalizeImportDate(value) {
+    if (value === null || value === undefined) return '';
+    if (value instanceof Date) {
+      if (isNaN(value.getTime())) return '';
+      return value.toISOString().slice(0, 10);
+    }
+
+    const text = value.toString().trim();
+    if (!text) return '';
+    const cleaned = text.replace(/\uFEFF/g, '').trim();
+    const isoOnly = cleaned.replace(/\s.*$/, '');
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(isoOnly)) return isoOnly;
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(isoOnly)) {
+      const [day, month, year] = isoOnly.split('/');
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(isoOnly)) {
+      const [day, month, year] = isoOnly.split('-');
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+    if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(cleaned)) {
+      const [day, month, year] = cleaned.split('.');
+      return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+    }
+
+    const parsed = new Date(isoOnly);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+
+    return cleaned;
+  }
+
+  function buildRowData(row, mappedHeaders) {
+    const data = {
+      id: '',
+      nom: '',
+      postnom: '',
+      prenom: '',
+      sexe: '',
+      telephone: '',
+      adresse: '',
+      birthdate: '',
+      baptismDate: '',
+      service: '',
+      contactName: '',
+      contactPhone: '',
+      groupe: '',
+      age: ''
+    };
+
+    mappedHeaders.forEach((field, index) => {
+      if (!field) {
+        return;
+      }
+      if (field === 'birthdate' || field === 'baptismDate') {
+        data[field] = normalizeImportDate(row[index]);
+      } else {
+        data[field] = (row[index] || '').toString().trim();
+      }
+    });
+    data.age = calculateAgeValue(data.birthdate);
+    return data;
+  }
+
+  function clearProclamateursStore(callback) {
+    const transaction = db.transaction('proclamateurs', 'readwrite');
+    const store = transaction.objectStore('proclamateurs');
+    const request = store.clear();
+    request.onsuccess = () => callback();
+    request.onerror = () => showToast('Impossible de vider les anciens proclamateurs.', 'danger');
+  }
+
+  function normalizeIdentityValue(value) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/\p{Diacritic}/gu, '')
+      .replace(/[^a-z0-9]/gi, '')
+      .toLowerCase();
+  }
+
+  function getFullName(item) {
+    return [item.nom, item.postnom, item.prenom].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  }
+
+  function identityNameVariants(name) {
+    const normalizedName = normalizeIdentityValue(name);
+    const aliases = identityAliases.find(([oldName, newName]) => [oldName, newName].some(value => normalizeIdentityValue(value) === normalizedName));
+    return aliases ? aliases.map(normalizeIdentityValue) : [normalizedName];
+  }
+
+  function findMatchingProclamateur(data, existingItems, usedIds) {
+    const phone = normalizeIdentityValue(data.telephone);
+    const birthdate = normalizeIdentityValue(data.birthdate);
+    const baptismDate = normalizeIdentityValue(data.baptismDate);
+    const importedFullName = [data.nom, data.postnom, data.prenom].filter(Boolean).join(' ');
+    const fullNameKey = [data.nom, data.postnom, data.prenom].map(normalizeIdentityValue).join('|');
+    const nameVariants = identityNameVariants(importedFullName);
+    return existingItems.find(item => {
+      if (usedIds.has(item.id)) return false;
+      const itemPhone = normalizeIdentityValue(item.telephone);
+      const itemBirthdate = normalizeIdentityValue(item.birthdate);
+      const itemBaptismDate = normalizeIdentityValue(item.baptismDate);
+      const itemFullName = [item.nom, item.postnom, item.prenom].map(normalizeIdentityValue).join('|');
+      if (phone && itemPhone && phone === itemPhone) return true;
+      if (birthdate && baptismDate && birthdate === itemBirthdate && baptismDate === itemBaptismDate) return true;
+      const itemNameVariants = identityNameVariants(getFullName(item));
+      return fullNameKey === itemFullName || nameVariants.some(value => itemNameVariants.includes(value));
+    });
+  }
+
+  function mergeLegacyIdentityRecords(items, callback) {
+    const targets = new Map(identityAliases.map(([, newName]) => [normalizeIdentityValue(newName), null]));
+    const sources = new Map(identityAliases.map(([oldName]) => [normalizeIdentityValue(oldName), null]));
+    items.forEach(item => {
+      const normalizedName = normalizeIdentityValue(getFullName(item));
+      if (targets.has(normalizedName)) targets.set(normalizedName, item);
+      if (sources.has(normalizedName)) sources.set(normalizedName, item);
+    });
+    const transaction = db.transaction(['proclamateurs', 'detailPredication'], 'readwrite');
+    const peopleStore = transaction.objectStore('proclamateurs');
+    const reportsStore = transaction.objectStore('detailPredication');
+    const reportsRequest = reportsStore.getAll();
+    reportsRequest.onsuccess = () => {
+      const reports = reportsRequest.result || [];
+      const merges = identityAliases.map(([oldName, newName]) => {
+        const source = sources.get(normalizeIdentityValue(oldName));
+        const oldNameKey = normalizeIdentityValue(oldName);
+        const report = reports.find(record => normalizeIdentityValue(record.nom) === oldNameKey);
+        return {
+          sourceId: source ? source.id : report?.proclamateurId,
+          source,
+          target: targets.get(normalizeIdentityValue(newName))
+        };
+      }).filter(({ sourceId, target }) => sourceId && target && String(sourceId) !== String(target.id));
+      merges.forEach(({ source, sourceId, target }) => {
+        reports.filter(record => String(record.proclamateurId) === String(sourceId)).forEach(record => {
+          reportsStore.put({ ...record, proclamateurId: target.id, nom: getFullName(target) });
+        });
+        if (source) peopleStore.delete(source.id);
+      });
+    };
+    transaction.oncomplete = callback;
+    transaction.onerror = () => callback();
+  }
+
+  function importCsvRows(rows) {
+    if (!rows.length) {
+      showToast('Le fichier est vide ou invalide.', 'warning');
+      return;
+    }
+
+    const headers = rows[0].map(header => header.toString().trim());
+    const mappedHeaders = mapHeaders(headers);
+    const requiredFields = ['nom', 'postnom', 'prenom'];
+    if (!requiredFields.every(req => mappedHeaders.includes(req))) {
+      showToast('Les en-têtes du fichier ne correspondent pas aux champs requis.', 'warning');
+      showImportError('En-têtes attendues manquantes : Nom, Postnom, Prénom, etc.');
+      return;
+    }
+
+    const dataRows = rows.slice(1).filter(row => row.some(cell => cell.toString().trim()));
+    if (!dataRows.length) {
+      showToast('Aucune ligne de données trouvée dans le fichier.', 'warning');
+      return;
+    }
+
+    getAllProclamateurs(existingItems => {
+      clearProclamateursStore(() => {
+        const existingMap = getExistingIdMap(existingItems);
+        const transaction = db.transaction('proclamateurs', 'readwrite');
+        const store = transaction.objectStore('proclamateurs');
+        const usedIds = new Set();
+        let inserted = 0;
+
+        dataRows.forEach(row => {
+          const data = buildRowData(row, mappedHeaders);
+          const match = findMatchingProclamateur(data, existingItems, usedIds);
+          const key = data.id || (match ? match.id : generateNextId(data.nom, data.postnom, data.prenom, existingMap));
+          usedIds.add(key);
+          store.put({ ...data, id: key });
+          inserted += 1;
+        });
+
+        transaction.oncomplete = () => {
+          showToast(`${inserted} proclamateur(s) importé(s) avec succès.`, 'success');
+          refreshAllLists();
+        };
+
+        transaction.onerror = () => showToast('Erreur lors de l’importation du fichier.', 'danger');
+      });
+    });
+  }
+
+  function parseCsv(text) {
+    const trimmed = text.replace(/^\uFEFF/, '').trim();
+    const lines = trimmed.split(/\r?\n/).filter(line => line.trim());
+    const delimiter = lines[0].includes(';') && !lines[0].includes(',') ? ';' : ',';
+
+    return lines.map(line => {
+      const row = [];
+      let current = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+
+        if (char === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            current += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+
+        if (char === delimiter && !inQuotes) {
+          row.push(current.trim());
+          current = '';
+          continue;
+        }
+
+        current += char;
+      }
+      row.push(current.trim());
+      return row;
+    });
+  }
+
+  function readImportFile(file, onSuccess, onError) {
+    const extension = file.name.split('.').pop().toLowerCase();
+    if (extension === 'xlsx' || extension === 'xls') {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = new Uint8Array(reader.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
+          onSuccess(rows);
+        } catch (error) {
+          onError(error);
+        }
+      };
+      reader.onerror = () => onError();
+      reader.readAsArrayBuffer(file);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => onSuccess(parseCsv(reader.result));
+    reader.onerror = () => onError();
+    reader.readAsText(file, 'UTF-8');
+  }
+
+  function calculateAgeValue(value) {
+    if (!value) {
+      return '';
+    }
+    const birth = new Date(value);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age -= 1;
+    }
+    return age >= 0 ? age : '';
+  }
+
+  function deleteProclamateur(id) {
+    if (!confirm('Voulez-vous vraiment supprimer ce proclamateur ?')) {
+      return;
+    }
+
+    const transaction = db.transaction('proclamateurs', 'readwrite');
+    const store = transaction.objectStore('proclamateurs');
+    const request = store.delete(id);
+
+    request.onsuccess = () => {
+      showToast('Proclamateur supprimé avec succès.', 'success');
+      refreshAllLists();
+      const currentId = document.getElementById('proclamateurId').value;
+      if (currentId === id) {
+        resetForm();
+      }
+    };
+
+    request.onerror = () => showToast('Erreur lors de la suppression.', 'danger');
+  }
+
+  function getAllProclamateurs(callback) {
+    const transaction = db.transaction('proclamateurs', 'readonly');
+    const store = transaction.objectStore('proclamateurs');
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      const res = request.result || [];
+      window.__PROCL_LIST = res;
+      callback(res);
+    };
+    request.onerror = () => callback([]);
+  }
+
+  function getAllDetailRecords(callback) {
+    const transaction = db.transaction('detailPredication', 'readonly');
+    const store = transaction.objectStore('detailPredication');
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      window.__DETAIL_RECORDS__ = request.result || [];
+      callback(request.result || []);
+    };
+    request.onerror = () => {
+      window.__DETAIL_RECORDS__ = [];
+      callback([]);
+    };
+  }
+
+  function normalizeService(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  function matchesExactService(service, values) {
+    const normalized = normalizeService(service);
+    return values.some(value => normalized === normalizeService(value));
+  }
+
+  function isYesAnswer(value) {
+    return ['yes', 'oui', 'true', '1', 'y', 'o'].includes(String(value || '').trim().toLowerCase());
+  }
+
+  function renderStatsSummary() {
+    const members = window.__PROCL_LIST || [];
+
+    const summary = document.getElementById('statsSummary');
+    if (!summary) return;
+
+    summary.innerHTML = `
+      <div class="stat-panel">
+        <h3>Total des proclamateurs</h3>
+        <div class="stat-value">${members.length}</div>
+        <div class="stat-caption">Personnes enregistrées dans la liste</div>
+      </div>
+    `;
+  }
+
+  function refreshAllLists() {
+    getAllProclamateurs(items => {
+      updateGroupFilter(items);
+      getAllDetailRecords(() => {
+        const filtered = filterProclamateurs(items);
+        const sorted = sortProclamateurs(filtered, currentSortField, currentSortDirection);
+        renderTable(sorted);
+        const contactMatches = items.filter(item => itemMatchesSearch(item, currentSearchText));
+        renderContactTable(sortProclamateurs(contactMatches, currentSortField, currentSortDirection));
+        renderStatsSummary();
+        const status = document.getElementById('listFilterStatus');
+        if (showAllProclamateurs || currentSearchText.trim() || currentGroup) {
+          status.textContent = `${sorted.length} proclamateur(s) affiché(s).`;
+        } else {
+          status.textContent = 'Recherchez un proclamateur ou choisissez un groupe. Cliquez sur « Afficher tous » pour voir la liste complète.';
+        }
+      });
+    });
+  }
+
+  function getExportItems() {
+    return sortProclamateurs(filterProclamateurs(window.__PROCL_LIST || []), currentSortField, currentSortDirection);
+  }
+
+  async function saveExportFile(blob, fileName, mimeType) {
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: fileName,
+          types: [{ description: fileName.endsWith('.xlsx') ? 'Classeur Excel' : 'Document PDF', accept: { [mimeType]: [fileName.endsWith('.xlsx') ? '.xlsx' : '.pdf'] } }]
+        });
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return;
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+      }
+    }
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = fileName;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  async function exportExcel() {
+    const items = getExportItems();
+    const rows = items.map(item => ({
+      ID: item.id || '',
+      Nom: item.nom || '',
+      Postnom: item.postnom || '',
+      Prénom: item.prenom || '',
+      Sexe: item.sexe || '',
+      Téléphone: item.telephone || '',
+      'Adresse Complète': item.adresse || '',
+      'Date de Naissance': item.birthdate || '',
+      'Date de Baptême': item.baptismDate || '',
+      'Sert Comme': item.service || '',
+      'PERSONNE A CONTACTER': item.contactName || '',
+      'Numéro à Contacter': item.contactPhone || '',
+      GROUPE: item.groupe || ''
+    }));
+    const worksheet = XLSX.utils.json_to_sheet(rows, { header: ['ID', 'Nom', 'Postnom', 'Prénom', 'Sexe', 'Téléphone', 'Adresse Complète', 'Date de Naissance', 'Date de Baptême', 'Sert Comme', 'PERSONNE A CONTACTER', 'Numéro à Contacter', 'GROUPE'] });
+    worksheet['!cols'] = [12, 18, 18, 18, 8, 16, 30, 16, 16, 16, 24, 20, 14].map(wch => ({ wch }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Feuil1');
+    const data = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    await saveExportFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'TOUS LES MEMBRES ET LES RENVOYES.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
+
+  async function exportPdf() {
+    const items = getExportItems();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const columns = ['Nom', 'Postnom', 'Prénom', 'Sexe', 'Téléphone', 'Adresse Complète', 'Date de Naissance', 'Date de Baptême', 'Sert Comme', 'PERSONNE A CONTACTER', 'Numéro à Contacter', 'GROUPE'];
+    const values = item => [item.nom, item.postnom, item.prenom, item.sexe, item.telephone, item.adresse, item.birthdate, item.baptismDate, item.service, item.contactName, item.contactPhone, item.groupe].map(value => String(value || ''));
+    const pageWidth = 297; const margin = 8; const rowHeight = 7; const columnWidth = (pageWidth - margin * 2) / columns.length;
+    let y = 10;
+    const drawRow = (row, header = false) => { row.forEach((value, index) => { const x = margin + index * columnWidth; pdf.setFillColor(header ? 220 : 255, header ? 232 : 255, header ? 246 : 255); pdf.rect(x, y, columnWidth, rowHeight, 'FD'); pdf.setFontSize(5.2); pdf.setTextColor(20, 20, 20); pdf.text(pdf.splitTextToSize(value, columnWidth - 1.5)[0] || '', x + .7, y + 4.5); }); y += rowHeight; };
+    pdf.setFontSize(14); pdf.text('TOUS LES MEMBRES ET LES RENVOYES', pageWidth / 2, y, { align: 'center' }); y += 7;
+    pdf.setFontSize(8); pdf.text(`Total : ${items.length}`, margin, y); y += 5; drawRow(columns, true);
+    items.forEach(item => { if (y > 195) { pdf.addPage(); y = 10; drawRow(columns, true); } drawRow(values(item)); });
+    await saveExportFile(pdf.output('blob'), 'TOUS LES MEMBRES ET LES RENVOYES.pdf', 'application/pdf');
+  }
+
+  async function exportContactsExcel() {
+    const items = getExportItems();
+    const rows = items.map(item => ({
+      ID: item.id || '',
+      Nom: item.nom || '',
+      Postnom: item.postnom || '',
+      Prénom: item.prenom || '',
+      'Adresse complète': item.adresse || '',
+      'Personne à contacter': item.contactName || '',
+      'Numéro à contacter': item.contactPhone || ''
+    }));
+    const headers = ['ID', 'Nom', 'Postnom', 'Prénom', 'Adresse complète', 'Personne à contacter', 'Numéro à contacter'];
+    const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
+    worksheet['!cols'] = [14, 18, 18, 18, 34, 26, 22].map(wch => ({ wch }));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Contacts urgence');
+    const data = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    await saveExportFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'CONTACTS D URGENCE.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }
+
+  async function exportContactsPdf() {
+    const items = getExportItems();
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const headers = ['ID', 'Nom', 'Postnom', 'Prénom', 'Adresse complète', 'Personne à contacter', 'Numéro à contacter'];
+    const values = item => [item.id, item.nom, item.postnom, item.prenom, item.adresse, item.contactName, item.contactPhone].map(value => String(value || '-'));
+    const margin = 10; const pageWidth = 297; const rowHeight = 8; const widths = [20, 34, 34, 34, 65, 45, 35];
+    let y = 12;
+    const drawRow = (row, header = false) => { let x = margin; row.forEach((value, index) => { pdf.setFillColor(header ? 220 : 255, header ? 232 : 255, header ? 246 : 255); pdf.rect(x, y, widths[index], rowHeight, 'FD'); pdf.setFontSize(header ? 6 : 6.5); pdf.setTextColor(20, 20, 20); pdf.text(pdf.splitTextToSize(value, widths[index] - 2)[0] || '', x + 1, y + 5); x += widths[index]; }); y += rowHeight; };
+    pdf.setFontSize(14); pdf.text('CONTACTS D URGENCE', pageWidth / 2, y, { align: 'center' }); y += 9; pdf.setFontSize(8); pdf.text(`Total : ${items.length}`, margin, y); y += 5; drawRow(headers, true);
+    items.forEach(item => { if (y > 195) { pdf.addPage(); y = 12; drawRow(headers, true); } drawRow(values(item)); });
+    await saveExportFile(pdf.output('blob'), 'CONTACTS D URGENCE.pdf', 'application/pdf');
+  }
+
+  function renderTable(items) {
+    const tbody = document.getElementById('proclamateursTableBody');
+    if (!items.length) {
+      const message = !showAllProclamateurs && !currentSearchText.trim() && !currentGroup
+        ? 'Utilisez la recherche ou choisissez un groupe pour afficher les proclamateurs.'
+        : 'Aucun proclamateur trouvé.';
+      tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state">${message}</div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = items.map(item => `
+      <tr>
+        <td>${item.id}</td>
+        <td>${item.nom}</td>
+        <td>${item.postnom}</td>
+        <td>${item.prenom}</td>
+        <td>${item.sexe}</td>
+        <td>${item.telephone}</td>
+        <td>${item.service}</td>
+        <td>${item.groupe}</td>
+        <td class="text-center">
+          <div class="action-buttons">
+            <button class="btn btn-sm btn-outline-primary" type="button" onclick="editProclamateur('${item.id}')">Modifier</button>
+            <button class="btn btn-sm btn-outline-danger" type="button" onclick="deleteProclamateur('${item.id}')">Supprimer</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderContactTable(items) {
+    const tbody = document.getElementById('contactTableBody');
+    if (!items.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Aucun contact d’urgence.</div></td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = items.map(item => `
+      <tr>
+        <td>${item.id}</td>
+        <td>${item.nom}</td>
+        <td>${item.postnom}</td>
+        <td>${item.prenom}</td>
+        <td>${item.adresse}</td>
+        <td>${item.contactName || '-'}</td>
+        <td>${item.contactPhone || '-'}</td>
+      </tr>`).join('');
+  }
+
+  function editProclamateur(id) {
+    const transaction = db.transaction('proclamateurs', 'readonly');
+    const store = transaction.objectStore('proclamateurs');
+    const request = store.get(id);
+
+    request.onsuccess = () => {
+      const item = request.result;
+      if (!item) {
+        showToast('Proclamateur introuvable.', 'warning');
+        return;
+      }
+      fillForm(item);
+      const tabTrigger = new bootstrap.Tab(document.querySelector('#proclamateursTabs button[data-bs-target="#maj"]'));
+      tabTrigger.show();
+    };
+
+    request.onerror = () => showToast('Impossible de charger le proclamateur.', 'danger');
+  }
+
+  document.getElementById('importFile').addEventListener('change', event => {
+    const fileInput = event.target;
+    if (!fileInput.files.length) {
+      showImportError('Aucun fichier sélectionné.');
+      importRows = [];
+      return;
+    }
+
+    readImportFile(fileInput.files[0], rows => {
+      importRows = rows;
+      renderImportPreview(rows);
+    }, () => {
+      importRows = [];
+      showImportError('Impossible de lire ce fichier. Vérifiez le format Excel/CSV.');
+    });
+  });
+
+  document.getElementById('importForm').addEventListener('submit', event => {
+    event.preventDefault();
+    if (!importRows.length) {
+      showToast('Aucun fichier prêt pour l’import. Sélectionnez un fichier valide.', 'warning');
+      return;
+    }
+    importCsvRows(importRows);
+  });
+
+  document.getElementById('searchInput').addEventListener('input', event => {
+    currentSearchText = event.target.value;
+    showAllProclamateurs = false;
+    refreshAllLists();
+  });
+  document.getElementById('groupFilter').addEventListener('change', event => {
+    currentGroup = event.target.value;
+    showAllProclamateurs = false;
+    refreshAllLists();
+  });
+  document.getElementById('showAllBtn').addEventListener('click', () => {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('groupFilter').value = '';
+    currentSearchText = '';
+    currentGroup = '';
+    showAllProclamateurs = true;
+    refreshAllLists();
+  });
+
+  function fillForm(item) {
+    document.getElementById('proclamateurId').value = item.id;
+    document.getElementById('idDisplay').value = item.id;
+    document.getElementById('nom').value = item.nom || '';
+    document.getElementById('postnom').value = item.postnom || '';
+    document.getElementById('prenom').value = item.prenom || '';
+    document.getElementById('sexe').value = item.sexe || 'M';
+    document.getElementById('telephone').value = item.telephone || '';
+    document.getElementById('adresse').value = item.adresse || '';
+    document.getElementById('birthdate').value = item.birthdate || '';
+    document.getElementById('age').value = item.age || '';
+    document.getElementById('baptismDate').value = item.baptismDate || '';
+    document.getElementById('service').value = item.service || 'Ancien';
+    document.getElementById('contactName').value = item.contactName || '';
+    document.getElementById('contactPhone').value = item.contactPhone || '';
+    document.getElementById('groupe').value = item.groupe || '';
+    document.getElementById('saveButton').textContent = 'Mettre à jour';
+  }
+
+  function resetForm() {
+    document.getElementById('proclamateurForm').reset();
+    document.getElementById('proclamateurId').value = '';
+    document.getElementById('idDisplay').value = '';
+    document.getElementById('age').value = '';
+    document.getElementById('saveButton').textContent = 'Enregistrer';
+  }
+
+  function calculateAge(value) {
+    if (!value) {
+      document.getElementById('age').value = '';
+      return;
+    }
+    const birth = new Date(value);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age -= 1;
+    }
+    document.getElementById('age').value = age >= 0 ? age : '';
+  }
+
+  document.getElementById('proclamateurForm').addEventListener('submit', event => {
+    event.preventDefault();
+    const id = document.getElementById('proclamateurId').value;
+    const data = {
+      nom: document.getElementById('nom').value.trim(),
+      postnom: document.getElementById('postnom').value.trim(),
+      prenom: document.getElementById('prenom').value.trim(),
+      sexe: document.getElementById('sexe').value,
+      telephone: document.getElementById('telephone').value.trim(),
+      adresse: document.getElementById('adresse').value.trim(),
+      birthdate: document.getElementById('birthdate').value,
+      age: document.getElementById('age').value,
+      baptismDate: document.getElementById('baptismDate').value,
+      service: document.getElementById('service').value,
+      contactName: document.getElementById('contactName').value.trim(),
+      contactPhone: document.getElementById('contactPhone').value.trim(),
+      groupe: document.getElementById('groupe').value.trim()
+    };
+
+    if (id) {
+      updateProclamateur(id, data);
+    } else {
+      addProclamateur(data);
+    }
+  });
+
+  document.getElementById('resetButton').addEventListener('click', resetForm);
+  document.getElementById('exportExcelBtn').addEventListener('click', exportExcel);
+  document.getElementById('exportPdfBtn').addEventListener('click', exportPdf);
+  document.getElementById('exportContactsExcelBtn').addEventListener('click', exportContactsExcel);
+  document.getElementById('exportContactsPdfBtn').addEventListener('click', exportContactsPdf);
+  document.getElementById('birthdate').addEventListener('change', event => calculateAge(event.target.value));
+
+  window.addEventListener('DOMContentLoaded', openDatabase);
+</script>
+</body>
+</html>

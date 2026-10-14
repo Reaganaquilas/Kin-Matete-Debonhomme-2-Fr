@@ -1,0 +1,2234 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fichiers PDF - S-21</title>
+  <link href="vendor/bootstrap.min.css" rel="stylesheet">
+  <script src="vendor/bootstrap.bundle.js"></script>
+  <script src="vendor/html2pdf.bundle.js"></script>
+  <style>
+    :root {
+      --app-accent:#2f7388;
+      --app-accent-dark:#224d5f;
+      --app-accent-soft:#e8f3f7;
+      --app-ink:#1a2a34;
+      --app-muted:#64788a;
+      --app-border:#dfe7ec;
+      --app-surface:#ffffff;
+      --app-soft:#f5f8fa;
+      --app-bg:#edf3f5;
+    }
+    body {
+      background:var(--app-bg);
+      color:var(--app-ink);
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .container {
+      max-width: 1180px;
+      padding: 26px 18px 36px;
+    }
+    .container > .d-flex {
+      align-items:center;
+      margin-bottom: 22px;
+    }
+    h3 {
+      margin:0;
+      font-size: clamp(2rem, 2.7vw, 2.7rem);
+      line-height:1.1;
+      font-weight:800;
+      letter-spacing:-0.04em;
+      color:var(--app-ink);
+    }
+    .pdf-row {
+      display:grid;
+      grid-template-columns:repeat(12, minmax(0, 1fr));
+      gap:24px;
+      align-items:stretch;
+    }
+    .pdf-card {
+      grid-column:span 4;
+      min-width:0;
+      height:100%;
+      background:var(--app-surface);
+      border:1px solid var(--app-border);
+      border-radius:18px;
+      overflow:hidden;
+      box-shadow:0 12px 28px rgba(19,34,43,.07);
+    }
+    .pdf-card-large { grid-column:span 4; }
+    .pdf-card-wide { grid-column:span 8; }
+    .pdf-card-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      background:linear-gradient(180deg, #1e2e39 0%, #172933 100%);
+      color:#fff;
+      padding:18px 20px;
+      font-size:1.2rem;
+      font-weight:800;
+      letter-spacing:-0.02em;
+      min-height:78px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .group-zone-page { background: white; width: auto; max-width: 180mm; min-height: 297mm; padding: 18mm; margin: 0 auto 20px auto; border: 1px solid #ccc; box-shadow: 0 0 10px rgba(0,0,0,0.1); box-sizing: border-box; page-break-after: always; page-break-inside: avoid; break-inside: avoid; }
+    .group-zone-header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px; }
+    .group-zone-header h6 { margin:0; }
+    .group-zone-stats { margin-top:18px; font-size: 0.95em; }
+    .group-zone-members { max-height: 200px; overflow:auto; }
+    .pdf-card-body {
+      padding:22px 20px 24px;
+      text-align:center;
+      background:linear-gradient(180deg, #ffffff 0%, #f7fafb 100%);
+      min-height:220px;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+    }
+    .pdf-btn {
+      margin:8px 0;
+      min-height:52px;
+      border-radius:12px;
+      font-size:1.05rem;
+      font-weight:800;
+      letter-spacing:-0.01em;
+      transition:all .2s ease;
+    }
+    .pdf-card .btn-primary,
+    .pdf-card .btn-success,
+    .pdf-card .btn-outline-secondary.active,
+    .pdf-card .btn-outline-secondary:hover,
+    .pdf-card .btn-outline-secondary:focus {
+      background:linear-gradient(180deg, #3c7d93 0%, #2d697f 100%);
+      border-color:#2d697f;
+      color:#fff;
+      box-shadow:0 10px 20px rgba(45,105,127,.18);
+    }
+    .pdf-card .btn-outline-secondary {
+      color:var(--app-accent);
+      border-color:var(--app-accent);
+      background:linear-gradient(180deg, #edf6f9 0%, #e3f0f4 100%);
+    }
+    .pdf-card .btn-primary:hover,
+    .pdf-card .btn-success:hover,
+    .pdf-card .btn-outline-secondary:hover {
+      background:linear-gradient(180deg, #2a6377 0%, #1f4d5f 100%);
+      border-color:#1f4d5f;
+      transform:translateY(-1px);
+    }
+    .pdf-card .form-control,
+    .pdf-card .form-select { border-color:var(--app-border); border-radius:10px; min-height:46px; }
+    .pdf-card .form-control:focus,
+    .pdf-card .form-select:focus { border-color:var(--app-accent); box-shadow:0 0 0 .2rem rgba(47,115,136,.12); }
+    .pdf-card .form-text { color:var(--app-muted); }
+    .pdf-card-body { min-height:calc(100% - 58px); }
+    .modal-content { border:0; border-top:4px solid var(--app-accent); border-radius:6px; box-shadow:0 18px 45px rgba(23,33,43,.2); }
+    .modal-header { padding:18px 22px; background:var(--app-ink); color:#fff; border-bottom:0; }
+    .modal-title { font-size:16px; letter-spacing:.03em; }
+    .modal-header .btn-close { filter:invert(1); opacity:.8; }
+    .modal-body { padding:22px; background:#f4f6f8; }
+    .s21-controls,
+    .s21-search-panel,
+    .s21-actions-panel { background:#fff; border:1px solid var(--app-border); border-radius:5px; padding:16px; }
+    .s21-search-panel { margin-top:14px; }
+    .s21-actions-panel { margin-top:14px; }
+    .s21-actions-panel .btn { min-height:40px; }
+    .s21-preview-container {
+      max-height:70vh;
+      overflow-y:auto;
+      background:linear-gradient(180deg, #f8fafb 0%, #eef4f7 100%);
+      border:1px solid var(--app-border);
+      border-radius:16px;
+      padding:22px;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+    }
+    @media (max-width:900px) {
+      .pdf-row { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+      .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 1; }
+    }
+    @media (max-width:576px) {
+      .container { padding:14px; }
+      .pdf-row { grid-template-columns:1fr; gap:14px; }
+      .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 1; }
+      .modal-body { padding:14px; }
+    }
+    .attendance-card .pdf-card-header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      background:linear-gradient(180deg, #1d2e39 0%, #172933 100%);
+      color:#fff;
+      padding:18px 20px;
+      letter-spacing:.02em;
+    }
+    .attendance-card .pdf-card-header::after {
+      content:'SUIVI MENSUEL';
+      font-size:10px;
+      font-weight:700;
+      letter-spacing:.12em;
+      color:#b7c8d3;
+    }
+    .attendance-tools {
+      background:linear-gradient(180deg, #f7fafb 0%, #eef4f7 100%);
+      border:1px solid var(--app-border);
+      border-radius:14px;
+      padding:18px 16px 16px;
+    }
+    .attendance-tools .form-label {
+      color:#344454;
+      font-size:12px;
+      font-weight:800;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+    }
+    .attendance-actions {
+      display:flex;
+      flex-wrap:wrap;
+      gap:10px;
+      justify-content:center;
+    }
+    .attendance-actions .pdf-btn { margin:0; flex:1 1 150px; }
+    .attendance-actions .btn { min-height:46px; }
+    .attendance-actions .btn-primary {
+      background:linear-gradient(180deg, #3d7f95 0%, #2d697f 100%);
+      border-color:#2d697f;
+    }
+    .attendance-actions .btn-primary:hover { background:var(--app-accent-dark); border-color:var(--app-accent-dark); }
+    .attendance-preview { margin-top:16px; color:#263746; }
+    .attendance-preview .attendance-summary {
+      border:1px solid #d9e0e6;
+      border-radius:4px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .attendance-preview .attendance-summary-head {
+      padding:14px 16px;
+      border-bottom:1px solid #d9e0e6;
+      background:#fbfcfd;
+    }
+    .attendance-preview .attendance-summary-head h5 {
+      margin:0 0 8px;
+      color:#17212b;
+      font-size:16px;
+      font-weight:700;
+    }
+    .attendance-preview .attendance-meta {
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px 18px;
+      color:#627180;
+      font-size:12px;
+    }
+    .attendance-preview .table { margin:0; }
+    .attendance-preview .table th {
+      color:#536372;
+      background:#f4f6f8;
+      font-size:11px;
+      letter-spacing:.03em;
+      text-transform:uppercase;
+      white-space:nowrap;
+    }
+    .attendance-preview .table td,
+    .attendance-preview .table th { padding:10px 12px; }
+    .attendance-preview .table tfoot th { color:#17212b; background:#e9eef2; }
+    .s21-export-source {
+      position:absolute;
+      left:0;
+      top:0;
+      width:180mm;
+      background:#fff;
+      color:#000;
+      z-index:9999;
+    }
+    .s21-export-source .s21-page {
+      width:180mm;
+      max-width:180mm;
+      height:267mm;
+      min-height:267mm;
+      margin:0 auto 0 auto;
+      padding:10mm 12mm 10mm 12mm;
+      border:0;
+      box-shadow:none;
+      background:#fff;
+      page-break-after:avoid;
+      break-after:avoid;
+      break-inside:avoid;
+    }
+    .s21-export-source .s21-page:not(:last-child) {
+      page-break-after:always;
+      break-after:page;
+    }
+    .s21-export-source input[type="checkbox"] {
+      appearance:none;
+      -webkit-appearance:none;
+      width:12px;
+      height:12px;
+      margin:0 4px 0 0;
+      border:1px solid #000;
+      vertical-align:-2px;
+      position:relative;
+    }
+    .s21-export-source input[type="checkbox"]:checked::after {
+      content:'X';
+      position:absolute;
+      left:2px;
+      top:-3px;
+      font-size:12px;
+      font-weight:700;
+    }
+
+    /* Style S-21 propre et lisible */
+    @page {
+      size: A4 portrait;
+      margin: 12mm;
+    }
+    .s21-page {
+      background: #ffffff;
+      width: min(100%, 180mm);
+      max-width: 180mm;
+      min-height: 267mm;
+      padding: 10mm 12mm 10mm 12mm;
+      margin: 0 auto 18px auto;
+      border: 1px solid #cfcfcf;
+      border-radius: 0;
+      box-shadow: none;
+      font-family: Arial, sans-serif;
+      box-sizing: border-box;
+      color: #000;
+      page-break-after: avoid;
+      break-after: avoid;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      orphans: 3;
+      widows: 3;
+    }
+    .s21-page:not(:last-child) {
+      page-break-after: always !important;
+      break-after: page !important;
+    }
+    .s21-page:last-child {
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+    }
+    .s21-title {
+      text-align: right;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 0.02em;
+      color: #000;
+      margin-bottom: 14px;
+    }
+    .s21-header-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 13px;
+      margin-bottom: 14px;
+    }
+    .s21-col-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      color: #000;
+      flex: 1.2;
+      min-width: 0;
+    }
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      gap: 2px 15px;
+      font-size: 12px;
+      color: #000;
+      flex: 1.5;
+      justify-content: end;
+    }
+    .s21-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 10px;
+      background: #fff;
+      border: 1px solid #000;
+    }
+    .s21-table th,
+    .s21-table td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      text-align: center;
+      vertical-align: middle;
+      color: #000;
+    }
+    .s21-table th {
+      background: #f2f2f2;
+      font-weight: 700;
+      text-transform: none;
+      letter-spacing: 0;
+      font-size: 12px;
+    }
+    .s21-table td:nth-child(1) { text-align: left; }
+    .s21-table td:nth-child(6) { text-align: left; }
+    .s21-table tbody tr:nth-child(even) {
+      background: #fff;
+    }
+    .s21-table tfoot td {
+      background: #f8f8f8;
+      font-weight: 700;
+    }
+    .s21-table input[type="checkbox"] {
+      accent-color: #000;
+      width: 12px;
+      height: 12px;
+    }
+    @media print {
+      body, html { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .container { padding: 0 !important; }
+      .s21-page, .group-zone-page {
+        width: auto !important;
+        max-width: 100% !important;
+        min-height: auto !important;
+        height: 267mm !important;
+        margin: 0 auto 0 auto !important;
+        padding: 10mm 12mm 10mm 12mm !important;
+        border: none !important;
+        box-shadow: none !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .s21-table th, .s21-table td { page-break-inside: avoid !important; }
+      .pdf-row, .pdf-card, .pdf-card-large, .pdf-card-wide, .pdf-card-body, .pdf-btn, .group-zone-header, .group-zone-members { display: none !important; }
+    }
+    .s21-title {
+      text-align: right;
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 15px;
+    }
+    .s21-header-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 15px;
+    }
+    .s21-col-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      gap: 2px 15px;
+      font-size: 12px;
+    }
+    .s21-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    .s21-table th, .s21-table td {
+      border: 1px solid #000;
+      padding: 4px 6px;
+      text-align: center;
+    }
+    .s21-table th {
+      background-color: #f2f2f2;
+    }
+    .s21-table td:nth-child(1) { text-align: left; }
+    .s21-table td:nth-child(6) { text-align: left; }
+    .contact-table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+      font-size: 12px;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      line-height: 1.3;
+    }
+    .contact-table th,
+    .contact-table td {
+      border: 1px solid #1f2937;
+      padding: 7px 6px;
+      vertical-align: top;
+      white-space: normal;
+      text-align: left;
+    }
+    .contact-table th {
+      background-color: #f1f5f9;
+      font-weight: 700;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      font-size: 11px;
+    }
+    .contact-table td {
+      background: #ffffff;
+      color: #0f172a;
+      font-size: 11px;
+    }
+    /* Printing helpers: repeat thead/tfoot on each page and avoid row splits */
+    .contact-table thead { display: table-header-group; }
+    .contact-table tfoot { display: table-footer-group; }
+    .contact-table tr, .contact-table td, .contact-table th { page-break-inside: avoid; break-inside: avoid; }
+    .contact-table tbody tr:nth-child(odd) {
+      background: #f8fafc;
+    }
+    .contact-table tbody tr + tr {
+      border-top: 1px solid #cbd5e1;
+    }
+    .contact-table th:nth-child(1), .contact-table td:nth-child(1) { width: 5%; min-width: 32px; text-align: center; }
+    .contact-table th:nth-child(2), .contact-table td:nth-child(2) { width: 12%; }
+    .contact-table th:nth-child(3), .contact-table td:nth-child(3) { width: 12%; }
+    .contact-table th:nth-child(4), .contact-table td:nth-child(4) { width: 11%; }
+    .contact-table th:nth-child(5), .contact-table td:nth-child(5) { width: 13%; }
+    .contact-table th:nth-child(6), .contact-table td:nth-child(6) { width: 25%; }
+    .contact-table th:nth-child(7), .contact-table td:nth-child(7) { width: 15%; }
+    .contact-table th:nth-child(8), .contact-table td:nth-child(8) { width: 7%; }
+    .report-header-row th {
+      background: #ffffff;
+      font-size: 12px;
+      text-align: left;
+      border-bottom: 1px solid #1f2937;
+      padding: 12px 10px;
+    }
+    .report-header-row .report-header-content {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .report-header-row .report-header-left {
+      min-width: 220px;
+      max-width: 65%;
+    }
+    .report-header-row .report-header-left strong {
+      display: block;
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      margin-bottom: 4px;
+    }
+    .report-header-row .report-header-right {
+      font-size: 11px;
+      color: #475569;
+      text-align: right;
+      min-width: 160px;
+    }
+    .contact-report-header {
+      margin-bottom: 16px;
+      padding: 10px 0;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .contact-report-header h4 {
+      margin-bottom: 4px;
+      font-size: 1.05rem;
+      letter-spacing: 0.02em;
+    }
+    .contact-report-header .report-subtitle {
+      font-size: 0.95rem;
+      color: #495057;
+      margin-bottom: 6px;
+    }
+    .contact-report-header .report-selection {
+      font-size: 0.88rem;
+      color: #6c757d;
+    }
+    .contact-report-footer {
+      margin-top: 16px;
+      padding-top: 10px;
+      border-top: 1px solid #dee2e6;
+      font-size: 0.95rem;
+      color: #343a40;
+      font-weight: 600;
+    }
+    .badge { padding: 0.35em 0.6em; font-size: 0.85em; }
+    .status-actif { background: #198754; color: #fff; }
+    .status-irregulier { background: #ffc107; color: #000; }
+    .status-inactive, .status-inactif { background: #dc3545; color: #fff; }
+  </style>
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h3>Fichiers PDF</h3>
+      <a href="index.html" class="btn btn-outline-secondary">Retour</a>
+    </div>
+
+    <div class="pdf-row">
+      <div class="pdf-card">
+        <div class="pdf-card-header">S-21 des proclamateurs</div>
+        <div class="pdf-card-body">
+          <button id="proclBtn" class="btn btn-primary pdf-btn">S-21 des proclamateurs</button>
+        </div>
+      </div>
+
+      <div class="pdf-card pdf-card-large attendance-card">
+        <div class="pdf-card-header">Assistance aux réunions</div>
+        <div class="pdf-card-body text-start">
+          <div class="attendance-tools">
+            <label class="form-label">Mois</label>
+            <input id="assistMonthPicker" type="month" class="form-control" />
+            <div class="attendance-actions mt-3">
+              <button id="showAttendanceBtn" class="btn btn-primary pdf-btn">Afficher</button>
+              <button id="saveAttendancePdfBtn" class="btn btn-outline-secondary pdf-btn">Enregistrer</button>
+              <button id="printAttendanceBtn" class="btn btn-outline-secondary pdf-btn">Imprimer</button>
+            </div>
+          </div>
+          <div id="assistancePreview" class="attendance-preview"></div>
+        </div>
+      </div>
+
+      <div class="pdf-card">
+        <div class="pdf-card-header">Pionniers à encourager</div>
+        <div class="pdf-card-body">
+          <button id="encourageBtn" class="btn btn-outline-secondary pdf-btn">Pionniers à encourager</button>
+        </div>
+      </div>
+
+      <div class="pdf-card pdf-card-large">
+        <div class="pdf-card-header">LISTES DES CONTACTS</div>
+        <div class="pdf-card-body">
+          <div class="mb-3">
+            <label class="form-label">Titre du rapport</label>
+            <input id="contactReportTitle" class="form-control" value="ASSEMBLEE LOCALE DE KINSHASA MATETE DE BONHOMME 2 FRANCAIS (55954)">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Mode de sélection</label>
+            <div class="btn-group w-100" role="group" aria-label="Modes de sélection contacts">
+              <button id="contactModeAll" type="button" class="btn btn-outline-secondary active">Tous</button>
+              <button id="contactModeGroup" type="button" class="btn btn-outline-secondary">Groupe</button>
+              <button id="contactModeIndividual" type="button" class="btn btn-outline-secondary">Individuel</button>
+            </div>
+            <div class="form-text">Choisir le mode puis cliquer sur Afficher.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Rechercher un proclamateur</label>
+            <input id="contactSearchInput" class="form-control" list="proclamateursList" placeholder="Nom, postnom, prénom" disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Filtrer par groupe</label>
+            <select id="contactGroupSelect" class="form-select" disabled>
+              <option value="">Tous les groupes</option>
+            </select>
+          </div>
+          <div class="d-flex flex-wrap gap-2 mb-3">
+            <button id="showContactListBtn" class="btn btn-primary pdf-btn">Afficher</button>
+            <button id="printContactListBtn" class="btn btn-success pdf-btn">Imprimer</button>
+            <button id="exportContactPdfBtn" class="btn btn-outline-secondary pdf-btn">Exporter PDF</button>
+          </div>
+          <div id="contactSelectionInfo" class="mb-3 text-muted"></div>
+          <div id="contactsContainer" class="mt-3"></div>
+        </div>
+      </div>
+
+      <div class="pdf-card pdf-card-wide">
+        <div class="pdf-card-header">LES GROUPES</div>
+        <div class="pdf-card-body">
+          <ul class="nav nav-tabs mb-3" id="groupsTab" role="tablist">
+            <li class="nav-item" role="presentation"><button class="nav-link active" id="resp-tab" data-access-feature="pdf:resp" data-bs-toggle="tab" data-bs-target="#resp" type="button" role="tab">Editer Responsable</button></li>
+            <li class="nav-item" role="presentation"><button class="nav-link" id="all-tab" data-access-feature="pdf:allgroups" data-bs-toggle="tab" data-bs-target="#allgroups" type="button" role="tab">Tous les Groupes</button></li>
+          </ul>
+          <div class="tab-content" id="groupsTabContent">
+            <div class="tab-pane fade show active" id="resp" role="tabpanel">
+              <div class="row g-3">
+                <div class="col-12">
+                  <label class="form-label">Choisir un groupe</label>
+                  <select id="groupSelectMgmt" class="form-select mb-2"><option value="">-- Choisir un groupe --</option></select>
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Nommer Responsable</label>
+                  <input id="leaderSearch" class="form-control" list="proclamateursList" placeholder="Rechercher un frère">
+                </div>
+                <div class="col-12">
+                  <label class="form-label">Nommer Responsable Adjoint</label>
+                  <input id="adjointSearch" class="form-control" list="proclamateursList" placeholder="Rechercher un frère">
+                </div>
+                <div class="col-12">
+                  <button id="loadGroupMembersBtn" class="btn btn-sm btn-primary">Mettre à jour</button>
+                </div>
+                <div class="col-12">
+                  <div id="groupMembersArea">Aucun groupe chargé.</div>
+                </div>
+              </div>
+            </div>
+            <div class="tab-pane fade" id="allgroups" role="tabpanel">
+              <div id="allGroupsArea">Chargement de tous les groupes...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal S-21 des proclamateurs -->
+    <div class="modal fade" id="proclModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog modal-xl">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">S-21 DES PROCLAMATEURS</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <div class="container-fluid">
+                <div class="row g-3">
+                  <!-- Bloc 1: Sélections -->
+                  <div class="col-12">
+                    <div class="s21-controls row g-2 align-items-end">
+                      <div class="col-md-3">
+                        <label class="form-label">Année de service</label>
+                        <select id="serviceYear" class="form-select"></select>
+                      </div>
+                      <div class="col-md-4">
+                        <label class="form-label">Type de S-21</label>
+                        <select id="s21TypeSelect" class="form-select">
+                          <option value="">-- Choisir un type --</option>
+                          <option value="pp">S-21 Pour les Pionniers Permanents</option>
+                          <option value="pa">S-21 pour les Pionniers auxiliaires</option>
+                          <option value="proclamateurs">S-21 pour tous les Proclamateurs (excl. PP)</option>
+                          <option value="anciens">S-21 Anciens</option>
+                          <option value="assistants">S-21 Assistants</option>
+                          <option value="global">S-21 Global (tout le monde)</option>
+                        </select>
+                      </div>
+                      <div class="col-md-5">
+                        <label class="form-label">Filtrer par groupe</label>
+                        <select id="groupSelect" class="form-select">
+                          <option value="">-- Choisir un groupe --</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Bloc 2: Recherche -->
+                  <div class="col-12">
+                    <div class="s21-search-panel">
+                      <label class="form-label">Rechercher un proclamateur</label>
+                      <input id="proclSearch" class="form-control" list="proclamateursList" placeholder="Nom, postnom ou prénom">
+                      <datalist id="proclamateursList"></datalist>
+                    </div>
+                  </div>
+
+                  <!-- Bloc 3: Actions principales -->
+                  <div class="col-12 d-flex gap-2">
+                    <div class="s21-actions-panel d-flex flex-wrap gap-2 w-100">
+                      <button id="generateS21Btn" class="btn btn-primary">Générer S-21</button>
+                      <button id="saveS21Btn" class="btn btn-outline-secondary">Sauvegarder S-21</button>
+                      <button id="printS21Btn" class="btn btn-outline-secondary">Imprimer S-21</button>
+                    </div>
+                  </div>
+
+                  <!-- Conteneur dynamique qui affichera un ou plusieurs S-21 -->
+                  <div class="col-12">
+                    <div id="s21Container" class="s21-preview-container mt-3 d-none"></div>
+                    <button id="exportS21Btn" style="display:none;"></button>
+                    <button id="searchProclBtn" style="display:none;"></button>
+                    <button id="searchGroupBtn" style="display:none;"></button>
+                    <button id="generateAllBtn" style="display:none;"></button>
+                    <button id="printPermanentPpBtn" style="display:none;"></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+      </div>
+
+    </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    document.getElementById('showAttendanceBtn')?.addEventListener('click', displayAttendanceSummary);
+    document.getElementById('saveAttendancePdfBtn')?.addEventListener('click', saveAttendanceSummaryPdf);
+    document.getElementById('printAttendanceBtn')?.addEventListener('click', printAttendanceSummary);
+    document.getElementById('encourageBtn')?.addEventListener('click', () => {
+      window.open('pionnier_encourager.html', '_blank');
+    });
+    document.getElementById('csvBtn')?.addEventListener('click', () => alert('Export CSV'));
+    document.getElementById('pdfListBtn')?.addEventListener('click', () => alert('Export PDF'));
+    document.getElementById('docxBtn')?.addEventListener('click', () => alert('Export DOCX'));
+    document.getElementById('contactModeAll')?.addEventListener('click', () => setContactMode('all'));
+    document.getElementById('contactModeGroup')?.addEventListener('click', () => setContactMode('group'));
+    document.getElementById('contactModeIndividual')?.addEventListener('click', () => setContactMode('individual'));
+    document.getElementById('contactModeGroup')?.addEventListener('click', () => setContactMode('group'));
+    document.getElementById('contactModeIndividual')?.addEventListener('click', () => setContactMode('individual'));
+    document.getElementById('showContactListBtn')?.addEventListener('click', showContactList);
+    document.getElementById('printContactListBtn')?.addEventListener('click', printContactList);
+    document.getElementById('exportContactPdfBtn')?.addEventListener('click', exportContactListPdf);
+
+    let db;
+    let attendanceDb;
+    let contactMode = 'all';
+    let proclamateurs = [];
+    let detailRecords = [];
+    let auxiliaireSubscriptions = [];
+    let groupLeadersCache = [];
+    let attendanceRecords = [];
+
+    function setContactMode(mode) {
+      contactMode = mode;
+      const btnAll = document.getElementById('contactModeAll');
+      const btnGroup = document.getElementById('contactModeGroup');
+      const btnIndividual = document.getElementById('contactModeIndividual');
+      if (btnAll) btnAll.classList.toggle('active', mode === 'all');
+      if (btnGroup) btnGroup.classList.toggle('active', mode === 'group');
+      if (btnIndividual) btnIndividual.classList.toggle('active', mode === 'individual');
+
+      const searchInput = document.getElementById('contactSearchInput');
+      const groupSelect = document.getElementById('contactGroupSelect');
+      if (searchInput) searchInput.disabled = mode !== 'individual';
+      if (groupSelect) groupSelect.disabled = mode !== 'group';
+      if (mode === 'all') {
+        if (searchInput) searchInput.value = '';
+        if (groupSelect) groupSelect.value = '';
+      }
+    }
+
+    function openDatabase() {
+      const request = indexedDB.open('ProclamateursDB', 5);
+      request.onupgradeneeded = event => {
+        const database = event.target.result;
+        if (!database.objectStoreNames.contains('proclamateurs')) database.createObjectStore('proclamateurs', { keyPath: 'id' });
+        if (!database.objectStoreNames.contains('pionniersAuxiliaire')) database.createObjectStore('pionniersAuxiliaire', { keyPath: 'proclamateurId' });
+        if (!database.objectStoreNames.contains('permanentCandidatures')) database.createObjectStore('permanentCandidatures', { keyPath: 'proclamateurId' });
+        if (!database.objectStoreNames.contains('detailPredication')) database.createObjectStore('detailPredication', { keyPath: 'id' });
+        if (!database.objectStoreNames.contains('groupLeaders')) database.createObjectStore('groupLeaders', { keyPath: 'group' });
+      };
+      request.onsuccess = event => {
+        db = event.target.result;
+        loadAllStores();
+      };
+      request.onerror = () => { console.warn('Erreur IndexedDB'); };
+    }
+
+    function openAttendanceDatabase(callback) {
+      if (attendanceDb) {
+        if (callback) callback();
+        return;
+      }
+      const request = indexedDB.open('AssistanceDB', 2);
+      request.onupgradeneeded = event => {
+        const database = event.target.result;
+        if (!database.objectStoreNames.contains('attendance')) database.createObjectStore('attendance', { keyPath: 'id' });
+      };
+      request.onsuccess = event => {
+        attendanceDb = event.target.result;
+        loadAttendanceRecords(() => {
+          if (callback) callback();
+        });
+      };
+      request.onerror = () => {
+        console.warn('Impossible d’ouvrir AssistanceDB');
+        if (callback) callback();
+      };
+    }
+
+    function getObjectStore(name, mode = 'readonly') {
+      return db.transaction(name, mode).objectStore(name);
+    }
+
+    function loadAllStores(callback) {
+      if (!db) {
+        if (callback) callback();
+        return;
+      }
+      const pReq = getObjectStore('proclamateurs').getAll();
+      pReq.onsuccess = () => { 
+        proclamateurs = pReq.result || []; 
+        window.__PROCL_LIST = proclamateurs; 
+        fillProclamateursDatalist(); 
+        initGroupsList();
+        populateContactGroupSelect();
+        loadGroupMgmtOptions();
+        loadGroupLeadersCache(() => {
+          if (typeof renderAllGroupsView === 'function') renderAllGroupsView();
+          if (callback) callback();
+        });
+      };
+      pReq.onerror = () => {
+        if (callback) callback();
+      };
+
+      const dReq = getObjectStore('detailPredication').getAll();
+      dReq.onsuccess = () => { detailRecords = dReq.result || []; };
+      dReq.onerror = () => { detailRecords = []; };
+
+      if (db.objectStoreNames.contains('pionniersAuxiliaire')) {
+        const paReq = getObjectStore('pionniersAuxiliaire').getAll();
+        paReq.onsuccess = () => { auxiliaireSubscriptions = paReq.result || []; };
+        paReq.onerror = () => { auxiliaireSubscriptions = []; };
+      }
+    }
+
+    function initGroupsList() {
+      const groupsSelect = document.getElementById('groupSelect');
+      if (!groupsSelect) return;
+      groupsSelect.innerHTML = '<option value="">-- Choisir un groupe --</option>';
+      const groups = new Set();
+      (window.__PROCL_LIST || []).forEach(p => { if (p.groupe) groups.add(String(p.groupe).trim()); });
+      if (groups.size === 0) {
+        for (let i = 1; i <= 7; i++) {
+          const opt = document.createElement('option'); opt.value = `Groupe ${i}`; opt.textContent = `Groupe ${i}`; groupsSelect.appendChild(opt);
+        }
+        return;
+      }
+      Array.from(groups).sort().forEach(g => {
+        const opt = document.createElement('option'); opt.value = g; opt.textContent = g; groupsSelect.appendChild(opt);
+      });
+    }
+
+    function fillProclamateursDatalist() {
+      const proclamateursList = document.getElementById('proclamateursList');
+      if (!proclamateursList) return;
+      proclamateursList.innerHTML = '';
+      (window.__PROCL_LIST || []).forEach(p => {
+        const label = [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ');
+        const opt = document.createElement('option'); 
+        opt.value = label; 
+        proclamateursList.appendChild(opt);
+      });
+    }
+
+    function populateContactGroupSelect() {
+      const sel = document.getElementById('contactGroupSelect');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">Tous les groupes</option>';
+      const groups = new Set();
+      (window.__PROCL_LIST || []).forEach(p => {
+        if (p.groupe) groups.add(String(p.groupe).trim());
+      });
+      Array.from(groups).sort().forEach(g => {
+        const opt = document.createElement('option'); opt.value = g; opt.textContent = g; sel.appendChild(opt);
+      });
+    }
+
+    function filterContacts() {
+      const search = (document.getElementById('contactSearchInput')?.value || '').trim().toLowerCase();
+      const group = (document.getElementById('contactGroupSelect')?.value || '').trim().toLowerCase();
+      const fullList = (window.__PROCL_LIST || []).slice();
+      if (contactMode === 'group') {
+        return fullList.filter(item => {
+          const matchesGroup = !group || (item.groupe || '').toString().toLowerCase().includes(group);
+          return matchesGroup;
+        });
+      }
+      if (contactMode === 'individual') {
+        return fullList.filter(item => {
+          const fullName = [item.nom, item.postnom, item.prenom].filter(Boolean).join(' ').toLowerCase();
+          return search && fullName.includes(search);
+        });
+      }
+      // default all
+      return fullList;
+    }
+
+    function getContactSelectionSummary(items) {
+      const title = document.getElementById('contactReportTitle')?.value || 'Liste des contacts d’urgence';
+      const group = document.getElementById('contactGroupSelect')?.value || 'Tous les groupes';
+      const search = document.getElementById('contactSearchInput')?.value.trim() || 'Recherche non définie';
+      let modeDetail = 'Mode : Tous';
+      if (contactMode === 'group') {
+        modeDetail = `Mode : Groupe${group ? ` — ${group}` : ' — Tous les groupes'}`;
+      } else if (contactMode === 'individual') {
+        modeDetail = `Mode : Individuel${search ? ` — ${search}` : ''}`;
+      }
+      return {
+        title,
+        subtitle: 'LISTE DES CONTACTS D’URGENCE',
+        summary: `${modeDetail} • Total : ${items.length}`
+      };
+    }
+
+    function renderContactList(items) {
+      const container = document.getElementById('contactsContainer');
+      if (!container) return;
+      if (!items.length) {
+        container.innerHTML = '<div class="alert alert-info">Aucun contact d’urgence trouvé.</div>';
+        document.getElementById('contactSelectionInfo').textContent = '';
+        return;
+      }
+      const header = getContactSelectionSummary(items);
+      const sortedItems = items.slice().sort((a, b) => {
+        const aName = [a.nom, a.postnom, a.prenom].filter(Boolean).join(' ').toLowerCase();
+        const bName = [b.nom, b.postnom, b.prenom].filter(Boolean).join(' ').toLowerCase();
+        return aName.localeCompare(bName, 'fr', { sensitivity: 'base' });
+      });
+      const rows = sortedItems.map((item, index) => {
+        const contactName = item.contactName || item.personne_a_contacter || item.personneContact || item.personne_contact || item.personne || '-';
+        const contactPhone = item.contactPhone || item.contact_telephone || item.contact_tel || item.telephone_contact || item.numero_contact || item.contactNumber || item.contact || '-';
+        return `
+        <tr>
+          <td>${index + 1}</td>
+          <td>${item.nom || ''}</td>
+          <td>${item.postnom || ''}</td>
+          <td>${item.prenom || ''}</td>
+          <td>${item.telephone || ''}</td>
+          <td>${item.adresse || ''}</td>
+          <td>${contactName}</td>
+          <td>${contactPhone}</td>
+        </tr>
+      `;
+      }).join('');
+
+      // build a table where the first thead row contains the report header (will repeat when printing)
+      container.innerHTML = `
+        <div class="table-responsive">
+          <table class="contact-table">
+            <thead>
+              <tr class="report-header-row">
+                <th colspan="8">
+                  <div class="report-header-content">
+                    <div class="report-header-left">
+                      <strong>${header.title}</strong>
+                      <div>${header.subtitle}</div>
+                    </div>
+                    <div class="report-header-right">${header.summary}</div>
+                  </div>
+                </th>
+              </tr>
+              <tr>
+                <th>#</th>
+                <th>Nom</th>
+                <th>Postnom</th>
+                <th>Prénom</th>
+                <th>Téléphone</th>
+                <th>Adresse complète</th>
+                <th>Personne à contacter</th>
+                <th>Numéro à contacter</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+            <tfoot>
+              <tr><td colspan="8" style="padding:8px 6px; font-weight:600;">LISTE DES CONTACTS D’URGENCE — ${header.summary}</td></tr>
+            </tfoot>
+          </table>
+        </div>
+      `;
+      document.getElementById('contactSelectionInfo').textContent = header.summary;
+    }
+
+    function showContactList() {
+      const items = filterContacts();
+      renderContactList(items);
+    }
+
+    function printContactList() {
+      const container = document.getElementById('contactsContainer');
+      if (!container || !container.innerHTML.trim()) {
+        alert('Aucune liste de contacts à imprimer. Cliquez d’abord sur Afficher.');
+        return;
+      }
+      const title = document.getElementById('contactReportTitle')?.value || 'Liste des contacts d’urgence';
+      const win = window.open('', '_blank');
+      const style = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).map(n => n.outerHTML).join('\n');
+      const extraPrintCss = `
+        <style>
+          @page { margin: 12mm 10mm 18mm 10mm; }
+          @media print {
+            body { margin: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .table-responsive { overflow: visible !important; }
+            .contact-table { width: 100% !important; font-size: 11px !important; }
+            .contact-table thead { display: table-header-group !important; }
+            .contact-table tfoot { display: table-footer-group !important; }
+            .contact-table tr, .contact-table td, .contact-table th { page-break-inside: avoid !important; break-inside: avoid !important; }
+            .contact-table th, .contact-table td { padding: 5px 4px !important; }
+            .report-header-row th { background: #fff !important; }
+            body::after {
+              content: "Page " counter(page) " / " counter(pages);
+              position: fixed;
+              right: 10mm;
+              bottom: 8mm;
+              font-size: 10px;
+              color: #444;
+            }
+          }
+        </style>
+      `;
+      const doc = win.document;
+      doc.open();
+      doc.write('<!doctype html><html><head><meta charset="utf-8"><title>' + title + '</title>' + style + extraPrintCss + '</head><body><div class="container mt-3" id="print-root"></div></body></html>');
+      doc.close();
+      const root = doc.getElementById('print-root');
+      if (root) root.innerHTML = container.innerHTML;
+      const script = doc.createElement('script');
+      script.textContent = "window.onload=function(){setTimeout(()=>window.print(),400);};";
+      doc.body.appendChild(script);
+      win.focus();
+    }
+
+    function formatFrenchMonthLabel(monthValue) {
+      if (!monthValue) return '';
+      const [year, month] = monthValue.split('-').map(Number);
+      const monthNames = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+      return `${monthNames[month - 1] || ''} ${year}`;
+    }
+
+    function getKnownAssemblyName() {
+      return document.getElementById('contactReportTitle')?.value || 'ASSEMBLEE LOCALE DE KINSHASA MATETE DE BONHOMME 2 FRANCAIS (55954)';
+    }
+
+    function buildAssistanceSheetHtml(assemblyName, monthLabel) {
+      return `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #1b1b1b;">
+          <div style="text-align:center; margin-bottom: 24px;">
+            <div style="font-weight: 700; font-size: 16px; letter-spacing: 0.08em;">RELEVÉ DE L'ASSISTANCE AUX RÉUNIONS</div>
+            <div style="margin-top: 8px; font-size: 12px;">(L'assistance doit être comptée vers la moitié de chaque réunion. Pensez à compter les proclamateurs confinés ou isolés qui suivent la réunion grâce à une retransmission en direct.)</div>
+          </div>
+          <div style="margin-bottom: 20px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; font-size: 13px;">
+            <div><strong>Nom de l'assemblée :</strong> ${assemblyName}</div>
+            <div><strong>Mois :</strong> ${monthLabel}</div>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse: collapse; font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">&nbsp;</th>
+                  <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">1ère semaine</th>
+                  <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">2ème semaine</th>
+                  <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">3ème semaine</th>
+                  <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">4ème semaine</th>
+                  <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">5ème semaine</th>
+                  <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">Total</th>
+                  <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">Moyenne</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td style="border:1px solid #000; padding:8px; font-weight:700;">Réunion de semaine</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                </tr>
+                <tr>
+                  <td style="border:1px solid #000; padding:8px; font-weight:700;">Réunion de week-end</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                  <td style="border:1px solid #000; padding:8px;">&nbsp;</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function generateAssistancePdf() {
+      const monthValue = document.getElementById('assistMonthPicker')?.value;
+      if (!monthValue) {
+        alert('Veuillez choisir un mois pour générer l’assistance.');
+        return;
+      }
+      const assemblyName = getKnownAssemblyName();
+      const monthLabel = formatFrenchMonthLabel(monthValue);
+      const htmlContent = buildAssistanceSheetHtml(assemblyName, monthLabel);
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = htmlContent;
+      const opt = {
+        margin: 8,
+        filename: `Assistance_${assemblyName.replace(/[^a-zA-Z0-9_-]/g, '_')}_${monthValue}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(wrapper).save();
+    }
+
+    function exportContactListPdf() {
+      const container = document.getElementById('contactsContainer');
+      if (!container || !container.innerHTML.trim()) {
+        alert('Aucune liste de contacts à exporter. Cliquez d’abord sur Afficher.');
+        return;
+      }
+      const title = document.getElementById('contactReportTitle')?.value || 'Contacts_d_urgence';
+      const wrapper = document.createElement('div');
+      wrapper.style.width = '100%';
+      wrapper.innerHTML = container.innerHTML;
+
+      const filename = `${title.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+      const opt = {
+        margin: [20, 8, 16, 8],
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      html2pdf().set(opt).from(wrapper).toPdf().get('pdf').then(pdf => {
+        const pageCount = pdf.internal.getNumberOfPages();
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        pdf.setFontSize(9);
+        pdf.setTextColor(40);
+        const reportTitle = title.replace(/_/g, ' ');
+        const contactSummary = document.getElementById('contactSelectionInfo')?.textContent || '';
+        for (let i = 1; i <= pageCount; i++) {
+          pdf.setPage(i);
+          pdf.text(reportTitle, 10, 12);
+          if (contactSummary) {
+            pdf.setFontSize(8);
+            pdf.text(contactSummary, 10, 18);
+            pdf.setFontSize(9);
+          }
+          pdf.text(`Page ${i} / ${pageCount}`, pageWidth - 10, pageHeight - 10, { align: 'right' });
+        }
+        pdf.save(filename);
+      }).catch(err => {
+        console.error('Erreur export PDF contacts :', err);
+        html2pdf().set(opt).from(wrapper).save();
+      });
+    }
+
+    function getAttendanceStore(mode = 'readonly') {
+      return attendanceDb.transaction('attendance', mode).objectStore('attendance');
+    }
+
+    function loadAttendanceRecords(callback) {
+      if (!attendanceDb) {
+        if (callback) callback();
+        return;
+      }
+      const request = getAttendanceStore().getAll();
+      request.onsuccess = () => {
+        attendanceRecords = request.result || [];
+        if (callback) callback();
+      };
+      request.onerror = () => {
+        attendanceRecords = [];
+        if (callback) callback();
+      };
+    }
+
+    function filterAttendanceByMonth(monthValue) {
+      if (!monthValue) return [];
+      return (attendanceRecords || []).filter(record => {
+        const [year, month] = (record.dateKey || record.date || '').split('-').map(Number);
+        return year === Number(monthValue.split('-')[0]) && month === Number(monthValue.split('-')[1]);
+      });
+    }
+
+    function computeAttendanceSummary(monthValue) {
+      const filtered = filterAttendanceByMonth(monthValue);
+      const types = ['week', 'weekend', 'memorial'];
+      const summary = { month: monthValue, rows: [] };
+      let grandTotal = 0;
+      let grandCount = 0;
+      types.forEach(type => {
+        const records = filtered.filter(r => r.type === type);
+        const total = records.reduce((sum, rec) => sum + Number(rec.attendees || 0), 0);
+        const average = records.length ? Number((total / records.length).toFixed(1)) : 0;
+        summary.rows.push({ type, count: records.length, total, average });
+        grandTotal += total;
+        grandCount += records.length;
+      });
+      summary.grandTotal = grandTotal;
+      summary.grandAverage = grandCount ? Number((grandTotal / grandCount).toFixed(1)) : 0;
+      return summary;
+    }
+
+    function getAttendanceTypeLabel(type) {
+      if (type === 'week') return 'Réunion de semaine';
+      if (type === 'weekend') return 'Réunion de week-end';
+      if (type === 'memorial') return 'Mémorial';
+      return type;
+    }
+
+    function renderAttendanceSummary(summary) {
+      const assemblyName = getKnownAssemblyName();
+      const monthText = formatFrenchMonthLabel(summary.month);
+      const container = document.getElementById('assistancePreview');
+      if (!container) return;
+      container.innerHTML = `
+        <div class="attendance-summary">
+          <div class="attendance-summary-head">
+            <h5>Assistance aux réunions</h5>
+            <div class="attendance-meta">
+              <span><strong>Assemblée :</strong> ${assemblyName}</span>
+              <span><strong>Période :</strong> ${monthText}</span>
+            </div>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered">
+              <thead class="table-light"><tr><th>Type</th><th>Enregistrements</th><th>Total</th><th>Moyenne</th></tr></thead>
+              <tbody>
+                ${summary.rows.map(row => `
+                  <tr>
+                    <td>${getAttendanceTypeLabel(row.type)}</td>
+                    <td>${row.count}</td>
+                    <td>${row.total}</td>
+                    <td>${row.average}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <th>Total général</th>
+                  <th>${summary.grandTotal ? summary.rows.reduce((sum, row) => sum + row.count, 0) : 0}</th>
+                  <th>${summary.grandTotal}</th>
+                  <th>${summary.grandAverage}</th>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+
+    function displayAttendanceSummary() {
+      const monthValue = document.getElementById('assistMonthPicker')?.value;
+      if (!monthValue) {
+        alert('Veuillez sélectionner un mois.');
+        return;
+      }
+      openAttendanceDatabase(() => {
+        loadAttendanceRecords(() => {
+          const summary = computeAttendanceSummary(monthValue);
+          renderAttendanceSummary(summary);
+        });
+      });
+    }
+
+    function buildAttendancePdfContent(summary) {
+      const assemblyName = getKnownAssemblyName();
+      const monthText = formatFrenchMonthLabel(summary.month);
+      return `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #1b1b1b;">
+          <div style="text-align:center; margin-bottom: 20px;">
+            <div style="font-weight:700; font-size:16px;">RELEVÉ DE L'ASSISTANCE AUX RÉUNIONS</div>
+            <div style="font-size:12px; margin-top: 8px;">${assemblyName}</div>
+            <div style="font-size:12px; margin-top: 4px;">Mois : ${monthText}</div>
+          </div>
+          <table style="width:100%; border-collapse:collapse; font-size:12px;">
+            <thead>
+              <tr>
+                <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">Type</th>
+                <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">Enregistrements</th>
+                <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">Total</th>
+                <th style="border:1px solid #000; padding:8px; background:#f2f2f2;">Moyenne</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${summary.rows.map(row => `
+                <tr>
+                  <td style="border:1px solid #000; padding:8px;">${getAttendanceTypeLabel(row.type)}</td>
+                  <td style="border:1px solid #000; padding:8px; text-align:right;">${row.count}</td>
+                  <td style="border:1px solid #000; padding:8px; text-align:right;">${row.total}</td>
+                  <td style="border:1px solid #000; padding:8px; text-align:right;">${row.average}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+            <tfoot>
+              <tr>
+                <th style="border:1px solid #000; padding:8px; text-align:left;">Total général</th>
+                <th style="border:1px solid #000; padding:8px; text-align:right;">${summary.rows.reduce((sum, row) => sum + row.count, 0)}</th>
+                <th style="border:1px solid #000; padding:8px; text-align:right;">${summary.grandTotal}</th>
+                <th style="border:1px solid #000; padding:8px; text-align:right;">${summary.grandAverage}</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      `;
+    }
+
+    function saveAttendanceSummaryPdf() {
+      const monthValue = document.getElementById('assistMonthPicker')?.value;
+      if (!monthValue) {
+        alert('Veuillez sélectionner un mois.');
+        return;
+      }
+      openAttendanceDatabase(() => {
+        loadAttendanceRecords(() => {
+          const summary = computeAttendanceSummary(monthValue);
+          const wrapper = document.createElement('div');
+          wrapper.innerHTML = buildAttendancePdfContent(summary);
+          const filename = `Assistance_${monthValue}.pdf`;
+          html2pdf().set({
+            margin: 8,
+            filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          }).from(wrapper).save();
+        });
+      });
+    }
+
+    function printAttendanceSummary() {
+      const monthValue = document.getElementById('assistMonthPicker')?.value;
+      if (!monthValue) {
+        alert('Veuillez sélectionner un mois.');
+        return;
+      }
+      openAttendanceDatabase(() => {
+        loadAttendanceRecords(() => {
+          const summary = computeAttendanceSummary(monthValue);
+          const html = buildAttendancePdfContent(summary);
+          const win = window.open('', '_blank');
+          const style = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]')).map(n => n.outerHTML).join('\n');
+          const doc = win.document;
+          doc.open();
+          doc.write('<!doctype html><html><head><meta charset="utf-8"><title>Assistance aux réunions</title>' + style + '</head><body><div id="print-root"></div></body></html>');
+          doc.close();
+          const root = doc.getElementById('print-root');
+          if (root) root.innerHTML = html;
+          const script = doc.createElement('script');
+          script.textContent = 'setTimeout(function(){ window.print(); }, 500);';
+          doc.body.appendChild(script);
+          win.focus();
+        });
+      });
+    }
+
+    const proclBtn = document.getElementById('proclBtn');
+    const proclModalEl = document.getElementById('proclModal');
+    const proclModal = new bootstrap.Modal(proclModalEl);
+    document.addEventListener('DOMContentLoaded', () => {
+      bindGroupManagementEvents();
+      setContactMode('all');
+      openDatabase();
+      openAttendanceDatabase();
+      const assistMonthPicker = document.getElementById('assistMonthPicker');
+      if (assistMonthPicker && !assistMonthPicker.value) {
+        const now = new Date();
+        assistMonthPicker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      }
+    });
+    proclBtn.addEventListener('click', () => { 
+      proclModal.show(); 
+      if (!db) openDatabase(); 
+      else { 
+        fillProclamateursDatalist(); 
+        initGroupsList(); 
+        if (typeof loadGroupMgmtOptions === 'function') loadGroupMgmtOptions();
+        if (typeof renderAllGroupsView === 'function') renderAllGroupsView();
+      } 
+    });
+
+    // Générer pour un seul proclamateur
+    document.getElementById('searchProclBtn').addEventListener('click', () => {
+      const q = document.getElementById('proclSearch').value.trim().toLowerCase();
+      const list = window.__PROCL_LIST || [];
+      const found = list.find(p => [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ').toLowerCase().includes(q));
+
+      if (found) {
+        const container = document.getElementById('s21Container');
+        container.innerHTML = '';
+        container.appendChild(createS21Element(found));
+        container.classList.remove('d-none');
+      } else {
+        alert('Aucun proclamateur trouvé.');
+      }
+    });
+
+    // Générer pour tout un groupe
+    document.getElementById('searchGroupBtn').addEventListener('click', () => {
+      const groupVal = (document.getElementById('groupSelect').value || '').trim().toLowerCase();
+      if (!groupVal) {
+        alert('Veuillez sélectionner un groupe.');
+        return;
+      }
+      const list = window.__PROCL_LIST || [];
+      const members = list.filter(p => p.groupe && String(p.groupe).toLowerCase().includes(groupVal));
+
+      if (members.length === 0) {
+        alert('Aucun membre trouvé dans ce groupe.');
+        return;
+      }
+
+      const container = document.getElementById('s21Container');
+      container.innerHTML = '';
+      members.forEach(p => {
+        container.appendChild(createS21Element(p));
+      });
+      container.classList.remove('d-none');
+    });
+
+    // Générer pour tous les Pionniers Permanents (Ancien PP, Assistant PP, PP)
+    document.getElementById('printPermanentPpBtn').addEventListener('click', () => {
+      const list = window.__PROCL_LIST || [];
+      const ppMembers = list.filter(p => {
+        const role = (p.service || '').toLowerCase();
+        const roles = (p.roles || []).map(r => r.toLowerCase());
+        return role.includes('pp') || role.includes('pionnier permanent') || roles.some(r => r.includes('pp') || r.includes('pionnier permanent'));
+      });
+
+      if (ppMembers.length === 0) {
+        alert('Aucun pionnier permanent trouvé.');
+        return;
+      }
+
+      const container = document.getElementById('s21Container');
+      container.innerHTML = '';
+      ppMembers.forEach(p => {
+        container.appendChild(createS21Element(p));
+      });
+      container.classList.remove('d-none');
+    });
+
+    // --- Gestion des groupes : UI, responsables et statistiques ---
+    function loadGroupMgmtOptions() {
+      const sel = document.getElementById('groupSelectMgmt');
+      if (!sel) return;
+      sel.innerHTML = '<option value="">-- Choisir un groupe --</option>';
+      const groups = new Set();
+      (window.__PROCL_LIST || []).forEach(p => { if (p.groupe) groups.add(String(p.groupe).trim()); });
+      if (groups.size === 0) {
+        for (let i=1;i<=7;i++){
+          const o=document.createElement('option');
+          o.value=`Groupe ${i}`;
+          o.textContent=`Groupe ${i}`;
+          sel.appendChild(o);
+        }
+        return;
+      }
+      Array.from(groups).sort().forEach(g => {
+        const o=document.createElement('option');
+        o.value=g;
+        o.textContent=g;
+        sel.appendChild(o);
+      });
+    }
+
+    function loadGroupLeadersCache(callback) {
+      if (!db) { if (callback) callback(); return; }
+      const req = getObjectStore('groupLeaders').getAll();
+      req.onsuccess = () => {
+        groupLeadersCache = req.result || [];
+        if (callback) callback();
+      };
+      req.onerror = () => {
+        groupLeadersCache = [];
+        if (callback) callback();
+      };
+    }
+
+    function getSavedGroupLeaders(group) {
+      return (groupLeadersCache || []).find(g => g.group === group) || null;
+    }
+
+    function showGroupSelectionValues(group) {
+      const saved = getSavedGroupLeaders(group);
+      const leaderInput = document.getElementById('leaderSearch');
+      const adjInput = document.getElementById('adjointSearch');
+      if (leaderInput) leaderInput.value = saved?.leaderName || '';
+      if (adjInput) adjInput.value = saved?.adjointName || '';
+    }
+
+    function updateGroupFieldsFromSelection() {
+      const groupSel = document.getElementById('groupSelectMgmt');
+      if (!groupSel) return;
+      if (!groupSel.dataset.listenerAttached) {
+        groupSel.dataset.listenerAttached = 'true';
+        groupSel.addEventListener('change', () => {
+          if (!groupSel.value) {
+            const area = document.getElementById('groupMembersArea');
+            if (area) area.innerHTML = '<div class="alert alert-info">Aucun groupe chargé.</div>';
+            return;
+          }
+          showGroupSelectionValues(groupSel.value);
+          loadGroupMembersForSelectedGroup();
+        });
+      }
+    }
+
+    function bindGroupManagementEvents() {
+      updateGroupFieldsFromSelection();
+      const loadBtn = document.getElementById('loadGroupMembersBtn');
+      if (loadBtn && !loadBtn.dataset.listenerAttached) {
+        loadBtn.dataset.listenerAttached = 'true';
+        loadBtn.addEventListener('click', () => {
+          const grp = document.getElementById('groupSelectMgmt').value;
+          if (!grp) {
+            alert('Sélectionnez un groupe.');
+            return;
+          }
+          loadGroupMembersForSelectedGroup();
+        });
+      }
+      const allTabBtn = document.getElementById('all-tab');
+      if (allTabBtn && !allTabBtn.dataset.listenerAttached) {
+        allTabBtn.dataset.listenerAttached = 'true';
+        const refreshAllGroups = () => {
+          if (typeof renderAllGroupsView === 'function') {
+            setTimeout(() => renderAllGroupsView(), 0);
+          }
+        };
+        allTabBtn.addEventListener('shown.bs.tab', refreshAllGroups);
+        allTabBtn.addEventListener('click', refreshAllGroups);
+      }
+    }
+
+    function FindProclamateurByName(name) {
+      if (!name) return null;
+      const lowered = name.toLowerCase().trim();
+      return (window.__PROCL_LIST || []).find(p => [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ').toLowerCase().trim() === lowered) || null;
+    }
+
+    function isPermanentPioneer(p) {
+      const text = [p.service || '', ...(p.roles || [])].join(' ').toLowerCase();
+      return /\b(pp|pionnier permanent|ancien pp|assistant pp)\b/.test(text);
+    }
+
+    function isBaptizedProclamateur(p) {
+      return !!getPersonDateValue(p, ['bapt', 'baptism', 'baptismdate', 'datebapteme', 'datedebapteme', 'datebapt', 'datebaptisme']);
+    }
+
+    function getPersonDateValue(person, keywords) {
+      const candidates = Object.keys(person || {}).reduce((acc, key) => {
+        const normalized = key.toString().toLowerCase();
+        if (keywords.some(word => normalized.includes(word))) {
+          acc.push(person[key]);
+        }
+        return acc;
+      }, []);
+      return candidates.find(value => value && value.toString().trim()) || '';
+    }
+
+    function loadGroupMembersForSelectedGroup() {
+      const grp = document.getElementById('groupSelectMgmt').value;
+      if (!grp) return;
+      const members = (window.__PROCL_LIST || []).filter(p => p.groupe && String(p.groupe).toLowerCase().includes(String(grp).toLowerCase()));
+      const area = document.getElementById('groupMembersArea');
+      if (!area) return;
+      if (members.length === 0) {
+        area.innerHTML = '<div class="alert alert-warning">Aucun membre dans ce groupe.</div>';
+        return;
+      }
+      const saved = getSavedGroupLeaders(grp);
+      const leaderName = saved?.leaderName || '';
+      const adjointName = saved?.adjointName || '';
+      const ppCount = members.filter(p => isPermanentPioneer(p)).length;
+      const pbCount = members.filter(p => isBaptizedProclamateur(p) && !isPermanentPioneer(p)).length;
+      const pnbCount = members.filter(p => !isBaptizedProclamateur(p)).length;
+
+      const card = document.createElement('div');
+      card.className = 'group-zone-page';
+      card.innerHTML = `
+        <div class="group-zone-header">
+          <div>
+            <div><strong>${grp}</strong></div>
+            <div><strong>Responsable :</strong> ${leaderName || 'Non défini'}</div>
+            <div><strong>Responsable Adjoint :</strong> ${adjointName || 'Non défini'}</div>
+          </div>
+          <div class="text-end">
+            <div><strong>Total membres :</strong> ${members.length}</div>
+            <div><strong>Total PB :</strong> ${pbCount}</div>
+            <div><strong>Total PNB :</strong> ${pnbCount}</div>
+            <div><strong>Pionniers Permanents :</strong> ${ppCount}</div>
+          </div>
+        </div>
+        <div class="group-zone-members">
+          <table class="table table-sm mb-0">
+            <thead><tr><th>#</th><th>Nom complet</th></thead>
+            <tbody>${members.map((m, idx) => `<tr><td>${idx+1}</td><td>${[m.nom,m.postnom,m.prenom].filter(Boolean).join(' ')}</td></tr>`).join('')}</tbody>
+          </table>
+        </div>
+      `;
+
+      const saveBtn = document.createElement('button');
+      saveBtn.className = 'btn btn-sm btn-success mt-3';
+      saveBtn.textContent = 'Enregistrer responsables';
+      saveBtn.addEventListener('click', () => {
+        const leaderValue = document.getElementById('leaderSearch').value.trim();
+        const adjointValue = document.getElementById('adjointSearch').value.trim();
+        const leader = FindProclamateurByName(leaderValue);
+        const adjoint = FindProclamateurByName(adjointValue);
+        const tx = db.transaction('groupLeaders','readwrite'); const store = tx.objectStore('groupLeaders');
+        store.put({ group: grp, leaderId: leader?.id || '', leaderName: leaderValue, adjointId: adjoint?.id || '', adjointName: adjointValue });
+        tx.oncomplete = () => {
+          loadGroupLeadersCache(() => {
+            showGroupSelectionValues(grp);
+            alert('Responsables enregistrés.');
+          });
+        };
+      });
+
+      area.innerHTML = '';
+      area.appendChild(card);
+      area.appendChild(saveBtn);
+    }
+
+    const groupsTab = document.getElementById('groupsTab');
+    if (groupsTab) {
+      groupsTab.addEventListener('shown.bs.tab', event => {
+        if (event.target && event.target.dataset.bsTarget === '#allgroups') {
+          renderAllGroupsView();
+        }
+      });
+    }
+
+    document.getElementById('loadGroupMembersBtn').addEventListener('click', () => {
+      const grp = document.getElementById('groupSelectMgmt').value;
+      if (!grp) {
+        alert('Sélectionnez un groupe.');
+        return;
+      }
+      loadGroupMembersForSelectedGroup();
+    });
+
+    function renderAllGroupsView() {
+      const area = document.getElementById('allGroupsArea'); if (!area) return;
+      const groups = {};
+      (window.__PROCL_LIST || []).forEach(p => { const g = p.groupe || 'Groupe inconnu'; if (!groups[g]) groups[g]=[]; groups[g].push(p); });
+      area.innerHTML = '';
+      Object.keys(groups).sort().forEach(g => {
+        const page = document.createElement('div'); page.className='group-zone-page';
+        const saved = getSavedGroupLeaders(g);
+        const leaderName = saved?.leaderName || '';
+        const adjointName = saved?.adjointName || '';
+
+        const ppCount = groups[g].filter(p => isPermanentPioneer(p)).length;
+        const pbCount = groups[g].filter(p => isBaptizedProclamateur(p) && !isPermanentPioneer(p)).length;
+        const pnbCount = groups[g].filter(p => !isBaptizedProclamateur(p)).length;
+
+        page.innerHTML = `
+          <div class="group-zone-header">
+            <div>
+              <h6>${g}</h6>
+              <div><strong>Responsable :</strong> ${leaderName || 'non défini'}</div>
+              <div><strong>Responsable Adjoint :</strong> ${adjointName || 'non défini'}</div>
+            </div>
+            <div class="text-end">
+              <div><strong>Total membres :</strong> ${groups[g].length}</div>
+              <div><strong>PB :</strong> ${pbCount}</div>
+              <div><strong>PNB :</strong> ${pnbCount}</div>
+              <div><strong>Pionniers Permanents :</strong> ${ppCount}</div>
+            </div>
+          </div>
+          <div class="group-zone-members">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>#</th><th>Nom complet</th></tr></thead>
+              <tbody>
+                ${groups[g].map((p, idx) => `<tr><td>${idx+1}</td><td>${[p.nom,p.postnom,p.prenom].filter(Boolean).join(' ')}</td></tr>`).join('')}
+              </tbody>
+            </table>
+          </div>
+        `;
+        area.appendChild(page);
+      });
+    }
+
+
+    function monthKeysForServiceYear(year) {
+      const keys = [];
+      for (let m = 9; m <= 12; m++) keys.push(`${year-1}-${String(m).padStart(2,'0')}`);
+      for (let m = 1; m <= 8; m++) keys.push(`${year}-${String(m).padStart(2,'0')}`);
+      return keys;
+    }
+
+    function normalizeMonthKey(value) {
+      const match = String(value || '').trim().match(/^(\d{4})-(\d{1,2})/);
+      return match ? `${match[1]}-${String(Number(match[2])).padStart(2, '0')}` : '';
+    }
+
+    function normalizeIdentityName(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toLowerCase();
+    }
+
+    function getMemberFullName(person) {
+      return [person?.nom, person?.postnom, person?.prenom].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    }
+
+    function getIdentityKeyForPerson(person) {
+      return normalizeIdentityName(getMemberFullName(person));
+    }
+
+    function getIdentityKeyForRecord(record) {
+      return normalizeIdentityName([record?.nom, record?.postnom, record?.prenom].filter(Boolean).join(' ') || record?.nom || '');
+    }
+
+    function samePersonId(left, right) {
+      const a = String(left ?? '').trim();
+      const b = String(right ?? '').trim();
+      if (!a || !b) return false;
+      return a === b || a === b.replace(/^0+/, '');
+    }
+
+    function matchesPersonRecord(person, record) {
+      if (!person || !record) return false;
+      const sameId = samePersonId(record.proclamateurId, person.id) || samePersonId(record.proclamateurId, person.identifiant) || samePersonId(record.proclamateurId, person.identite);
+      const sameName = !!getIdentityKeyForPerson(person) && getIdentityKeyForPerson(person) === getIdentityKeyForRecord(record);
+      return sameId || sameName;
+    }
+
+    function getMonthlyReport(person, monthKey) {
+      const matches = (detailRecords || []).filter(record => {
+        const month = normalizeMonthKey(record.month);
+        return month === monthKey && matchesPersonRecord(person, record);
+      });
+      if (!matches.length) return null;
+      return matches.reduce((merged, record) => {
+        const next = { ...merged, ...record };
+        const currentAprecher = String(next.aprecher ?? '').trim().toLowerCase();
+        const recordAprecher = String(record.aprecher ?? '').trim().toLowerCase();
+        return {
+          ...next,
+          aprecher: currentAprecher === 'yes' || currentAprecher === 'oui' || currentAprecher === 'true' || currentAprecher === '1' || recordAprecher === 'yes' || recordAprecher === 'oui' || recordAprecher === 'true' || recordAprecher === '1' ? 'yes' : 'no',
+          coursBiblique: Number(merged.coursBiblique || merged.cours || 0) + Number(record.coursBiblique || record.cours || 0),
+          heures: Number(merged.heures || merged.hours || 0) + Number(record.heures || record.hours || 0),
+          observation: merged.observation || record.observation || ''
+        };
+      }, {
+        aprecher: 'no',
+        coursBiblique: 0,
+        heures: 0,
+        observation: ''
+      });
+    }
+
+    function isAuxiliaireForMonth(person, monthKey, report) {
+      const subscribed = (auxiliaireSubscriptions || []).some(subscription => {
+        const subscriptionId = String(subscription?.proclamateurId ?? subscription?.id ?? '').trim();
+        const personId = String(person?.id ?? '').trim();
+        const sameSubscription = subscriptionId && samePersonId(subscriptionId, personId);
+        const months = Array.isArray(subscription?.selectedMonths) ? subscription.selectedMonths : [];
+        return sameSubscription && months.some(month => normalizeMonthKey(month) === monthKey);
+      });
+      return subscribed || (!isPermanentPioneer(person) && report?.special === true);
+    }
+
+    // Création d'une fiche S-21 sous forme d'élément HTML rigoureusement aligné sur le design photo
+    function createS21Element(p) {
+      const pageDiv = document.createElement('div');
+      pageDiv.className = 's21-page';
+
+      const fullName = [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ');
+      const dob = getPersonDateValue(p, ['birth', 'naissance']);
+      const bapt = getPersonDateValue(p, ['bapt', 'baptism', 'baptismdate', 'datebapteme', 'datedebapteme', 'datebapt', 'datebaptisme']);
+      const sexe = (p.sexe || p.sex || '').toString().toUpperCase();
+
+      const isHomme = sexe === 'M' || sexe === 'HOMME';
+      const isFemme = sexe === 'F' || sexe === 'FEMME';
+
+      const serviceRole = (p.service || '').toLowerCase();
+      const allRoles = [serviceRole, ...(p.roles || []).map(r => r.toLowerCase())];
+
+      const isAncien = allRoles.some(r => r.includes('ancien'));
+      const isAssistant = allRoles.some(r => r.includes('assistant') || r.includes('serviteur ministériel'));
+      const isPP = allRoles.some(r => r.includes('pp') || r.includes('pionnier permanent'));
+      const isPS = allRoles.some(r => r.includes('ps') || r.includes('pionnier spécial') || r.includes('sspt'));
+      const isMissionnaire = allRoles.some(r => r.includes('missionnaire'));
+
+      pageDiv.innerHTML = `
+        <div class="s21-title">ACTIVITÉ DU PROCLAMATEUR (DOSSIER DE L'ASSEMBLÉE)</div>
+        <div class="s21-header-info">
+          <div class="s21-col-info" style="flex: 1.2;">
+            <div>Nom : <b>${fullName}</b></div>
+            <div>Date de naissance : ${dob}</div>
+            <div>Date de baptême : ${bapt}</div>
+          </div>
+          <div class="checkbox-grid" style="flex: 1.5;">
+            <label><input type="checkbox" ${isAncien ? 'checked' : ''}> Ancien</label>
+            <label><input type="checkbox" ${isHomme ? 'checked' : ''}> Homme</label>
+            <label><input type="checkbox" ${isAssistant ? 'checked' : ''}> Assistant</label>
+            <label><input type="checkbox" ${isFemme ? 'checked' : ''}> Femme</label>
+            <label><input type="checkbox" ${isPP ? 'checked' : ''}> Pionnier permanent</label>
+            <label><input type="checkbox" checked> Autre brebis</label>
+            <label><input type="checkbox" ${isPS ? 'checked' : ''}> Pionnier spécial</label>
+            <label><input type="checkbox"> Oint</label>
+            <label><input type="checkbox" ${isMissionnaire ? 'checked' : ''}> Missionnaire affecté dans le territoire</label>
+          </div>
+        </div>
+
+        <table class="s21-table">
+          <thead>
+            <tr>
+              <th style="width: 22%;">Année de service <span class="s21-year-label"></span></th>
+              <th style="width: 25%;">A participé à la prédication</th>
+              <th style="width: 15%;">Cours bibliques</th>
+              <th style="width: 13%;">Pionnier auxiliaire</th>
+              <th style="width: 12%;">Heures <br><small>(si pionnier ou missionnaire)</small></th>
+              <th style="width: 13%;">Observations</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+          <tfoot>
+            <tr>
+              <td><b>Total</b></td>
+              <td class="tot-preach">0</td>
+              <td class="tot-courses">0</td>
+              <td class="tot-pa">0</td>
+              <td class="tot-hours">0</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+
+      const serviceYear = Number(document.getElementById('serviceYear').value) || new Date().getFullYear();
+      pageDiv.querySelector('.s21-year-label').textContent = serviceYear;
+      const monthKeys = monthKeysForServiceYear(serviceYear);
+      const monthNames = ['septembre','octobre','novembre','décembre','janvier','février','mars','avril','mai','juin','juillet','août'];
+      const tbody = pageDiv.querySelector('tbody');
+
+      let totalPreach = 0, totalCourses = 0, totalPA = 0, totalHours = 0;
+      let maxMissing = 0, curMissing = 0;
+
+      monthKeys.forEach((key, idx) => {
+        const rec = getMonthlyReport(p, key);
+        const tr = document.createElement('tr');
+
+        const participated = rec && ['yes', 'oui', 'true', '1'].includes(String(rec.aprecher || '').trim().toLowerCase());
+        const courses = rec ? (rec.coursBiblique || rec.cours || '') : '';
+        const isAux = !isPP && isAuxiliaireForMonth(p, key, rec);
+        const hours = rec ? (rec.heures || rec.hours || '') : '';
+        const obsText = rec ? (rec.observation || '') : '';
+
+        tr.innerHTML = `
+          <td>${monthNames[idx]}</td>
+          <td><input type="checkbox" ${participated ? 'checked' : ''}></td>
+          <td>${courses}</td>
+          <td><input type="checkbox" ${isAux ? 'checked' : ''}></td>
+          <td>${hours}</td>
+          <td>${obsText}</td>
+        `;
+        tbody.appendChild(tr);
+
+        if (participated) totalPreach++;
+        totalCourses += Number(courses || 0);
+        if (isAux) totalPA++;
+        totalHours += Number(hours || 0);
+
+        if (!rec) {
+          curMissing++;
+          maxMissing = Math.max(maxMissing, curMissing);
+        } else {
+          curMissing = 0;
+        }
+      });
+
+      pageDiv.querySelector('.tot-preach').textContent = totalPreach;
+      pageDiv.querySelector('.tot-courses').textContent = totalCourses;
+      pageDiv.querySelector('.tot-pa').textContent = totalPA;
+      pageDiv.querySelector('.tot-hours').textContent = totalHours;
+
+      // Laisser la colonne Observations vide par défaut (aucune insertion automatique)
+      // (Observation content intentionally left untouched)
+
+      return pageDiv;
+    }
+
+    // --- Nouveautés : gestion boutons dynamiques et génération par type ---
+    function getSelectionLabel() {
+      const grp = (document.getElementById('groupSelect')?.value || '').trim();
+      const q = (document.getElementById('proclSearch')?.value || '').trim();
+      const type = (document.getElementById('s21TypeSelect')?.value || '').trim();
+      if (q) {
+        const found = FindProclamateurByName(q) || (window.__PROCL_LIST || []).find(p => [p.nom,p.postnom,p.prenom].filter(Boolean).join(' ').toLowerCase().includes(q.toLowerCase()));
+        if (found) return found.prenom ? `pour ${found.prenom}` : `pour ${[found.nom,found.postnom,found.prenom].filter(Boolean).join(' ')}`;
+      }
+      if (grp) return `Grp ${grp}`;
+      if (type === 'pp') return 'pour PP';
+      if (type) return type;
+      return '';
+    }
+
+    function updateS21ButtonsLabel() {
+      const label = getSelectionLabel();
+      const gen = document.getElementById('generateS21Btn');
+      const save = document.getElementById('saveS21Btn');
+      const prt = document.getElementById('printS21Btn');
+      if (gen) gen.textContent = label ? `GENERER S-21 ${label}` : 'GENERER S-21';
+      if (save) save.textContent = label ? `SAUVEGARDER S-21 ${label}` : 'SAUVEGARDER S-21';
+      if (prt) prt.textContent = label ? `IMPRIMER S-21 ${label}` : 'IMPRIMER S-21';
+    }
+
+    function generateByType(type) {
+      const list = window.__PROCL_LIST || [];
+      let members = [];
+      if (type === 'pp') {
+        members = list.filter(p => isPermanentPioneer(p));
+      } else if (type === 'pa') {
+        const re = /pionnier auxiliaire|pa|pionnier aux/i;
+        members = list.filter(p => re.test([p.service, ...(p.roles||[])].join(' ')));
+      } else if (type === 'proclamateurs') {
+        members = list.filter(p => !isPermanentPioneer(p));
+      } else if (type === 'anciens') {
+        members = list.filter(p => /ancien/i.test([p.service, ...(p.roles||[])].join(' ')));
+      } else if (type === 'assistants') {
+        members = list.filter(p => /assistant/i.test([p.service, ...(p.roles||[])].join(' ')));
+      } else if (type === 'global') {
+        members = list.slice();
+      }
+      if (!members.length) {
+        alert('Aucun membre trouvé pour ce type.');
+        return;
+      }
+      renderS21Pages(members);
+    }
+
+    // Attacher écouteurs pour mise à jour des libellés
+    ['change','input'].forEach(ev => {
+      const g = document.getElementById('groupSelect'); if (g) g.addEventListener(ev, updateS21ButtonsLabel);
+      const p = document.getElementById('proclSearch'); if (p) p.addEventListener(ev, updateS21ButtonsLabel);
+      const t = document.getElementById('s21TypeSelect'); if (t) t.addEventListener(ev, updateS21ButtonsLabel);
+    });
+
+    // action GENERER S-21
+    const genBtn = document.getElementById('generateS21Btn');
+    if (genBtn) genBtn.addEventListener('click', () => {
+      const q = (document.getElementById('proclSearch')?.value || '').trim();
+      const grp = (document.getElementById('groupSelect')?.value || '').trim();
+      const type = (document.getElementById('s21TypeSelect')?.value || '').trim();
+      if (q) {
+        document.getElementById('searchProclBtn')?.click();
+        return;
+      }
+      if (grp) {
+        document.getElementById('searchGroupBtn')?.click();
+        return;
+      }
+      if (type) {
+        generateByType(type);
+        return;
+      }
+      document.getElementById('generateAllBtn')?.click();
+    });
+
+    function populateServiceYearOptions() {
+      const yearSelect = document.getElementById('serviceYear');
+      if (!yearSelect) return;
+      const current = Number(yearSelect.value || new Date().getFullYear());
+      const startYear = 2020;
+      const endYear = new Date().getFullYear() + 15;
+      const years = [];
+      for (let year = startYear; year <= endYear; year++) {
+        years.push(year);
+      }
+      yearSelect.innerHTML = years.map(year => `<option value="${year}" ${year === current ? 'selected' : ''}>${year}</option>`).join('');
+      if (!years.includes(current)) {
+        yearSelect.value = String(endYear);
+      }
+    }
+
+    function exportS21PdfDirect() {
+      const htmlContent = buildS21ExportSource();
+      if (!htmlContent) {
+        alert('Aucune fiche S-21 générée à exporter.');
+        return;
+      }
+
+      const btn = document.getElementById('exportS21Btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Enregistrement en cours...';
+      }
+
+      const win = openS21PrintWindow(htmlContent);
+      if (!win) {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Enregistrer';
+        }
+        alert('Le navigateur a bloqué la fenêtre d’enregistrement. Autorisez les fenêtres pop-up puis réessayez.');
+        return;
+      }
+
+      window.setTimeout(() => {
+        try {
+          win.focus();
+          win.print();
+        } catch (err) {
+          console.warn('Erreur impression S-21', err);
+        }
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Enregistrer';
+        }
+      }, 300);
+    }
+
+    // SAUVEGARDER S-21 -> export PDF réel dans le même clic utilisateur
+    const saveBtn = document.getElementById('saveS21Btn');
+    if (saveBtn) saveBtn.addEventListener('click', exportS21PdfDirect);
+
+    // Initial update des labels
+    setTimeout(() => {
+      populateServiceYearOptions();
+      updateS21ButtonsLabel();
+    }, 120);
+
+    function buildS21ExportSource() {
+      const container = document.getElementById('s21Container');
+      if (!container || container.classList.contains('d-none') || container.children.length === 0) {
+        return null;
+      }
+
+      const pages = Array.from(container.children)
+        .map(page => {
+          const clone = page.cloneNode(true);
+          clone.classList.add('s21-export-page');
+          clone.style.display = 'block';
+          clone.style.visibility = 'visible';
+          clone.style.opacity = '1';
+          clone.style.position = 'relative';
+          clone.style.left = 'auto';
+          clone.style.top = 'auto';
+          clone.style.zIndex = 'auto';
+          clone.style.width = '180mm';
+          clone.style.maxWidth = '180mm';
+          clone.style.margin = '0 auto 12mm auto';
+          clone.style.boxSizing = 'border-box';
+          clone.style.pageBreakInside = 'avoid';
+          clone.style.breakInside = 'avoid';
+          clone.style.overflow = 'visible';
+          return clone.outerHTML;
+        })
+        .join('\n');
+
+      return pages;
+    }
+
+    function openS21PrintWindow(htmlContent) {
+      const win = window.open('', '_blank');
+      if (!win) return null;
+
+      const printCss = `
+        @page { size: A4 portrait; margin: 12mm; }
+        html, body { margin: 0; padding: 0; background: #fff; color: #000; }
+        body { font-family: Arial, sans-serif; }
+        .s21-page, .s21-export-page {
+          display: block !important;
+          visibility: visible !important;
+          opacity: 1 !important;
+          width: 180mm !important;
+          max-width: 180mm !important;
+          min-height: 267mm !important;
+          height: 267mm !important;
+          margin: 0 auto 0 auto !important;
+          padding: 10mm 12mm 10mm 12mm !important;
+          box-sizing: border-box !important;
+          background: #fff !important;
+          color: #000 !important;
+          page-break-after: avoid !important;
+          break-after: avoid !important;
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+          overflow: visible !important;
+          box-shadow: none !important;
+          border: 0 !important;
+        }
+        .s21-page:not(:last-child), .s21-export-page:not(:last-child) {
+          page-break-after: always !important;
+          break-after: page !important;
+        }
+        .s21-page:last-child, .s21-export-page:last-child {
+          page-break-after: avoid !important;
+          break-after: avoid !important;
+        }
+        .s21-title {
+          text-align: right;
+          font-size: 15px;
+          font-weight: 700;
+          margin: 0 0 10px;
+        }
+        .s21-col-info {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          font-size: 13px;
+          margin-bottom: 15px;
+        }
+        .checkbox-grid {
+          display: grid;
+          grid-template-columns: repeat(2, auto);
+          gap: 2px 15px;
+          font-size: 12px;
+        }
+        .s21-table {
+          display: table !important;
+          width: 100% !important;
+          border-collapse: collapse !important;
+          font-size: 12px;
+          margin-top: 10px;
+          color: #000;
+        }
+        .s21-table th, .s21-table td {
+          display: table-cell !important;
+          border: 1px solid #000 !important;
+          padding: 4px 6px;
+          text-align: center;
+          color: #000 !important;
+        }
+        .s21-table th {
+          background-color: #f2f2f2 !important;
+        }
+        .s21-table td:nth-child(1), .s21-table td:nth-child(6) {
+          text-align: left;
+        }
+        input[type="checkbox"] {
+          accent-color: #000;
+        }
+      `;
+
+      win.document.open();
+      win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>S-21</title><style>${printCss}</style></head><body>${htmlContent}</body></html>`);
+      win.document.close();
+      win.focus();
+      return win;
+    }
+
+    // Export PDF global de toutes les fiches affichées
+    document.getElementById('exportS21Btn').addEventListener('click', exportS21PdfDirect);
+
+    // Imprimer: ouvre une fenêtre dédiée avec le contenu S-21
+    function renderS21Pages(members) {
+      const container = document.getElementById('s21Container');
+      if (!container) return;
+      container.innerHTML = '';
+      members.forEach(p => container.appendChild(createS21Element(p)));
+      container.classList.remove('d-none');
+    }
+
+    document.getElementById('generateAllBtn').addEventListener('click', () => {
+      const list = window.__PROCL_LIST || [];
+      if (list.length === 0) {
+        alert('Aucun proclamateur disponible pour générer les fiches.');
+        return;
+      }
+      renderS21Pages(list);
+    });
+
+    document.getElementById('printS21Btn').addEventListener('click', () => {
+      const container = document.getElementById('s21Container');
+      if (!container || container.classList.contains('d-none') || container.children.length === 0) {
+        alert('Aucune fiche S-21 générée à imprimer.');
+        return;
+      }
+
+      const htmlContent = buildS21ExportSource();
+      if (!htmlContent) return;
+
+      const win = openS21PrintWindow(htmlContent);
+      if (!win) {
+        alert('Le navigateur a bloqué la fenêtre d’impression. Autorisez les fenêtres pop-up puis réessayez.');
+        return;
+      }
+
+      window.setTimeout(() => {
+        win.print();
+      }, 700);
+    });
+  </script>
+</body>
+</html>
+

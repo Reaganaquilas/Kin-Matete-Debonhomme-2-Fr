@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Souscription Pionniers</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f1f4f6; color: #243746; }
+    .card { border-radius: 14px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06); border: 1px solid #e8edf3; }
+    .table-responsive { overflow-x: auto; }
+    .month-button { min-width: 90px; border-radius: 999px; }
+    .selected-month { background-color: #214b63; color: white; }
+    .search-result-row:hover { background-color: #f2f7ff; }
+    .stats-card {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.1rem;
+      border-radius: 16px;
+      background: #ffffff;
+      border: 1px solid #e5ecf5;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+      min-height: 118px;
+    }
+    .stats-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .stats-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #6b7280;
+    }
+    .stats-value {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.2;
+    }
+    .stats-footnote {
+      font-size: 0.84rem;
+      color: #6b7280;
+      margin-top: 0.2rem;
+    }
+  </style>
+  <link rel="stylesheet" href="app-theme.css">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+<div class="container mt-4 mb-5">
+  <h2 class="text-center mb-4">Souscription des Pionniers</h2>
+
+  <div class="row g-3 mb-4">
+    <div class="col-lg-3 col-md-6">
+      <div class="stats-card">
+        <div class="stats-icon">PP</div>
+        <div>
+          <div class="stats-label">Permanents</div>
+          <div class="stats-value" id="statsPermanentCount">0</div>
+          <div class="stats-footnote">Liste active</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="stats-card">
+        <div class="stats-icon">CAND.</div>
+        <div>
+          <div class="stats-label">Candidatures</div>
+          <div class="stats-value" id="statsCandidatureCount">0</div>
+          <div class="stats-footnote">Enregistrées</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="stats-card">
+        <div class="stats-icon">PA</div>
+        <div>
+          <div class="stats-label">Souscriptions PA</div>
+          <div class="stats-value" id="statsAuxCount">0</div>
+          <div class="stats-footnote">Actives le mois sélectionné</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+      <div class="stats-card">
+        <div class="stats-icon">MOY.</div>
+        <div>
+          <div class="stats-label">Moyenne</div>
+          <div class="stats-value" id="statsAverageMonths">0.0</div>
+          <div class="stats-footnote">Mois par souscription</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="nav nav-tabs" id="subscriptionTabs" role="tablist">
+    <li class="nav-item" role="presentation"><button class="nav-link active" id="permanent-tab" data-access-feature="souscription:permanent" data-bs-toggle="tab" data-bs-target="#permanent" type="button" role="tab">Pionniers Permanent</button></li>
+    <li class="nav-item" role="presentation"><button class="nav-link" id="auxiliaire-tab" data-access-feature="souscription:auxiliaire" data-bs-toggle="tab" data-bs-target="#auxiliaire" type="button" role="tab">Pionniers Auxiliaire</button></li>
+  </ul>
+
+  <div class="tab-content mt-3">
+    <div class="tab-pane fade show active" id="permanent" role="tabpanel">
+      <div class="card p-3">
+        <ul class="nav nav-pills mb-3" id="permanentSubtabs" role="tablist">
+          <li class="nav-item" role="presentation"><button class="nav-link active" data-access-feature="souscription:listePermanent" data-bs-toggle="pill" data-bs-target="#listePermanent" type="button">Liste Permanente</button></li>
+          <li class="nav-item" role="presentation"><button class="nav-link" data-access-feature="souscription:candidaturePermanent" data-bs-toggle="pill" data-bs-target="#candidaturePermanent" type="button">Candidature</button></li>
+        </ul>
+
+        <div class="tab-content">
+          <div class="tab-pane fade show active" id="listePermanent" role="tabpanel">
+            <h5 class="text-primary">Liste des Pionniers Permanents</h5>
+            <p>Liste mise à jour automatiquement depuis le fichier <strong>Proclamateurs</strong>, champ <em>Sert comme</em> (Ancien PP, Assistant PP, PP).</p>
+            <div class="table-responsive">
+              <table class="table table-striped align-middle">
+                <thead class="table-primary">
+                  <tr>
+                    <th>ID</th><th>Nom</th><th>Postnom</th><th>Prénom</th><th>Sert comme</th><th>Groupe</th>
+                  </tr>
+                </thead>
+                <tbody id="permanentTableBody">
+                  <tr><td colspan="6" class="text-center">Chargement...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="tab-pane fade" id="candidaturePermanent" role="tabpanel">
+            <h5 class="text-primary">Candidature Pionnier Permanent</h5>
+            <div class="row gy-3 mb-4">
+              <div class="col-md-6">
+                <input type="search" id="permanentSearchInput" class="form-control" placeholder="Rechercher par ID, nom, prénom ou groupe">
+              </div>
+            </div>
+
+            <div id="permanentSearchResults" class="table-responsive"></div>
+
+            <div id="permanentSelectedCard" class="card border-secondary mb-4 d-none"></div>
+
+            <div class="card p-3">
+              <h6>Candidatures enregistrées</h6>
+              <div class="table-responsive">
+                <table class="table table-sm table-striped mb-0">
+                  <thead class="table-light">
+                    <tr><th>ID</th><th>Nom complet</th><th>Mois</th><th>Action</th></tr>
+                  </thead>
+                  <tbody id="permanentCandidatureBody">
+                    <tr><td colspan="4" class="text-center">Aucune candidature enregistrée.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane fade" id="auxiliaire" role="tabpanel">
+      <div class="card p-3">
+        <h5 class="text-primary">Souscriptions Pionniers Auxiliaire</h5>
+        <p>Affiche les proclamateurs inscrits comme Pionniers Auxiliaires pour le mois sélectionné.</p>
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label for="auxMonthSelect" class="form-label"><strong>Mois à afficher</strong></label>
+            <select id="auxMonthSelect" class="form-select"></select>
+          </div>
+        </div>
+        <div class="table-responsive mb-4">
+          <table class="table table-striped align-middle">
+            <thead class="table-primary">
+              <tr><th>ID</th><th>Nom</th><th>Postnom</th><th>Prénom</th><th>Durée restante</th><th>Mois inscrits</th><th class="text-center">Action</th></tr>
+            </thead>
+            <tbody id="auxiliaireTableBody">
+              <tr><td colspan="7" class="text-center">Chargement...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <hr>
+        <h6>Rechercher un proclamateur pour souscrire</h6>
+        <div class="row gy-3 mb-3">
+          <div class="col-md-6">
+            <input type="search" id="auxiliaireSearchInput" class="form-control" placeholder="Rechercher par ID, nom, prénom ou groupe">
+          </div>
+        </div>
+        <div id="auxiliaireSearchResults" class="table-responsive"></div>
+
+        <div id="auxiliaireSelectedCard" class="card border-secondary mb-4 d-none"></div>
+
+        <div class="card p-3">
+          <h6>Sélection des mois de souscription</h6>
+          <div id="monthButtons" class="d-flex flex-wrap gap-2"></div>
+          <div class="mt-3">Durée sélectionnée : <strong id="auxDuration">0</strong> mois</div>
+          <button id="auxSubscribeButton" class="btn btn-primary mt-3" disabled>Souscrire</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index:1080;">
+  <div id="toastNotification" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="toast-body" id="toastBody"></div>
+      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Fermer"></button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  let db;
+  let proclamateurs = [];
+  let detailRecords = [];
+  let selectedPermanent = null;
+  let selectedAuxiliaire = null;
+  let selectedAuxMonths = new Set();
+  let statsData = { permanentCount: 0, candidatureCount: 0, auxActiveCount: 0, averageMonths: 0 };
+  const months = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+  const currentDate = new Date();
+  const currentYear = currentDate.getFullYear();
+  const currentMonthKey = `${currentYear}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+  let selectedAuxMonthKey = '2026-08';
+  const toastEl = document.getElementById('toastNotification');
+  const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+
+  function showToast(message, type = 'primary') {
+    toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+    document.getElementById('toastBody').textContent = message;
+    toast.show();
+  }
+
+  function renderStatistics() {
+    document.getElementById('statsPermanentCount').textContent = statsData.permanentCount;
+    document.getElementById('statsCandidatureCount').textContent = statsData.candidatureCount;
+    document.getElementById('statsAuxCount').textContent = statsData.auxActiveCount;
+    document.getElementById('statsAverageMonths').textContent = statsData.averageMonths.toFixed(1);
+  }
+
+  function openDatabase() {
+    const request = indexedDB.open('ProclamateursDB', 5);
+
+    request.onupgradeneeded = event => {
+      const database = event.target.result;
+      if (!database.objectStoreNames.contains('proclamateurs')) {
+        database.createObjectStore('proclamateurs', { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains('pionniersAuxiliaire')) {
+        database.createObjectStore('pionniersAuxiliaire', { keyPath: 'proclamateurId' });
+      }
+      if (!database.objectStoreNames.contains('permanentCandidatures')) {
+        database.createObjectStore('permanentCandidatures', { keyPath: 'proclamateurId' });
+      }
+      if (!database.objectStoreNames.contains('detailPredication')) {
+        database.createObjectStore('detailPredication', { keyPath: 'id' });
+      }
+      if (!database.objectStoreNames.contains('groupLeaders')) {
+        database.createObjectStore('groupLeaders', { keyPath: 'group' });
+      }
+    };
+
+    request.onsuccess = event => {
+      db = event.target.result;
+      loadProclamateurs();
+      loadDetailRecords();
+      loadPermanentCandidatures();
+      loadAuxiliaireSubscriptions();
+      renderAuxMonthSelect();
+      renderMonthButtons();
+    };
+
+    request.onblocked = () => {
+      showToast('La base de données est bloquée par une autre fenêtre ouverte.', 'warning');
+    };
+
+    request.onerror = event => {
+      const errorMessage = event.target.error ? event.target.error.message : 'Erreur inconnue';
+      showToast(`Impossible d’ouvrir la base de données : ${errorMessage}`, 'danger');
+    };
+  }
+
+  function formatMonthKey(monthKey) {
+    const [year, month] = monthKey.split('-');
+    return `${months[Number(month) - 1]} ${year}`;
+  }
+
+  function getObjectStore(storeName, mode = 'readonly') {
+    return db.transaction(storeName, mode).objectStore(storeName);
+  }
+
+  function loadProclamateurs() {
+    const store = getObjectStore('proclamateurs');
+    const request = store.getAll();
+    request.onsuccess = () => {
+      proclamateurs = request.result || [];
+      renderPermanentList();
+      refreshPermanentSearch();
+      refreshAuxiliaireSearch();
+    };
+    request.onerror = () => showToast('Impossible de charger les proclamateurs.', 'danger');
+  }
+
+  function loadDetailRecords() {
+    const store = getObjectStore('detailPredication');
+    const request = store.getAll();
+    request.onsuccess = () => {
+      detailRecords = request.result || [];
+      loadAuxiliaireSubscriptions();
+    };
+    request.onerror = () => showToast('Impossible de charger les rapports de prédication.', 'danger');
+  }
+
+  function renderPermanentList() {
+    const body = document.getElementById('permanentTableBody');
+    const list = proclamateurs.filter(item => ['Ancien PP', 'Assistant PP', 'PP'].includes(item.service));
+    statsData.permanentCount = list.length;
+    renderStatistics();
+    if (!list.length) {
+      body.innerHTML = '<tr><td colspan="6" class="text-center">Aucun Pionnier Permanent trouvé.</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(item => `
+      <tr>
+        <td>${item.id}</td>
+        <td>${item.nom}</td>
+        <td>${item.postnom}</td>
+        <td>${item.prenom}</td>
+        <td>${item.service}</td>
+        <td>${item.groupe || '-'}</td>
+      </tr>
+    `).join('');
+  }
+
+  function refreshPermanentSearch() {
+    const query = document.getElementById('permanentSearchInput').value.trim().toLowerCase();
+    const results = query ? searchProclamateurs(query) : [];
+    renderPermanentSearchResults(results);
+  }
+
+  function refreshAuxiliaireSearch() {
+    const query = document.getElementById('auxiliaireSearchInput').value.trim().toLowerCase();
+    const results = query ? searchProclamateurs(query) : [];
+    renderAuxiliaireSearchResults(results);
+  }
+
+  function searchProclamateurs(query) {
+    return proclamateurs.filter(item => {
+      const normalized = [item.id, item.nom, item.postnom, item.prenom, item.groupe]
+        .filter(Boolean)
+        .join(' ').toLowerCase();
+      return normalized.includes(query);
+    });
+  }
+
+  function renderPermanentSearchResults(results) {
+    const container = document.getElementById('permanentSearchResults');
+    if (!results.length) {
+      container.innerHTML = '<div class="alert alert-info">Saisissez un élément pour rechercher un proclamateur.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table class="table table-sm table-hover align-middle">
+        <thead class="table-light"><tr><th>ID</th><th>Nom complet</th><th>Sert comme</th><th></th></tr></thead>
+        <tbody>
+          ${results.map(item => `
+            <tr class="search-result-row">
+              <td>${item.id}</td>
+              <td>${item.nom} ${item.postnom} ${item.prenom}</td>
+              <td>${item.service || '-'}</td>
+              <td><button class="btn btn-sm btn-outline-primary" type="button" onclick="selectPermanent('${item.id}')">Sélectionner</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function renderAuxiliaireSearchResults(results) {
+    const container = document.getElementById('auxiliaireSearchResults');
+    if (!results.length) {
+      container.innerHTML = '<div class="alert alert-info">Saisissez un élément pour rechercher un proclamateur.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <table class="table table-sm table-hover align-middle">
+        <thead class="table-light"><tr><th>ID</th><th>Nom complet</th><th>Sert comme</th><th></th></tr></thead>
+        <tbody>
+          ${results.map(item => `
+            <tr class="search-result-row">
+              <td>${item.id}</td>
+              <td>${item.nom} ${item.postnom} ${item.prenom}</td>
+              <td>${item.service || '-'}</td>
+              <td><button class="btn btn-sm btn-outline-primary" type="button" onclick="selectAuxiliaire('${item.id}')">Sélectionner</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function selectPermanent(id) {
+    selectedPermanent = proclamateurs.find(item => item.id === id) || null;
+    if (!selectedPermanent) return;
+    const card = document.getElementById('permanentSelectedCard');
+    card.classList.remove('d-none');
+    card.innerHTML = `
+      <div class="card-body">
+        <h6 class="card-title">Candidature : ${selectedPermanent.nom} ${selectedPermanent.postnom} ${selectedPermanent.prenom}</h6>
+        <p><strong>ID :</strong> ${selectedPermanent.id}</p>
+        <p><strong>Sert comme :</strong> ${selectedPermanent.service || '-'} / <strong>Groupe :</strong> ${selectedPermanent.groupe || '-'}</p>
+        <div class="row gy-3 align-items-end">
+          <div class="col-md-4">
+            <label class="form-label">Mois de candidature</label>
+            <select id="candidateMonthSelect" class="form-select">
+              ${createMonthOptions()}
+            </select>
+          </div>
+          <div class="col-md-3"><button class="btn btn-success w-100" type="button" onclick="savePermanentCandidature()">Enregistrer candidature</button></div>
+          <div class="col-md-5"><button class="btn btn-secondary w-100" type="button" onclick="clearPermanentSelection()">Annuler</button></div>
+        </div>
+      </div>
+    `;
+  }
+
+  function createMonthOptions() {
+    return months.map((label, index) => {
+      const monthKey = `${currentYear}-${String(index + 1).padStart(2, '0')}`;
+      return `<option value="${monthKey}">${label} ${currentYear}</option>`;
+    }).join('');
+  }
+
+  function renderAuxMonthSelect() {
+    const select = document.getElementById('auxMonthSelect');
+    select.innerHTML = months.map((label, index) => {
+      const monthKey = `${currentYear}-${String(index + 1).padStart(2, '0')}`;
+      return `<option value="${monthKey}">${label} ${currentYear}</option>`;
+    }).join('');
+    select.value = selectedAuxMonthKey;
+    select.addEventListener('change', () => {
+      selectedAuxMonthKey = select.value;
+      if (selectedAuxiliaire && selectedAuxMonthKey === '2026-08') {
+        selectedAuxMonths.add('2026-08');
+        renderMonthButtons();
+      }
+      loadAuxiliaireSubscriptions();
+    });
+  }
+
+  function savePermanentCandidature() {
+    if (!selectedPermanent) return;
+    const month = document.getElementById('candidateMonthSelect').value;
+    const store = getObjectStore('permanentCandidatures', 'readwrite');
+    const request = store.put({ proclamateurId: selectedPermanent.id, month, updatedAt: new Date().toISOString() });
+    request.onsuccess = () => {
+      showToast('Candidature enregistrée.', 'success');
+      loadPermanentCandidatures();
+      clearPermanentSelection();
+    };
+    request.onerror = () => showToast('Erreur lors de l’enregistrement.', 'danger');
+  }
+
+  function loadPermanentCandidatures() {
+    const store = getObjectStore('permanentCandidatures');
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const records = request.result || [];
+      statsData.candidatureCount = records.length;
+      renderStatistics();
+      const body = document.getElementById('permanentCandidatureBody');
+      if (!records.length) {
+        body.innerHTML = '<tr><td colspan="4" class="text-center">Aucune candidature enregistrée.</td></tr>';
+        return;
+      }
+      body.innerHTML = records.map(record => {
+        const proclamateur = proclamateurs.find(item => item.id === record.proclamateurId);
+        const name = proclamateur ? `${proclamateur.nom} ${proclamateur.postnom} ${proclamateur.prenom}` : 'Proclamateur inconnu';
+        return `
+          <tr>
+            <td>${record.proclamateurId}</td>
+            <td>${name}</td>
+            <td>${formatMonthKey(record.month)}</td>
+            <td><button class="btn btn-sm btn-outline-danger" type="button" onclick="deletePermanentCandidature('${record.proclamateurId}')">Supprimer</button></td>
+          </tr>
+        `;
+      }).join('');
+    };
+    request.onerror = () => showToast('Impossible de charger les candidatures.', 'danger');
+  }
+
+  function deletePermanentCandidature(id) {
+    const store = getObjectStore('permanentCandidatures', 'readwrite');
+    const request = store.delete(id);
+    request.onsuccess = () => {
+      showToast('Candidature supprimée.', 'success');
+      loadPermanentCandidatures();
+    };
+    request.onerror = () => showToast('Erreur lors de la suppression.', 'danger');
+  }
+
+  function clearPermanentSelection() {
+    selectedPermanent = null;
+    const card = document.getElementById('permanentSelectedCard');
+    card.classList.add('d-none');
+    card.innerHTML = '';
+  }
+
+  function renderMonthButtons() {
+    const container = document.getElementById('monthButtons');
+    container.innerHTML = months.map((label, index) => {
+      const monthKey = `${currentYear}-${String(index + 1).padStart(2, '0')}`;
+      const active = selectedAuxMonths.has(monthKey) ? 'selected-month' : 'btn-outline-primary';
+      return `<button type="button" class="btn btn-sm ${active} month-button" onclick="toggleAuxMonth('${monthKey}')">${label}</button>`;
+    }).join('');
+    document.getElementById('auxDuration').textContent = selectedAuxMonths.size;
+    document.getElementById('auxSubscribeButton').disabled = !selectedAuxMonths.size || !selectedAuxiliaire;
+  }
+
+  function toggleAuxMonth(monthKey) {
+    if (selectedAuxMonths.has(monthKey)) {
+      selectedAuxMonths.delete(monthKey);
+    } else {
+      selectedAuxMonths.add(monthKey);
+    }
+    renderMonthButtons();
+  }
+
+  function selectAuxiliaire(id) {
+    selectedAuxiliaire = proclamateurs.find(item => String(item.id) === String(id)) || null;
+    selectedAuxMonths.clear();
+    if (selectedAuxiliaire && selectedAuxMonthKey === '2026-08') {
+      selectedAuxMonths.add('2026-08');
+    }
+    renderAuxiliaireSelected();
+    renderMonthButtons();
+  }
+
+  function renderAuxiliaireSelected() {
+    const card = document.getElementById('auxiliaireSelectedCard');
+    if (!selectedAuxiliaire) {
+      card.classList.add('d-none');
+      card.innerHTML = '';
+      return;
+    }
+    card.classList.remove('d-none');
+    card.innerHTML = `
+      <div class="card-body">
+        <h6 class="card-title">Proclamateur sélectionné</h6>
+        <p><strong>ID :</strong> ${selectedAuxiliaire.id}</p>
+        <p><strong>Nom :</strong> ${selectedAuxiliaire.nom} ${selectedAuxiliaire.postnom} ${selectedAuxiliaire.prenom}</p>
+        <p><strong>Sert comme :</strong> ${selectedAuxiliaire.service || '-'}</p>
+        <p><strong>Groupe :</strong> ${selectedAuxiliaire.groupe || '-'}</p>
+      </div>
+    `;
+  }
+
+  function subscribeAuxiliaire() {
+    if (!selectedAuxiliaire || !selectedAuxMonths.size) {
+      showToast('Sélectionnez un proclamateur et au moins un mois.', 'warning');
+      return;
+    }
+    const selectedMonths = Array.from(selectedAuxMonths).sort();
+    const store = getObjectStore('pionniersAuxiliaire', 'readwrite');
+    const request = store.get(selectedAuxiliaire.id);
+    request.onsuccess = () => {
+      const existing = request.result;
+      const existingMonths = existing && Array.isArray(existing.selectedMonths) ? existing.selectedMonths : [];
+      const mergedMonths = Array.from(new Set([...existingMonths, ...selectedMonths])).sort();
+      const updateRequest = store.put({ proclamateurId: selectedAuxiliaire.id, selectedMonths: mergedMonths, updatedAt: new Date().toISOString() });
+      updateRequest.onsuccess = () => {
+        showToast('Souscription Pionnier Auxiliaire enregistrée.', 'success');
+        selectedAuxMonths.clear();
+        renderMonthButtons();
+        loadAuxiliaireSubscriptions();
+      };
+      updateRequest.onerror = () => showToast('Erreur lors de la souscription.', 'danger');
+    };
+    request.onerror = () => showToast('Impossible de lire la souscription existante.', 'danger');
+  }
+
+  function loadAuxiliaireSubscriptions() {
+    const store = getObjectStore('pionniersAuxiliaire');
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const records = request.result || [];
+      const selectedSubscriptions = records.filter(record => record.selectedMonths.includes(selectedAuxMonthKey));
+      const reportPioneerIds = new Set();
+      const reportPioneers = detailRecords
+        .filter(record => record.month === selectedAuxMonthKey && Number(record.heures || 0) > 0)
+        .filter(record => {
+          const member = proclamateurs.find(item => String(item.id) === String(record.proclamateurId));
+          return member && !['PP', 'Ancien PP', 'Assistant PP'].includes(String(member.service || '').trim());
+        })
+        .map(record => ({
+          proclamateurId: record.proclamateurId,
+          selectedMonths: [selectedAuxMonthKey],
+          fromReport: true
+        }))
+        .filter(record => {
+          const id = String(record.proclamateurId);
+          if (reportPioneerIds.has(id)) return false;
+          reportPioneerIds.add(id);
+          return true;
+        });
+      const active = [...selectedSubscriptions, ...reportPioneers.filter(report => !selectedSubscriptions.some(item => String(item.proclamateurId) === String(report.proclamateurId)))];
+      const totalMonths = selectedSubscriptions.reduce((sum, record) => sum + record.selectedMonths.length, 0);
+      statsData.auxActiveCount = active.length;
+      statsData.averageMonths = active.length ? totalMonths / active.length : 0;
+      renderStatistics();
+      renderAuxiliaireTable(active);
+    };
+    request.onerror = () => showToast('Impossible de charger les souscriptions PA.', 'danger');
+  }
+
+  function cleanupExpiredAuxiliaireSubscriptions(records) {
+    const expired = records.filter(record => !record.selectedMonths.some(month => month >= currentMonthKey));
+    if (!expired.length) return;
+    const transaction = db.transaction('pionniersAuxiliaire', 'readwrite');
+    const store = transaction.objectStore('pionniersAuxiliaire');
+    expired.forEach(record => store.delete(record.proclamateurId));
+    transaction.oncomplete = () => loadAuxiliaireSubscriptions();
+  }
+
+  function renderAuxiliaireTable(records) {
+    const body = document.getElementById('auxiliaireTableBody');
+    if (!records.length) {
+      body.innerHTML = '<tr><td colspan="7" class="text-center">Aucune souscription PA active pour ce mois.</td></tr>';
+      return;
+    }
+    body.innerHTML = records.map(record => {
+      const item = proclamateurs.find(p => p.id === record.proclamateurId) || {};
+      const remaining = record.selectedMonths.filter(month => month >= selectedAuxMonthKey).length;
+      const monthsLabel = record.selectedMonths.map(formatMonthKey).join(', ');
+      return `
+        <tr>
+          <td>${item.id || record.proclamateurId}</td>
+          <td>${item.nom || '-'}</td>
+          <td>${item.postnom || '-'}</td>
+          <td>${item.prenom || '-'}</td>
+          <td>${remaining} mois</td>
+          <td>${monthsLabel}</td>
+          <td class="text-center"><button class="btn btn-sm btn-outline-danger" type="button" onclick="removeAuxiliaireSubscription('${record.proclamateurId}')">Annuler</button></td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function removeAuxiliaireSubscription(id) {
+    const store = getObjectStore('pionniersAuxiliaire', 'readwrite');
+    const request = store.delete(id);
+    request.onsuccess = () => {
+      showToast('Souscription PA supprimée.', 'success');
+      loadAuxiliaireSubscriptions();
+    };
+    request.onerror = () => showToast('Erreur lors de la suppression.', 'danger');
+  }
+
+  document.getElementById('permanentSearchInput').addEventListener('input', refreshPermanentSearch);
+  document.getElementById('auxiliaireSearchInput').addEventListener('input', refreshAuxiliaireSearch);
+  document.getElementById('auxSubscribeButton').addEventListener('click', subscribeAuxiliaire);
+
+  window.addEventListener('DOMContentLoaded', openDatabase);
+</script>
+</body>
+</html>
