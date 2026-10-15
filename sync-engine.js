@@ -13,6 +13,7 @@
   let refreshTimer = null;
   let syncScheduleTimer = null;
   let syncPending = false;
+  let updateReloadRequested = false;
   let availableLocalStores = new Set();
   const ignoredTransactions = new WeakSet();
 
@@ -308,10 +309,54 @@
 
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
+    function showAppUpdateNotice(registration) {
+      const waitingWorker = registration.waiting;
+      if (!waitingWorker || document.getElementById('appVersionUpdateNotice')) return;
+
+      const notice = document.createElement('div');
+      notice.id = 'appVersionUpdateNotice';
+      notice.setAttribute('role', 'status');
+      notice.style.cssText = 'position:fixed;left:16px;right:16px;bottom:76px;z-index:2100;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 16px;border:1px solid #b9cbd4;border-radius:8px;background:#eef5f7;color:#214b63;font:600 13px/1.4 Arial,sans-serif;box-shadow:0 8px 20px rgba(0,0,0,.12)';
+
+      const message = document.createElement('span');
+      message.textContent = 'Une nouvelle version de l’application est disponible.';
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = 'Actualiser maintenant';
+      button.style.cssText = 'padding:7px 12px;border:0;border-radius:6px;background:#214b63;color:#fff;font:inherit;cursor:pointer';
+      button.addEventListener('click', () => {
+        updateReloadRequested = true;
+        button.disabled = true;
+        button.textContent = 'Actualisation…';
+        waitingWorker.postMessage({ type: 'SKIP_WAITING' });
+      });
+
+      notice.append(message, button);
+      document.body.appendChild(notice);
+    }
+
     navigator.serviceWorker.addEventListener('controllerchange', () => {
-      appSyncStatus('Nouvelle version disponible. Elle sera utilisée au prochain chargement.');
+      if (updateReloadRequested) window.location.reload();
     });
-    navigator.serviceWorker.register('./sw.js').catch(error => {
+
+    navigator.serviceWorker.register('./sw.js').then(registration => {
+      if (registration.waiting) showAppUpdateNotice(registration);
+
+      registration.addEventListener('updatefound', () => {
+        const installingWorker = registration.installing;
+        if (!installingWorker) return;
+        installingWorker.addEventListener('statechange', () => {
+          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            showAppUpdateNotice(registration);
+          }
+        });
+      });
+
+      registration.update().catch(error => {
+        console.warn('Vérification de la nouvelle version indisponible :', error);
+      });
+    }).catch(error => {
       console.warn('Mise à jour automatique de l’application indisponible :', error);
     });
   }
