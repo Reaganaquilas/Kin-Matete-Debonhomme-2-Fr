@@ -47,6 +47,7 @@
       color: #214b63;
       font-weight: 500;
     }
+    .toggle-link[hidden] { display: none; }
     .auth-status {
       min-height: 20px;
       margin: 12px 0 0;
@@ -97,7 +98,7 @@
   </form>
 
     <p id="authStatus" class="auth-status" role="status" aria-live="polite"></p>
-  <span class="toggle-link" id="toggleForm">Créer un compte</span>
+  <span class="toggle-link" id="toggleForm" hidden>Créer un compte</span>
 </div>
 
 <script>
@@ -130,6 +131,7 @@
   const loginEmail = document.getElementById('loginEmail');
   const loginPassword = document.getElementById('loginPassword');
   const savedLoginEmailKey = 'assemblee-login-email';
+  const invitationToken = new URLSearchParams(window.location.search).get('invitation') || '';
 
   function restoreLoginEmail() {
     if (!loginEmail.value) loginEmail.value = localStorage.getItem(savedLoginEmailKey) || '';
@@ -160,6 +162,48 @@
     }
   });
 
+  async function validateInvitation(email = '') {
+    if (!invitationToken) {
+      toggleLink.hidden = true;
+      registerForm.style.display = 'none';
+      setAuthStatus('L’inscription est réservée aux membres disposant d’un lien personnel d’invitation.');
+      return false;
+    }
+    if (!(await ensureAuthConfiguration())) {
+      toggleLink.hidden = true;
+      return false;
+    }
+    const { data, error } = await getSupabaseClient().rpc('validate_assembly_member_invitation', {
+      target_token: invitationToken,
+      target_email: email.trim() || null
+    });
+    if (error) {
+      if (!email) {
+        toggleLink.hidden = true;
+        registerForm.style.display = 'none';
+      }
+      setAuthStatus('Impossible de vérifier ce lien. Contactez la personne qui vous l’a transmis.', true);
+      return false;
+    }
+    if (!data?.valid) {
+      if (!email) {
+        toggleLink.hidden = true;
+        registerForm.style.display = 'none';
+      }
+      setAuthStatus(email
+        ? 'Le lien ne correspond pas à cette adresse e-mail. Vérifiez l’adresse communiquée par votre responsable.'
+        : 'Ce lien d’invitation est invalide, expiré ou déjà utilisé.', true);
+      return false;
+    }
+    toggleLink.hidden = false;
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'block';
+    formTitle.textContent = 'Créer mon compte';
+    toggleLink.textContent = 'Déjà inscrit ? Se connecter';
+    setAuthStatus('Invitation valide : créez votre compte pour accéder à l’application.');
+    return true;
+  }
+
   // Connexion
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -178,25 +222,16 @@
     try {
       result = await supabaseClient.auth.signInWithPassword({ email, password: pass });
     } catch (error) {
-      if (localStorage.getItem('assemblee-offline-access') === 'true') {
-        setAuthStatus('Connexion indisponible. Ouverture en mode hors connexion.');
-        window.location.href = 'index.html';
-      } else {
-        setAuthStatus('Internet est nécessaire pour la première connexion.', true);
-      }
+      setAuthStatus('Une connexion Internet est nécessaire pour vérifier votre appartenance à l’assemblée.', true);
       return;
     }
     const { data, error } = result;
 
     if (error) {
-      if (localStorage.getItem('assemblee-offline-access') === 'true' && /failed to fetch|network|fetch/i.test(error.message)) {
-        setAuthStatus('Connexion indisponible. Ouverture en mode hors connexion.');
-        window.location.href = 'index.html';
-      } else {
-        setAuthStatus('Erreur de connexion : ' + error.message, true);
-      }
+      setAuthStatus(/failed to fetch|network|fetch/i.test(error.message)
+        ? 'Une connexion Internet est nécessaire pour vérifier votre appartenance à l’assemblée.'
+        : 'Erreur de connexion : ' + error.message, true);
     } else {
-      localStorage.setItem('assemblee-offline-access', 'true');
       localStorage.setItem('assemblee-offline-email', email.trim().toLowerCase());
       window.location.href = "index.html";
     }
@@ -205,37 +240,41 @@
   // Inscription
   registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const email = document.getElementById('registerEmail').value.trim().toLowerCase();
+    if (!invitationToken || !(await validateInvitation(email))) return;
     if (!(await ensureAuthConfiguration())) return;
     const supabaseClient = getSupabaseClient();
     if (!supabaseClient) {
       setAuthStatus('Supabase est indisponible pour le moment. Réessayez plus tard.', true);
       return;
     }
-    const email = document.getElementById('registerEmail').value;
     const pass = document.getElementById('registerPassword').value;
 
     const { data, error } = await supabaseClient.auth.signUp({
-      email: email,
+      email,
       password: pass,
       options: {
         data: {
           nom: document.getElementById('registerLastName').value.trim(),
-          prenom: document.getElementById('registerFirstName').value.trim()
+          prenom: document.getElementById('registerFirstName').value.trim(),
+          assembly_invitation: invitationToken
         }
       }
     });
 
     if (error) {
-      alert("Erreur d’inscription : " + error.message);
+      setAuthStatus('Erreur d’inscription : ' + error.message, true);
     } else {
-      alert("Inscription réussie ! Vérifiez votre email pour confirmer.");
+      setAuthStatus('Inscription reçue. Vérifiez votre courriel pour confirmer votre compte avant de vous connecter.');
       // bascule vers connexion
       loginForm.style.display = "block";
       registerForm.style.display = "none";
       formTitle.textContent = "Connexion";
       toggleLink.textContent = "Créer un compte";
+      toggleLink.hidden = true;
     }
   });
+  validateInvitation();
 </script>
 
 </body>

@@ -701,6 +701,20 @@
           </div>
           <div class="mt-3"><span class="form-label d-block">Pages et sous-onglets autorisés</span><div id="accessPages" class="access-pages"></div></div>
           <div class="d-flex flex-wrap align-items-center gap-2 mt-3"><button id="saveAccessBtn" type="button" class="btn btn-primary">Enregistrer l’accès</button><span id="accessAdminStatus" class="data-tools-status" role="status" aria-live="polite"></span></div>
+          <div class="mt-4 p-3 border rounded-3 bg-light">
+            <h3 class="h6 mb-1">Inviter un membre effectif</h3>
+            <p class="small text-muted mb-3">Le lien est à usage unique, lié à la fiche et à l’adresse e-mail saisie. Il expire après 7 jours.</p>
+            <div class="row g-2 align-items-end">
+              <div class="col-md-5"><label class="form-label" for="inviteMemberId">Membre à inviter</label><select id="inviteMemberId" class="form-select"><option value="">Choisir un proclamateur</option></select></div>
+              <div class="col-md-5"><label class="form-label" for="inviteMemberEmail">E-mail du membre</label><input id="inviteMemberEmail" type="email" class="form-control" autocomplete="off" required></div>
+              <div class="col-md-2"><button id="createMemberInviteBtn" type="button" class="btn btn-outline-primary w-100">Créer</button></div>
+            </div>
+            <div id="memberInviteResult" class="mt-3 d-none">
+              <label class="form-label" for="memberInviteUrl">Lien personnel à transmettre</label>
+              <div class="input-group"><input id="memberInviteUrl" class="form-control" type="text" readonly><button id="copyMemberInviteBtn" class="btn btn-outline-secondary" type="button">Copier</button></div>
+              <div id="memberInviteStatus" class="form-text" role="status" aria-live="polite"></div>
+            </div>
+          </div>
           <div class="mt-4"><h3 class="h6 mb-2">Demandes en attente</h3><div id="accessRequests" class="small text-muted">Chargement...</div></div>
           <div class="mt-4"><h3 class="h6 mb-2">Utilisateurs autorisés</h3><div id="accessUsers" class="small text-muted">Chargement...</div></div>
         </section>
@@ -1341,18 +1355,69 @@
           status.textContent = error.message || 'Impossible d’enregistrer cet accès.';
         }
       });
+      $('createMemberInviteBtn').addEventListener('click', async () => {
+        const proclamateurId = $('inviteMemberId').value;
+        const email = $('inviteMemberEmail').value.trim().toLowerCase();
+        const status = $('memberInviteStatus');
+        const result = $('memberInviteResult');
+        if (!proclamateurId || !email || !$('inviteMemberEmail').checkValidity()) {
+          status.textContent = !proclamateurId ? 'Sélectionnez le membre à inviter.' : 'Saisissez une adresse e-mail valide pour ce membre.';
+          result.classList.remove('d-none');
+          return;
+        }
+        status.textContent = 'Création du lien sécurisé…';
+        result.classList.remove('d-none');
+        $('createMemberInviteBtn').disabled = true;
+        try {
+          const { data: token, error } = await window.appAuth.client.rpc('issue_assembly_member_invitation', {
+            target_assembly_id: window.appAuth.config.assemblyId,
+            target_proclamateur_id: proclamateurId,
+            target_email: email
+          });
+          if (error) throw error;
+          const inviteUrl = new URL('connexion.html', window.location.href);
+          inviteUrl.searchParams.set('invitation', token);
+          $('memberInviteUrl').value = inviteUrl.href;
+          status.textContent = 'Lien créé. Il est à usage unique et expirera dans 7 jours.';
+        } catch (error) {
+          $('memberInviteUrl').value = '';
+          status.textContent = error.message || 'Impossible de créer le lien d’invitation.';
+        } finally {
+          $('createMemberInviteBtn').disabled = false;
+        }
+      });
+      $('copyMemberInviteBtn').addEventListener('click', async () => {
+        const link = $('memberInviteUrl');
+        if (!link.value) return;
+        try {
+          await navigator.clipboard.writeText(link.value);
+          $('memberInviteStatus').textContent = 'Lien copié.';
+        } catch (error) {
+          link.focus();
+          link.select();
+          $('memberInviteStatus').textContent = 'Copie automatique indisponible : copiez le lien sélectionné.';
+        }
+      });
       loadAccessLists();
     }
     function populateAccessMemberOptions(selectedId = '') {
       const select = $('accessUserMemberId');
-      if (!select) return;
-      const currentSelection = selectedId || select.value;
-      select.innerHTML = '<option value="">Aucune association</option>' + proclamateurs
+      const inviteSelect = $('inviteMemberId');
+      const options = proclamateurs
         .slice()
         .sort((a, b) => memberFullName(a).localeCompare(memberFullName(b), 'fr', { sensitivity: 'base' }))
         .map(member => `<option value="${escapeHtml(String(member.id))}">${escapeHtml(memberFullName(member))} — ${escapeHtml(member.groupe || 'Sans groupe')}</option>`)
         .join('');
-      select.value = currentSelection;
+      if (select) {
+        const currentSelection = selectedId || select.value;
+        select.innerHTML = '<option value="">Aucune association</option>' + options;
+        select.value = currentSelection;
+      }
+      if (inviteSelect) {
+        const currentSelection = inviteSelect.value;
+        inviteSelect.innerHTML = '<option value="">Choisir un proclamateur</option>' + options;
+        inviteSelect.value = currentSelection;
+      }
     }
     function setup() {
       $('monthPicker').value = currentMonthKey;

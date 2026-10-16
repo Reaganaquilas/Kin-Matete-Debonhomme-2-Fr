@@ -48,6 +48,18 @@ create table if not exists public.assembly_access_requests (
   primary key (assembly_id, user_id)
 );
 
+create table if not exists public.assembly_member_invitations (
+  token text primary key,
+  assembly_id text not null,
+  proclamateur_id text not null,
+  target_email text not null,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+
+alter table public.assembly_member_invitations add column if not exists target_email text;
+
 create table if not exists public.assembly_inbox_messages (
   id bigint generated always as identity primary key,
   assembly_id text not null,
@@ -133,6 +145,8 @@ alter table public.assembly_memberships enable row level security;
 alter table public.app_sync_records enable row level security;
 alter table public.assembly_page_permissions enable row level security;
 alter table public.assembly_access_requests enable row level security;
+alter table public.assembly_member_invitations enable row level security;
+revoke all on public.assembly_member_invitations from anon, authenticated;
 alter table public.assembly_inbox_messages enable row level security;
 alter table public.assembly_whatsapp_consents enable row level security;
 alter table public.assembly_whatsapp_deliveries enable row level security;
@@ -172,6 +186,57 @@ create policy "members can update assembly records"
     where membership.assembly_id = app_sync_records.assembly_id
       and membership.user_id = auth.uid()
   ));
+
+create or replace function public.revoke_access_for_removed_member()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.database_name <> 'ProclamateursDB'
+    or new.store_name <> 'proclamateurs'
+    or new.deleted_at is null then
+    return new;
+  end if;
+
+  if auth.uid() is not null and not exists (
+    select 1 from public.assembly_memberships actor
+    where actor.assembly_id = new.assembly_id
+      and actor.user_id = auth.uid()
+      and actor.role in ('owner', 'coordinateur', 'secretaire')
+  ) then
+    raise exception 'Seul un administrateur peut retirer une fiche de membre.';
+  end if;
+
+  delete from public.assembly_member_invitations
+  where assembly_id = new.assembly_id and proclamateur_id = new.record_id;
+
+  delete from public.assembly_page_permissions permission
+  using public.assembly_memberships membership
+  where membership.assembly_id = new.assembly_id
+    and membership.proclamateur_id = new.record_id
+    and permission.assembly_id = membership.assembly_id
+    and permission.user_id = membership.user_id;
+
+  delete from public.assembly_access_requests request
+  using public.assembly_memberships membership
+  where membership.assembly_id = new.assembly_id
+    and membership.proclamateur_id = new.record_id
+    and request.assembly_id = membership.assembly_id
+    and request.user_id = membership.user_id;
+
+  delete from public.assembly_memberships
+  where assembly_id = new.assembly_id and proclamateur_id = new.record_id;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists revoke_access_for_removed_member on public.app_sync_records;
+create trigger revoke_access_for_removed_member
+  after insert or update on public.app_sync_records
+  for each row execute function public.revoke_access_for_removed_member();
 
 create policy "members can read their page permissions"
   on public.assembly_page_permissions for select
@@ -1707,6 +1772,172 @@ grant execute on function public.finish_assembly_whatsapp_delivery(text, text, t
 
 drop function if exists public.manage_assembly_user(text, text, text[]);
 
+drop function if exists public.issue_assembly_member_invitation(text, text);
+
+create or replace function public.issue_assembly_member_invitation(
+  target_assembly_id text,
+  target_proclamateur_id text,
+  target_email text
+)
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  caller_role text;
+  invitation_token text;
+begin
+  select role into caller_role
+  from public.assembly_memberships
+  where assembly_id = target_assembly_id and user_id = auth.uid();
+
+  if caller_role is null or caller_role not in ('owner', 'coordinateur', 'secretaire') then
+    raise exception 'Accès administrateur requis';
+  end if;
+
+  if nullif(trim(target_email), '') is null or position('@' in trim(target_email)) < 2 then
+    raise exception 'Saisissez une adresse e-mail valide pour le membre.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.app_sync_records person
+    where person.assembly_id = target_assembly_id
+      and person.database_name = 'ProclamateursDB'
+      and person.store_name = 'proclamateurs'
+      and person.record_id = trim(target_proclamateur_id)
+      and person.deleted_at is null
+  ) then
+    raise exception 'Cette fiche de membre est introuvable ou inactive dans les données synchronisées.';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext(target_assembly_id), hashtext(trim(target_proclamateur_id)));
+
+  if exists (
+    select 1 from auth.users account
+    where lower(account.email) = lower(trim(target_email))
+  ) then
+    raise exception 'Cette adresse e-mail possède déjà un compte. Associez le compte existant à la fiche du membre.';
+  end if;
+
+  if exists (
+    select 1 from public.assembly_memberships membership
+    where membership.assembly_id = target_assembly_id
+      and membership.proclamateur_id = trim(target_proclamateur_id)
+  ) then
+    raise exception 'Un compte est déjà associé à cette fiche de membre.';
+  end if;
+
+  delete from public.assembly_member_invitations
+  where assembly_id = target_assembly_id
+    and proclamateur_id = trim(target_proclamateur_id);
+
+  invitation_token := gen_random_uuid()::text || gen_random_uuid()::text;
+  insert into public.assembly_member_invitations (token, assembly_id, proclamateur_id, target_email, created_by, expires_at)
+  values (invitation_token, target_assembly_id, trim(target_proclamateur_id), lower(trim(target_email)), auth.uid(), now() + interval '7 days');
+
+  return invitation_token;
+end;
+$$;
+
+revoke all on function public.issue_assembly_member_invitation(text, text, text) from public;
+grant execute on function public.issue_assembly_member_invitation(text, text, text) to authenticated;
+
+drop function if exists public.validate_assembly_member_invitation(text);
+
+create or replace function public.validate_assembly_member_invitation(target_token text, target_email text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return jsonb_build_object(
+    'valid',
+    exists (
+      select 1
+      from public.assembly_member_invitations invitation
+      join public.app_sync_records person
+        on person.assembly_id = invitation.assembly_id
+       and person.database_name = 'ProclamateursDB'
+       and person.store_name = 'proclamateurs'
+       and person.record_id = invitation.proclamateur_id
+       and person.deleted_at is null
+      where invitation.token = trim(coalesce(target_token, ''))
+        and invitation.expires_at > now()
+        and invitation.target_email is not null
+        and not exists (
+          select 1 from public.assembly_memberships membership
+          where membership.assembly_id = invitation.assembly_id
+            and membership.proclamateur_id = invitation.proclamateur_id
+        )
+        and (
+          nullif(trim(coalesce(target_email, '')), '') is null
+          or invitation.target_email = lower(trim(target_email))
+        )
+    )
+  );
+end;
+$$;
+
+revoke all on function public.validate_assembly_member_invitation(text, text) from public;
+grant execute on function public.validate_assembly_member_invitation(text, text) to anon, authenticated;
+
+create or replace function public.attach_invited_assembly_member()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  invitation_assembly_id text;
+  invitation_proclamateur_id text;
+begin
+  delete from public.assembly_member_invitations invitation
+  where invitation.token = coalesce(new.raw_user_meta_data->>'assembly_invitation', '')
+    and invitation.expires_at > now()
+    and invitation.target_email = lower(trim(coalesce(new.email, '')))
+    and exists (
+      select 1 from public.app_sync_records person
+      where person.assembly_id = invitation.assembly_id
+        and person.database_name = 'ProclamateursDB'
+        and person.store_name = 'proclamateurs'
+        and person.record_id = invitation.proclamateur_id
+        and person.deleted_at is null
+    )
+  returning invitation.assembly_id, invitation.proclamateur_id
+  into invitation_assembly_id, invitation_proclamateur_id;
+
+  if invitation_assembly_id is null or invitation_proclamateur_id is null then
+    raise exception 'Inscription réservée aux membres disposant d’un lien d’invitation valide.';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext(invitation_assembly_id), hashtext(invitation_proclamateur_id));
+
+  if exists (
+    select 1 from public.assembly_memberships membership
+    where membership.assembly_id = invitation_assembly_id
+      and membership.proclamateur_id = invitation_proclamateur_id
+  ) then
+    raise exception 'Cette fiche de membre possède déjà un compte.';
+  end if;
+
+  insert into public.assembly_memberships (assembly_id, user_id, role, proclamateur_id)
+  values (invitation_assembly_id, new.id, 'proclamateur', invitation_proclamateur_id);
+
+  insert into public.assembly_page_permissions (assembly_id, user_id, page_key)
+  values (invitation_assembly_id, new.id, 'rapports:details');
+
+  return new;
+end;
+$$;
+
+drop trigger if exists attach_invited_assembly_member on auth.users;
+create trigger attach_invited_assembly_member
+  after insert on auth.users
+  for each row execute function public.attach_invited_assembly_member();
+
 create or replace function public.manage_assembly_user(
   target_email text,
   target_role text,
@@ -1726,13 +1957,27 @@ begin
   from public.assembly_memberships
   where assembly_id = '55954' and user_id = auth.uid();
 
-  if caller_role not in ('owner', 'coordinateur', 'secretaire') then
+  if caller_role is null or caller_role not in ('owner', 'coordinateur', 'secretaire') then
     raise exception 'Accès administrateur requis';
   end if;
 
   if target_role not in ('coordinateur', 'secretaire', 'proclamateur', 'assistant', 'ancien', 'responsable_predication') then
     raise exception 'Rôle invalide';
   end if;
+
+  if nullif(trim(target_proclamateur_id), '') is null or not exists (
+    select 1
+    from public.app_sync_records person
+    where person.assembly_id = '55954'
+      and person.database_name = 'ProclamateursDB'
+      and person.store_name = 'proclamateurs'
+      and person.record_id = trim(target_proclamateur_id)
+      and person.deleted_at is null
+  ) then
+    raise exception 'Associez ce compte à une fiche de membre effective synchronisée.';
+  end if;
+
+  perform pg_advisory_xact_lock(hashtext('55954'), hashtext(trim(target_proclamateur_id)));
 
   select id into target_user_id
   from auth.users
@@ -1742,10 +1987,22 @@ begin
     raise exception 'Utilisateur introuvable. Il doit d’abord créer son compte.';
   end if;
 
+  if exists (
+    select 1 from public.assembly_memberships membership
+    where membership.assembly_id = '55954'
+      and membership.proclamateur_id = trim(target_proclamateur_id)
+      and membership.user_id <> target_user_id
+  ) then
+    raise exception 'Cette fiche de membre est déjà associée à un autre compte.';
+  end if;
+
   insert into public.assembly_memberships (assembly_id, user_id, role, proclamateur_id)
   values ('55954', target_user_id, target_role, nullif(trim(target_proclamateur_id), ''))
   on conflict (assembly_id, user_id) do update
     set role = excluded.role, proclamateur_id = excluded.proclamateur_id;
+
+  delete from public.assembly_member_invitations
+  where assembly_id = '55954' and proclamateur_id = trim(target_proclamateur_id);
 
   delete from public.assembly_page_permissions
   where assembly_id = '55954' and user_id = target_user_id;

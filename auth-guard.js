@@ -56,7 +56,7 @@
 
   function hasPageAccess(access, page) {
     const parent = page.split(':')[0];
-    return ['owner', 'coordinateur', 'secretaire'].includes(access.role) || access.pages.some(item => item === page || item === parent || item.startsWith(`${page}:`));
+    return page === 'home' || ['owner', 'coordinateur', 'secretaire'].includes(access.role) || access.pages.some(item => item === page || item === parent || item.startsWith(`${page}:`));
   }
 
   function showAccessStatus(access) {
@@ -84,19 +84,26 @@
     const assemblyId = window.appAuth.config.assemblyId;
     const { data: membership, error: membershipError } = await window.appAuth.client
       .from('assembly_memberships').select('role,proclamateur_id').eq('assembly_id', assemblyId).eq('user_id', userId).maybeSingle();
-    if (membershipError || !membership) return null;
+    if (membershipError) throw membershipError;
+    if (!membership) return null;
+    if (!['owner', 'coordinateur', 'secretaire'].includes(membership.role)) {
+      if (!membership.proclamateur_id) return null;
+      const { data: member, error: memberError } = await window.appAuth.client
+        .from('app_sync_records')
+        .select('record_id')
+        .eq('assembly_id', assemblyId)
+        .eq('database_name', 'ProclamateursDB')
+        .eq('store_name', 'proclamateurs')
+        .eq('record_id', membership.proclamateur_id)
+        .is('deleted_at', null)
+        .maybeSingle();
+      if (memberError) throw memberError;
+      if (!member) return null;
+    }
     const { data: permissions, error: permissionsError } = await window.appAuth.client
       .from('assembly_page_permissions').select('page_key').eq('assembly_id', assemblyId).eq('user_id', userId);
     if (permissionsError) throw permissionsError;
     return { role: membership.role, pages: (permissions || []).map(item => item.page_key), proclamateurId: membership.proclamateur_id || '' };
-  }
-
-  async function requestAccess() {
-    try {
-      await window.appAuth.client.rpc('request_assembly_access', { target_assembly_id: window.appAuth.config.assemblyId });
-    } catch (error) {
-      console.warn('Demande d’accès indisponible :', error);
-    }
   }
 
   function denyPage() {
@@ -106,94 +113,59 @@
     return /connexion\.html$/i.test(window.location.pathname);
   }
 
-  function hasOfflineAccess() {
-    return localStorage.getItem('assemblee-offline-access') === 'true';
-  }
-
-  function showOfflineStatus() {
-    const status = document.createElement('div');
-    status.setAttribute('role', 'status');
-    status.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:2000;padding:12px 16px;border:1px solid #b9cbd4;border-radius:8px;background:#eef5f7;color:#214b63;font:600 13px/1.4 Arial,sans-serif;box-shadow:0 8px 20px rgba(0,0,0,.12)';
-    status.textContent = 'Mode hors connexion : vos données restent locales et seront synchronisées au retour d’Internet.';
-    document.body.appendChild(status);
-  }
-
-  function showConfigurationWarning() {
-    const warning = document.createElement('div');
-    warning.setAttribute('role', 'status');
-    warning.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:2000;padding:12px 16px;border:1px solid #d8c39a;border-radius:8px;background:#fff8e6;color:#5f4b20;font:600 13px/1.4 Arial,sans-serif;box-shadow:0 8px 20px rgba(0,0,0,.12)';
-    warning.textContent = 'Supabase non disponible. L’application continue en mode local et synchronise dès que la configuration est active.';
-    document.body.appendChild(warning);
-  }
-
   async function protectPage() {
     if (isLoginPage()) return;
+    document.documentElement.style.visibility = 'hidden';
+    localStorage.removeItem('assemblee-offline-access');
 
     const configured = window.appAuth?.validate
       ? await window.appAuth.validate()
       : Boolean(window.appAuth?.configured && window.appAuth.client);
 
     if (!configured || !window.appAuth?.client) {
-      const access = readCachedAccess();
-      if (access) {
-        applyMenuPermissions(access);
-        showAccessStatus(access);
-        showUserIdentity({ email: localStorage.getItem('assemblee-offline-email') || 'Utilisateur local' });
-        showOfflineStatus();
-        if (!hasPageAccess(access, currentPage())) denyPage();
-        return;
-      }
-      showConfigurationWarning();
+      if (!isLoginPage()) window.location.replace('connexion.html');
       return;
     }
 
-    let access = readCachedAccess();
-    if (!navigator.onLine && hasOfflineAccess() && access) {
+    let access = null;
+    try {
+      const { data, error } = await window.appAuth.client.auth.getSession();
+      if (error) throw error;
+      if (!data.session) {
+        localStorage.removeItem('assemblee-offline-email');
+        localStorage.removeItem(accessKey());
+        window.location.replace('connexion.html');
+        return;
+      }
+
+      showUserIdentity(data.session.user);
+      access = await loadAccess(data.session.user.id);
+      if (!access) {
+        localStorage.removeItem('assemblee-offline-email');
+        localStorage.removeItem(accessKey());
+        try {
+          await window.appAuth.client.auth.signOut({ scope: 'local' });
+        } catch (signOutError) {
+          console.warn('Impossible de fermer la session sans accès membre :', signOutError);
+        }
+        alert('L’accès est réservé aux membres invités et associés à une fiche de l’assemblée.');
+        window.location.replace('connexion.html');
+        return;
+      }
+      localStorage.setItem('assemblee-offline-email', data.session.user?.email || '');
+      cacheAccess(access);
       applyMenuPermissions(access);
       showAccessStatus(access);
-      showUserIdentity({ email: localStorage.getItem('assemblee-offline-email') });
-      showOfflineStatus();
-          if (!hasPageAccess(access, currentPage())) denyPage();
-    } else {
-      try {
-        const { data, error } = await window.appAuth.client.auth.getSession();
-        if ((error || !data.session) && !hasOfflineAccess()) {
-          window.location.replace('connexion.html');
-          return;
-        }
-        if (data.session) {
-          localStorage.setItem('assemblee-offline-access', 'true');
-          localStorage.setItem('assemblee-offline-email', data.session.user?.email || '');
-          showUserIdentity(data.session.user);
-          access = await loadAccess(data.session.user.id);
-          if (!access) {
-            await requestAccess();
-            alert('Votre demande d’accès a été envoyée. Un administrateur doit encore vous autoriser.');
-            await window.appAuth.client.auth.signOut();
-            window.location.replace('connexion.html');
-            return;
-          }
-          cacheAccess(access);
-          applyMenuPermissions(access);
-          showAccessStatus(access);
-          if (!hasPageAccess(access, currentPage())) {
-            denyPage();
-            return;
-          }
-        }
-        if (error && hasOfflineAccess() && access) showOfflineStatus();
-      } catch (error) {
-        if (!hasOfflineAccess() || !access) {
-          window.location.replace('connexion.html');
-          return;
-        }
-        applyMenuPermissions(access);
-        showAccessStatus(access);
-        showUserIdentity({ email: localStorage.getItem('assemblee-offline-email') });
-        if (!hasPageAccess(access, currentPage())) denyPage();
-        showOfflineStatus();
+      if (!hasPageAccess(access, currentPage())) {
+        denyPage();
+        return;
       }
+    } catch (error) {
+      console.error('Vérification des droits membre impossible :', error);
+      window.location.replace('connexion.html');
+      return;
     }
+    document.documentElement.style.visibility = '';
     const logoutButton = document.getElementById('logoutBtn');
     if (logoutButton) {
       logoutButton.addEventListener('click', async event => {
