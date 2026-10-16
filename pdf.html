@@ -47,7 +47,7 @@
       align-items:stretch;
     }
     .pdf-card {
-      grid-column:span 4;
+      grid-column:span 12;
       min-width:0;
       height:100%;
       background:var(--app-surface);
@@ -56,8 +56,8 @@
       overflow:hidden;
       box-shadow:0 12px 28px rgba(19,34,43,.07);
     }
-    .pdf-card-large { grid-column:span 4; }
-    .pdf-card-wide { grid-column:span 8; }
+    .pdf-card-large { grid-column:span 12; }
+    .pdf-card-wide { grid-column:span 12; }
     .pdf-card-header {
       display:flex;
       align-items:center;
@@ -80,11 +80,16 @@
       padding:22px 20px 24px;
       text-align:center;
       background:linear-gradient(180deg, #ffffff 0%, #f7fafb 100%);
-      min-height:220px;
+      min-height:170px;
       display:flex;
-      flex-direction:column;
-      justify-content:center;
+      flex-direction:row;
+      align-items:center;
+      justify-content:space-between;
+      gap:24px;
+      text-align:left;
     }
+    .pdf-card-description { max-width:650px; margin:0; color:var(--app-muted); line-height:1.6; }
+    .pdf-card .pdf-btn { min-width:min(320px, 100%); }
     .pdf-btn {
       margin:8px 0;
       min-height:52px;
@@ -144,12 +149,14 @@
     }
     @media (max-width:900px) {
       .pdf-row { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-      .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 1; }
+      .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 2; }
     }
     @media (max-width:576px) {
       .container { padding:14px; }
       .pdf-row { grid-template-columns:1fr; gap:14px; }
       .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 1; }
+      .pdf-card-body { align-items:stretch; flex-direction:column; gap:14px; text-align:center; }
+      .pdf-card .pdf-btn { width:100%; }
       .modal-body { padding:14px; }
     }
     .attendance-card .pdf-card-header {
@@ -558,7 +565,10 @@
 <body>
   <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3>Fichiers PDF</h3>
+      <div>
+        <div class="text-uppercase small fw-bold text-primary mb-1">Documents de l’assemblée</div>
+        <h3>Fichiers PDF</h3>
+      </div>
       <a href="index.html" class="btn btn-outline-secondary">Retour</a>
     </div>
 
@@ -566,103 +576,8 @@
       <div class="pdf-card">
         <div class="pdf-card-header">S-21 des proclamateurs</div>
         <div class="pdf-card-body">
+          <p class="pdf-card-description">Générez, consultez, enregistrez ou imprimez les fiches S-21 selon le proclamateur, le groupe ou le type de service sélectionné.</p>
           <button id="proclBtn" class="btn btn-primary pdf-btn">S-21 des proclamateurs</button>
-        </div>
-      </div>
-
-      <div class="pdf-card pdf-card-large attendance-card">
-        <div class="pdf-card-header">Assistance aux réunions</div>
-        <div class="pdf-card-body text-start">
-          <div class="attendance-tools">
-            <label class="form-label">Mois</label>
-            <input id="assistMonthPicker" type="month" class="form-control" />
-            <div class="attendance-actions mt-3">
-              <button id="showAttendanceBtn" class="btn btn-primary pdf-btn">Afficher</button>
-              <button id="saveAttendancePdfBtn" class="btn btn-outline-secondary pdf-btn">Enregistrer</button>
-              <button id="printAttendanceBtn" class="btn btn-outline-secondary pdf-btn">Imprimer</button>
-            </div>
-          </div>
-          <div id="assistancePreview" class="attendance-preview"></div>
-        </div>
-      </div>
-
-      <div class="pdf-card">
-        <div class="pdf-card-header">Pionniers à encourager</div>
-        <div class="pdf-card-body">
-          <button id="encourageBtn" class="btn btn-outline-secondary pdf-btn">Pionniers à encourager</button>
-        </div>
-      </div>
-
-      <div class="pdf-card pdf-card-large">
-        <div class="pdf-card-header">LISTES DES CONTACTS</div>
-        <div class="pdf-card-body">
-          <div class="mb-3">
-            <label class="form-label">Titre du rapport</label>
-            <input id="contactReportTitle" class="form-control" value="ASSEMBLEE LOCALE DE KINSHASA MATETE DE BONHOMME 2 FRANCAIS (55954)">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Mode de sélection</label>
-            <div class="btn-group w-100" role="group" aria-label="Modes de sélection contacts">
-              <button id="contactModeAll" type="button" class="btn btn-outline-secondary active">Tous</button>
-              <button id="contactModeGroup" type="button" class="btn btn-outline-secondary">Groupe</button>
-              <button id="contactModeIndividual" type="button" class="btn btn-outline-secondary">Individuel</button>
-            </div>
-            <div class="form-text">Choisir le mode puis cliquer sur Afficher.</div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Rechercher un proclamateur</label>
-            <input id="contactSearchInput" class="form-control" list="proclamateursList" placeholder="Nom, postnom, prénom" disabled>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Filtrer par groupe</label>
-            <select id="contactGroupSelect" class="form-select" disabled>
-              <option value="">Tous les groupes</option>
-            </select>
-          </div>
-          <div class="d-flex flex-wrap gap-2 mb-3">
-            <button id="showContactListBtn" class="btn btn-primary pdf-btn">Afficher</button>
-            <button id="printContactListBtn" class="btn btn-success pdf-btn">Imprimer</button>
-            <button id="exportContactPdfBtn" class="btn btn-outline-secondary pdf-btn">Exporter PDF</button>
-          </div>
-          <div id="contactSelectionInfo" class="mb-3 text-muted"></div>
-          <div id="contactsContainer" class="mt-3"></div>
-        </div>
-      </div>
-
-      <div class="pdf-card pdf-card-wide">
-        <div class="pdf-card-header">LES GROUPES</div>
-        <div class="pdf-card-body">
-          <ul class="nav nav-tabs mb-3" id="groupsTab" role="tablist">
-            <li class="nav-item" role="presentation"><button class="nav-link active" id="resp-tab" data-access-feature="pdf:resp" data-bs-toggle="tab" data-bs-target="#resp" type="button" role="tab">Editer Responsable</button></li>
-            <li class="nav-item" role="presentation"><button class="nav-link" id="all-tab" data-access-feature="pdf:allgroups" data-bs-toggle="tab" data-bs-target="#allgroups" type="button" role="tab">Tous les Groupes</button></li>
-          </ul>
-          <div class="tab-content" id="groupsTabContent">
-            <div class="tab-pane fade show active" id="resp" role="tabpanel">
-              <div class="row g-3">
-                <div class="col-12">
-                  <label class="form-label">Choisir un groupe</label>
-                  <select id="groupSelectMgmt" class="form-select mb-2"><option value="">-- Choisir un groupe --</option></select>
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Nommer Responsable</label>
-                  <input id="leaderSearch" class="form-control" list="proclamateursList" placeholder="Rechercher un frère">
-                </div>
-                <div class="col-12">
-                  <label class="form-label">Nommer Responsable Adjoint</label>
-                  <input id="adjointSearch" class="form-control" list="proclamateursList" placeholder="Rechercher un frère">
-                </div>
-                <div class="col-12">
-                  <button id="loadGroupMembersBtn" class="btn btn-sm btn-primary">Mettre à jour</button>
-                </div>
-                <div class="col-12">
-                  <div id="groupMembersArea">Aucun groupe chargé.</div>
-                </div>
-              </div>
-            </div>
-            <div class="tab-pane fade" id="allgroups" role="tabpanel">
-              <div id="allGroupsArea">Chargement de tous les groupes...</div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
@@ -746,12 +661,6 @@
   </div>
 
   <script>
-    document.getElementById('showAttendanceBtn')?.addEventListener('click', displayAttendanceSummary);
-    document.getElementById('saveAttendancePdfBtn')?.addEventListener('click', saveAttendanceSummaryPdf);
-    document.getElementById('printAttendanceBtn')?.addEventListener('click', printAttendanceSummary);
-    document.getElementById('encourageBtn')?.addEventListener('click', () => {
-      window.open('pionnier_encourager.html', '_blank');
-    });
     document.getElementById('csvBtn')?.addEventListener('click', () => alert('Export CSV'));
     document.getElementById('pdfListBtn')?.addEventListener('click', () => alert('Export PDF'));
     document.getElementById('docxBtn')?.addEventListener('click', () => alert('Export DOCX'));
@@ -1443,7 +1352,9 @@
         return;
       }
       const list = window.__PROCL_LIST || [];
-      const members = list.filter(p => p.groupe && String(p.groupe).toLowerCase().includes(groupVal));
+      const members = list
+        .filter(p => p.groupe && String(p.groupe).toLowerCase().includes(groupVal))
+        .sort(compareS21Members);
 
       if (members.length === 0) {
         alert('Aucun membre trouvé dans ce groupe.');
@@ -1672,7 +1583,7 @@
       });
     }
 
-    document.getElementById('loadGroupMembersBtn').addEventListener('click', () => {
+    document.getElementById('loadGroupMembersBtn')?.addEventListener('click', () => {
       const grp = document.getElementById('groupSelectMgmt').value;
       if (!grp) {
         alert('Sélectionnez un groupe.');
@@ -1889,9 +1800,16 @@
 
         const participated = rec && ['yes', 'oui', 'true', '1'].includes(String(rec.aprecher || '').trim().toLowerCase());
         const courses = rec ? (rec.coursBiblique || rec.cours || '') : '';
-        const isAux = !isPP && isAuxiliaireForMonth(p, key, rec);
         const hours = rec ? (rec.heures || rec.hours || '') : '';
-        const obsText = rec ? (rec.observation || '') : '';
+        const hasAuxiliarySubscription = !isPP && isAuxiliaireForMonth(p, key, rec);
+        const isAux = hasAuxiliarySubscription && Number(hours || 0) >= 15;
+        let obsText = String(rec?.observation || '')
+          .replace(/\bPionnier auxiliaire\b/gi, '')
+          .replace(/\s{2,}/g, ' ')
+          .replace(/^[,;.\s]+|[,;.\s]+$/g, '');
+        if (isAux && !/\bPionnier auxiliaire\b/i.test(String(rec?.observation || ''))) {
+          obsText = [obsText, 'Pionnier auxiliaire'].filter(Boolean).join(' — ');
+        }
 
         tr.innerHTML = `
           <td>${monthNames[idx]}</td>
@@ -1921,9 +1839,6 @@
       pageDiv.querySelector('.tot-pa').textContent = totalPA;
       pageDiv.querySelector('.tot-hours').textContent = totalHours;
 
-      // Laisser la colonne Observations vide par défaut (aucune insertion automatique)
-      // (Observation content intentionally left untouched)
-
       return pageDiv;
     }
 
@@ -1952,6 +1867,11 @@
       if (prt) prt.textContent = label ? `IMPRIMER S-21 ${label}` : 'IMPRIMER S-21';
     }
 
+    function compareS21Members(left, right) {
+      return String(left.groupe || '').localeCompare(String(right.groupe || ''), 'fr', { numeric: true, sensitivity: 'base' }) ||
+        getMemberFullName(left).localeCompare(getMemberFullName(right), 'fr', { sensitivity: 'base' });
+    }
+
     function generateByType(type) {
       const list = window.__PROCL_LIST || [];
       let members = [];
@@ -1967,8 +1887,9 @@
       } else if (type === 'assistants') {
         members = list.filter(p => /assistant/i.test([p.service, ...(p.roles||[])].join(' ')));
       } else if (type === 'global') {
-        members = list.slice();
+        members = list.slice().sort(compareS21Members);
       }
+
       if (!members.length) {
         alert('Aucun membre trouvé pour ce type.');
         return;
@@ -2231,4 +2152,3 @@
   </script>
 </body>
 </html>
-

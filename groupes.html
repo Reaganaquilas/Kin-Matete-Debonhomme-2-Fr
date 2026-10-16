@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Groupes de prédication</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="app-theme.css">
+  <style>
+    :root { --primary: #214b63; --border: #d9e1e6; --text: #243746; --muted: #687984; }
+    body { margin: 0; background: #f1f4f6; color: var(--text); font-family: "Manrope", "Segoe UI", sans-serif; }
+    .sidebar { min-height: 100vh; padding: 28px 18px; background: #172f3d; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--primary); color: #fff; font-size: 1.25rem; font-weight: 800; }
+    .brand-name { color: #fff; font-size: 1.05rem; font-weight: 800; }
+    .brand-caption { color: rgba(255,255,255,.55); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
+    .menu-label { margin: 0 12px 10px; color: rgba(255,255,255,.42); font-size: .66rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .sidebar-menu { display: grid; gap: 5px; }
+    .sidebar-menu a { display: block; padding: 11px 13px; border-radius: 9px; color: rgba(255,255,255,.68); font-weight: 700; text-decoration: none; }
+    .sidebar-menu a:hover, .sidebar-menu a.active { background: rgba(255,255,255,.14); color: #fff; }
+    .content-area { padding: 32px clamp(16px, 3vw, 42px); }
+    .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .page-heading-copy { display: flex; align-items: flex-start; flex-wrap: nowrap; gap: 8px; }
+    .page-heading h1 { display: inline-block; margin: 0; padding: 6px 8px; border-left: 5px solid #8b5a2b; border-radius: 4px 9px 9px 4px; background: #f5eee7; color: #68411f; font-size: 1.15rem; font-weight: 800; white-space: nowrap; }
+    .assembly-name { display: inline-block; margin: 0; padding: 6px 8px; border-radius: 9px; background: #214b63; color: #fff; font-size: .65rem; font-weight: 800; letter-spacing: 0; text-transform: uppercase; white-space: nowrap; box-shadow: 0 4px 12px rgba(33,75,99,.22); }
+    .group-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .group-card, .group-actions { min-width: 0; min-height: 170px; padding: 16px; border: 2px solid var(--group-accent, var(--border)); border-radius: 14px; background: #fff; box-shadow: 0 8px 20px rgba(31,55,68,.06); }
+    .group-card { display: flex; flex-direction: column; }
+    .group-toggle { width: 100%; padding: 0; border: 0; background: transparent; color: var(--primary); text-align: left; }
+    .group-toggle h2 { margin: 0 0 8px; padding: 10px 12px; border-radius: 8px; background: #214b63; color: #fff; font-size: 1.15rem; font-weight: 800; letter-spacing: .03em; box-shadow: 0 3px 8px rgba(31,55,68,.14); }
+    .group-toggle > span { display: block; padding-left: 2px; font-size: .9rem !important; }
+    .group-details { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .group-members { width: 100%; max-height: 320px; overflow-y: auto; padding-left: 1.5rem; font-size: .98rem; line-height: 1.55; }
+    .group-members li { width: 100%; padding: 3px 2px; }
+    .group-members a { display: inline-block; max-width: 100%; color: var(--primary); font-size: 1rem; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
+    .group-print-visibility { display: inline-flex; align-items: center; gap: 5px; margin-left: 5px; color: var(--muted); font-size: .78rem; font-weight: 500; }
+    .group-print-visibility input { margin: 0; }
+    .group-total { margin: auto 0 0; padding: 9px 11px; border-radius: 8px; background: #f5eee7; color: #68411f; font-size: 1rem; font-weight: 800; text-align: center; }
+    .group-actions { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    .group-information { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+    .group-info-card { padding: 18px; border: 2px solid #4f7cac; border-radius: 14px; background: #fff; box-shadow: 0 8px 20px rgba(31,55,68,.06); }
+    .group-info-card h2 { margin: 0 0 10px; color: #214b63; font-size: 1rem; font-weight: 800; }
+    .group-info-card p { margin: 0; line-height: 1.6; }
+    .group-info-card strong { color: #214b63; }
+    #groupPrintArea { display: none; }
+    .user-info { color: var(--muted); font-size: .82rem; }
+    @media (max-width: 1100px) { .group-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 767px) { .sidebar { min-height: auto; padding: 16px; } .content-area { padding: 18px 12px; } }
+    @media (max-width: 576px) { .group-grid { grid-template-columns: 1fr; } .page-heading { align-items: flex-start; flex-direction: column; } .page-heading-copy { align-items: flex-start; flex-direction: column; } }
+    @media print {
+      @page { size: A4 landscape; margin: 6mm; }
+      body.group-print-mode > *:not(#groupPrintArea) { display: none !important; }
+      body.group-print-mode #groupPrintArea { display: block !important; color: #111; background: #fff; font: 8.5pt/1.28 Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .group-print-header { display: flex; align-items: center; justify-content: space-between; gap: 4mm; margin-bottom: 2mm; padding: 1.5mm 2mm; border-radius: 1.5mm; background: #214b63 !important; color: #fff !important; }
+      .group-print-assembly, .group-print-title { margin: 0; color: #fff !important; font-size: 11pt; font-weight: 800; }
+      .group-print-assembly { text-align: left; }
+      .group-print-title { text-align: right; white-space: nowrap; }
+      .group-print-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, 90mm); gap: 2mm; }
+      .group-print-card { display: flex; flex-direction: column; width: 100%; min-width: 0; overflow: visible; padding: 1.5mm; border: .7mm solid var(--group-accent, #555); border-radius: 2mm; break-inside: avoid; }
+      .group-print-card h3 { margin: 0 0 1mm; padding: 1mm; border-radius: 1mm; background: #214b63 !important; color: #fff !important; font-size: 9pt; font-weight: 800; }
+      .group-print-card ol { display: flex; flex: 1 1 auto; flex-direction: column; justify-content: space-between; width: 100%; margin: .5mm 0 0; padding-left: 4mm; font-size: clamp(7pt, calc(9.8pt - var(--member-count, 0) * .12pt), 8.2pt); line-height: 1.16; }
+      .group-print-card li { width: 100%; padding: 0; overflow-wrap: anywhere; }
+      .group-print-role { white-space: nowrap; }
+      .group-print-total { margin: auto 0 0; padding: .8mm; border: .4mm solid #8b5a2b; border-radius: 1mm; background: #f5eee7 !important; color: #68411f !important; font-size: 7.5pt; font-weight: 800; text-align: center; }
+      .group-print-statistics { width: 100%; border-collapse: collapse; font-size: 6.5pt; }
+      .group-print-statistics th, .group-print-statistics td { padding: 1mm .5mm; border: .3mm solid #4f7cac; text-align: center; overflow-wrap: anywhere; }
+      .group-print-statistics th:first-child, .group-print-statistics td:first-child { text-align: left; }
+      .group-print-statistics thead { background: #214b63 !important; color: #fff !important; }
+      .group-print-statistics thead th { color: #fff !important; }
+      .group-print-schedule { margin-top: 2mm; padding-top: 2mm; border-top: .5mm solid #4f7cac; font-size: 6.5pt; line-height: 1.25; }
+      .group-print-schedule p { margin: 0 0 1mm; }
+    }
+  </style>
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <nav class="col-md-3 col-lg-2 sidebar">
+        <div class="d-flex align-items-center gap-3 mb-5">
+          <div class="brand-mark">DB</div><div><div class="brand-name">KIN MATETE</div><div class="brand-caption">Espace de suivi</div></div>
+        </div>
+        <div class="menu-label">Navigation</div>
+        <div class="sidebar-menu">
+          <a href="index.html">Accueil</a>
+          <a data-page="proclamateurs" href="Proclamateurs.html">Proclamateurs</a>
+          <a class="active" data-access-feature="pdf:allgroups" href="groupes.html">Les groupes de prédication</a>
+          <a data-page="rapports" href="Rapports.html">Rapports</a>
+          <a data-access-feature="rapports:attention" href="attention-pastorale.html">Attention pastorale</a>
+          <a data-page="programmation" href="Programmation.html">Programmation</a>
+          <a data-page="souscription" href="Souscription.html">Souscription</a>
+          <a data-page="assistance" href="assistance.html">Assistance aux Réunions</a>
+          <a data-page="pdf" href="pdf.html">Fichiers PDF</a>
+          <a href="connexion.html">Déconnexion</a>
+        </div>
+      </nav>
+      <main class="col-md-9 col-lg-10 content-area">
+        <div class="page-heading">
+          <div class="page-heading-copy"><p class="assembly-name">Assemblée locale de KIN MATETE DEBONHOMME 2 FRANÇAIS</p><h1 class="h2">Groupes de prédication</h1></div>
+          <span class="user-info" id="userInfo">Utilisateur connecté</span>
+        </div>
+        <section class="card p-3 mb-4" data-access-feature="pdf:resp">
+          <h2 class="h5">Responsables de groupe</h2>
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4"><label class="form-label" for="groupSelect">Choisir un groupe</label><select id="groupSelect" class="form-select"><option value="">-- Choisir un groupe --</option></select></div>
+            <div class="col-md-3"><label class="form-label" for="groupLeader">Responsable</label><input id="groupLeader" class="form-control" list="groupMembersList" placeholder="Nom du responsable"></div>
+            <div class="col-md-3"><label class="form-label" for="groupAdjoint">Responsable adjoint</label><input id="groupAdjoint" class="form-control" list="groupMembersList" placeholder="Nom du responsable adjoint"></div>
+            <div class="col-md-2"><button type="button" id="saveLeaders" class="btn btn-primary w-100">Enregistrer</button></div>
+          </div>
+          <datalist id="groupMembersList"></datalist>
+          <p id="groupStatus" class="small mb-0 mt-2" role="status" aria-live="polite"></p>
+        </section>
+        <div id="groupsStatus" class="small text-muted mb-3" role="status" aria-live="polite">Chargement des groupes…</div>
+        <div id="groupsList" class="group-grid" data-access-feature="pdf:allgroups"></div>
+        <section class="group-information" id="groupInformation" aria-label="Programme de prédication"></section>
+        <details class="card p-3 mt-3" data-access-feature="pdf:resp">
+          <summary class="fw-bold text-primary">Modifier le programme, les lieux et les horaires</summary>
+          <form id="scheduleForm" class="mt-3">
+            <div class="row g-3">
+              <div class="col-12"><h2 class="h6 mb-0">Bloc 1</h2></div>
+              <div class="col-md-3"><label class="form-label" for="block1Groups">Groupes</label><input id="block1Groups" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="block1Host">Responsable / hôte</label><input id="block1Host" class="form-control" required></div>
+              <div class="col-md-6"><label class="form-label" for="block1Address">Adresse</label><input id="block1Address" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="block1Day">Jour du bloc</label><input id="block1Day" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="block1Time">Heure du bloc</label><input id="block1Time" type="time" class="form-control" required></div>
+              <div class="col-12 mt-4"><h2 class="h6 mb-0">Bloc 2</h2></div>
+              <div class="col-md-3"><label class="form-label" for="block2Groups">Groupes</label><input id="block2Groups" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="block2Host">Responsable / hôte</label><input id="block2Host" class="form-control" required></div>
+              <div class="col-md-6"><label class="form-label" for="block2Address">Adresse</label><input id="block2Address" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="block2Day">Jour du bloc</label><input id="block2Day" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="block2Time">Heure du bloc</label><input id="block2Time" type="time" class="form-control" required></div>
+              <div class="col-12 mt-4"><h2 class="h6 mb-0">Autres jours de prédication</h2></div>
+              <div class="col-md-3"><label class="form-label" for="hallWeekdayDays">Mardi et jeudi</label><input id="hallWeekdayDays" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="hallWeekdayTime">Heure (mardi et jeudi)</label><input id="hallWeekdayTime" type="time" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="hallSundayTime">Heure (dimanche)</label><input id="hallSundayTime" type="time" class="form-control" required></div>
+              <div class="col-md-3"><label class="form-label" for="hallPlace">Lieu</label><input id="hallPlace" class="form-control" required></div>
+              <div class="col-12"><button type="submit" class="btn btn-primary">Enregistrer le programme</button><span id="scheduleStatus" class="small ms-2" role="status" aria-live="polite"></span></div>
+            </div>
+          </form>
+        </details>
+        <div id="groupPrintArea" aria-hidden="true"></div>
+      </main>
+    </div>
+  </div>
+  <script>
+    const $ = id => document.getElementById(id);
+    let proclamateurs = [];
+    let groupLeaders = [];
+    const groupColors = ['#214b63', '#8b5a2b'];
+    const scheduleConfigKey = '__predication_schedule_config__';
+    const defaultSchedule = {
+      blocks: [
+        { title: 'BLOC 1', groups: '1, 2, 3 et 4', host: 'Fr Willy Kalombo', address: '', day: 'Samedi', time: '09:00' },
+        { title: 'BLOC 2', groups: '5, 6 et 7', host: 'Fr COCO BOYAU', address: '', day: 'Samedi', time: '09:00' }
+      ],
+      hallWeekdayDays: 'Mardi et jeudi',
+      hallWeekdayTime: '09:00',
+      hallSundayTime: '08:30',
+      hallPlace: 'Salle du Royaume'
+    };
+    const normalizeGroup = value => String(value || '').trim().toLocaleLowerCase('fr');
+    const normalizeName = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('fr');
+    const escapeHtml = value => String(value || '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character]));
+    const memberName = member => [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ') || member.id;
+    function openGroupsDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open('ProclamateursDB', 5);
+        request.onupgradeneeded = event => {
+          const database = event.target.result;
+          if (!database.objectStoreNames.contains('proclamateurs')) database.createObjectStore('proclamateurs', { keyPath: 'id' });
+          if (!database.objectStoreNames.contains('groupLeaders')) database.createObjectStore('groupLeaders', { keyPath: 'group' });
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('Impossible d’ouvrir la base des proclamateurs.'));
+        request.onblocked = () => reject(new Error('La base des proclamateurs est utilisée par une autre page.'));
+      });
+    }
+    function readStore(database, storeName) {
+      return new Promise((resolve, reject) => {
+        if (!database.objectStoreNames.contains(storeName)) { resolve([]); return; }
+        const request = database.transaction(storeName, 'readonly').objectStore(storeName).getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error || new Error(`Impossible de lire ${storeName}.`));
+      });
+    }
+    async function loadGroups() {
+      let database;
+      try {
+        database = await openGroupsDatabase();
+        [proclamateurs, groupLeaders] = await Promise.all([readStore(database, 'proclamateurs'), readStore(database, 'groupLeaders')]);
+        renderGroups();
+        renderSchedule();
+        $('groupsStatus').textContent = proclamateurs.length ? '' : 'Aucun proclamateur enregistré.';
+      } catch (error) {
+        $('groupsStatus').textContent = error.message || 'Impossible de charger les groupes.';
+        console.error('Échec du chargement des groupes :', error);
+      } finally {
+        database?.close();
+      }
+    }
+    function getGroups() {
+      const groups = new Map();
+      proclamateurs.forEach(member => {
+        const name = String(member.groupe || '').trim();
+        if (!name) return;
+        const key = normalizeGroup(name);
+        if (!groups.has(key)) groups.set(key, { name, members: [] });
+        groups.get(key).members.push(member);
+      });
+      const entries = [...groups.values()]
+        .map(group => ({ ...group, members: group.members.sort((a, b) => memberName(a).localeCompare(memberName(b), 'fr', { sensitivity: 'base' })) }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr', { numeric: true, sensitivity: 'base' }));
+      for (let index = entries.length; index < 7; index += 1) entries.push({ name: `Groupe ${index + 1}`, members: [], placeholder: true });
+      return entries;
+    }
+    function savedLeaders(group) {
+      return groupLeaders.find(item => normalizeGroup(item.group) === normalizeGroup(group)) || {};
+    }
+    function findHostAddress(name, contactName = '') {
+      const normalizedName = normalizeName(name);
+      const normalizedContact = normalizeName(contactName);
+      const person = proclamateurs.find(member =>
+        normalizeName(memberName(member)).includes(normalizedName) ||
+        (normalizedContact && normalizeName(member.contactName).includes(normalizedContact))
+      );
+      return person?.adresse || '';
+    }
+    function scheduleConfiguration() {
+      const saved = groupLeaders.find(item => item.group === scheduleConfigKey) || {};
+      const configuredBlocks = Array.isArray(saved.blocks) ? saved.blocks : [];
+      return {
+        ...defaultSchedule,
+        ...saved,
+        hallWeekdayDays: saved.hallWeekdayDays || defaultSchedule.hallWeekdayDays,
+        hallWeekdayTime: saved.hallWeekdayTime || saved.hallTime || defaultSchedule.hallWeekdayTime,
+        hallSundayTime: saved.hallSundayTime || defaultSchedule.hallSundayTime,
+        hallPlace: saved.hallPlace || defaultSchedule.hallPlace,
+        blocks: defaultSchedule.blocks.map((block, index) => ({
+          ...block,
+          ...(configuredBlocks[index] || {}),
+          address: configuredBlocks[index]?.address || findHostAddress(
+            index === 0 ? 'KALOMBO WILLY' : 'BOYAU EKONGA COCO',
+            index === 0 ? '' : 'COCO BOYAU'
+          )
+        }))
+      };
+    }
+    function displayTime(time) {
+      if (!time) return '';
+      const [hour, minute] = time.split(':');
+      return ` à ${Number(hour)} h ${minute}`;
+    }
+    function hallLocation(place) {
+      const value = String(place || '').trim();
+      if (/^salle du royaume$/i.test(value)) return 'à la Salle du Royaume';
+      if (/^la salle du royaume$/i.test(value)) return 'à la Salle du Royaume';
+      return `à ${value}`;
+    }
+    function renderSchedule() {
+      const schedule = scheduleConfiguration();
+      $('groupInformation').innerHTML = `<article class="group-info-card">
+        <h2>Programme de prédication</h2>
+        ${schedule.blocks.map(block => `<p><strong>${escapeHtml(block.title)}</strong> — Groupes ${escapeHtml(block.groups)} : chez ${escapeHtml(block.host)}, ${escapeHtml(block.address)}. ${escapeHtml(block.day)}${displayTime(block.time)}.</p>`).join('')}
+      </article>
+      <article class="group-info-card">
+        <h2>Autres jours de prédication</h2>
+        <p><strong>${escapeHtml(schedule.hallWeekdayDays)} :</strong>${displayTime(schedule.hallWeekdayTime)} ${escapeHtml(hallLocation(schedule.hallPlace))}, toute l’assemblée ensemble.</p>
+        <p><strong>Dimanche :</strong>${displayTime(schedule.hallSundayTime)} ${escapeHtml(hallLocation(schedule.hallPlace))}, toute l’assemblée ensemble.</p>
+      </article>`;
+      schedule.blocks.forEach((block, index) => {
+        const prefix = `block${index + 1}`;
+        $(`${prefix}Groups`).value = block.groups;
+        $(`${prefix}Host`).value = block.host;
+        $(`${prefix}Address`).value = block.address;
+        $(`${prefix}Day`).value = block.day;
+        $(`${prefix}Time`).value = block.time;
+      });
+      $('hallWeekdayDays').value = schedule.hallWeekdayDays;
+      $('hallWeekdayTime').value = schedule.hallWeekdayTime;
+      $('hallSundayTime').value = schedule.hallSundayTime;
+      $('hallPlace').value = schedule.hallPlace;
+    }
+    function orderedMembers(group, saved) {
+      const remaining = group.members.slice();
+      const resolve = (id, name) => remaining.find(member => (id && String(member.id) === String(id)) || (name && normalizeName(memberName(member)) === normalizeName(name)));
+      const leader = resolve(saved.leaderId, saved.leaderName);
+      if (leader) remaining.splice(remaining.indexOf(leader), 1);
+      const adjoint = resolve(saved.adjointId, saved.adjointName);
+      if (adjoint) remaining.splice(remaining.indexOf(adjoint), 1);
+      remaining.sort((a, b) => memberName(a).localeCompare(memberName(b), 'fr', { sensitivity: 'base' }));
+      return [
+        { name: saved.leaderName || (leader ? memberName(leader) : ''), role: 'Responsable', member: leader },
+        { name: saved.adjointName || (adjoint ? memberName(adjoint) : ''), role: 'Responsable adjoint', member: adjoint },
+        ...remaining.map(member => ({ name: memberName(member), role: '', member }))
+      ].filter(entry => entry.name);
+    }
+    function countRoles(group) {
+      return group.members.reduce((counts, member) => {
+        const roles = [member.service || '', ...(Array.isArray(member.roles) ? member.roles : [])].join(' ').toLocaleLowerCase('fr');
+        if (/\b(pp|pionnier permanent)\b/.test(roles)) counts.pp += 1;
+        if (/\b(ancien|elder)\b/.test(roles)) counts.ancien += 1;
+        if (/\bassistant\b/.test(roles)) counts.assistant += 1;
+        if (/\bancien\s*pp\b|\bpp\s*ancien\b/.test(roles)) counts.ancienPp += 1;
+        if (/\bassistant\s*pp\b|\bpp\s*assistant\b/.test(roles)) counts.assistantPp += 1;
+        return counts;
+      }, { pp: 0, ancien: 0, assistant: 0, ancienPp: 0, assistantPp: 0 });
+    }
+    function renderGroups() {
+      const groups = getGroups();
+      const realGroups = groups.filter(group => !group.placeholder);
+      const selected = $('groupSelect').value;
+      $('groupSelect').innerHTML = '<option value="">-- Choisir un groupe --</option>' + realGroups.map(group => `<option value="${escapeHtml(group.name)}">${escapeHtml(group.name)}</option>`).join('');
+      if (realGroups.some(group => group.name === selected)) $('groupSelect').value = selected;
+      $('groupsList').innerHTML = groups.map((group, index) => {
+        const saved = savedLeaders(group.name);
+        const hiddenIds = new Set((saved.hiddenMemberIds || []).map(String));
+        const members = orderedMembers(group, saved);
+        const rows = members.map(entry => {
+          const name = entry.role ? `<strong>${escapeHtml(entry.name)} — ${escapeHtml(entry.role)}</strong>` : escapeHtml(entry.name);
+          if (!entry.member) return `<li>${name}</li>`;
+          const id = String(entry.member.id);
+          const href = `Proclamateurs.html?proclamateurId=${encodeURIComponent(id)}`;
+          return `<li><a href="${escapeHtml(href)}">${name}</a><label class="group-print-visibility"><input type="checkbox" data-hide-print-group="${escapeHtml(group.name)}" data-hide-print-member="${escapeHtml(id)}" ${hiddenIds.has(id) ? 'checked' : ''}> Masquer à l’impression</label></li>`;
+        }).join('');
+        const details = group.placeholder
+          ? '<p class="small text-muted mb-0">Aucun membre attribué.</p>'
+          : `<p class="small mb-2">${group.members.length} proclamateur${group.members.length === 1 ? '' : 's'}</p><ol class="group-members mb-2">${rows || '<li>Aucun membre</li>'}</ol><button type="button" class="btn btn-sm btn-outline-primary" data-edit-group="${escapeHtml(group.name)}">Modifier les responsables</button>`;
+        const accent = groupColors[index % groupColors.length];
+        return `<article class="group-card" style="--group-accent:${accent}">
+          <button type="button" class="group-toggle" data-group-toggle="${index}" aria-expanded="false"><h2>${escapeHtml(group.name)}</h2><span class="small text-muted">${group.members.length} proclamateur${group.members.length === 1 ? '' : 's'}</span></button>
+          <div class="group-details d-none" data-group-details="${index}">${details}</div>
+          <p class="group-total">Total des membres : ${group.members.length}</p>
+        </article>`;
+      }).join('') + `<article class="group-actions" data-access-feature="pdf:allgroups">
+        <button type="button" class="btn btn-primary" id="toggleAllGroups">Afficher tous les groupes</button>
+        <button type="button" class="btn btn-outline-primary" id="printGroups">Imprimer ou enregistrer en PDF (A4)</button>
+        <span class="small text-muted">Pour enregistrer le PDF, choisissez « Enregistrer au format PDF » dans la fenêtre d’impression, puis sélectionnez l’emplacement.</span>
+      </article>`;
+      $('groupsList').querySelectorAll('[data-group-toggle]').forEach(button => button.addEventListener('click', () => {
+        const details = $('groupsList').querySelector(`[data-group-details="${button.dataset.groupToggle}"]`);
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        details.classList.toggle('d-none', expanded);
+      }));
+      $('groupsList').querySelectorAll('[data-edit-group]').forEach(button => button.addEventListener('click', () => {
+        $('groupSelect').value = button.dataset.editGroup;
+        updateLeaderFields();
+        $('groupLeader').focus();
+      }));
+      $('groupsList').querySelectorAll('[data-hide-print-member]').forEach(input => input.addEventListener('change', saveMemberPrintVisibility));
+      $('toggleAllGroups').addEventListener('click', toggleAllGroups);
+      $('printGroups').addEventListener('click', printGroups);
+      updateLeaderFields();
+    }
+    function updateLeaderFields() {
+      const groupName = $('groupSelect').value;
+      const group = getGroups().find(item => normalizeGroup(item.name) === normalizeGroup(groupName));
+      const saved = savedLeaders(groupName);
+      $('groupMembersList').innerHTML = (group?.members || []).map(member => `<option value="${escapeHtml(memberName(member))}"></option>`).join('');
+      $('groupLeader').value = saved.leaderName || '';
+      $('groupAdjoint').value = saved.adjointName || '';
+    }
+    function toggleAllGroups() {
+      const details = [...document.querySelectorAll('[data-group-details]')];
+      const showAll = details.some(item => item.classList.contains('d-none'));
+      details.forEach(item => item.classList.toggle('d-none', !showAll));
+      document.querySelectorAll('[data-group-toggle]').forEach(button => button.setAttribute('aria-expanded', String(showAll)));
+      $('toggleAllGroups').textContent = showAll ? 'Cacher tous les groupes' : 'Afficher tous les groupes';
+    }
+    async function saveLeaders() {
+      const groupName = $('groupSelect').value;
+      const status = $('groupStatus');
+      if (!groupName) { status.textContent = 'Sélectionnez un groupe.'; return; }
+      const leaderName = $('groupLeader').value.trim();
+      const adjointName = $('groupAdjoint').value.trim();
+      const members = proclamateurs.filter(member => normalizeGroup(member.groupe) === normalizeGroup(groupName));
+      const findMember = name => members.find(member => normalizeName(memberName(member)) === normalizeName(name));
+      const leader = findMember(leaderName);
+      const adjoint = findMember(adjointName);
+      if ((leaderName && !leader) || (adjointName && !adjoint)) { status.textContent = 'Choisissez des responsables appartenant au groupe sélectionné.'; return; }
+      if (leader && adjoint && String(leader.id) === String(adjoint.id)) { status.textContent = 'Le responsable et son adjoint doivent être deux personnes différentes.'; return; }
+      status.textContent = 'Enregistrement…';
+      let database;
+      try {
+        database = await openGroupsDatabase();
+        const transaction = database.transaction('groupLeaders', 'readwrite');
+        const existing = savedLeaders(groupName);
+        transaction.objectStore('groupLeaders').put({
+          ...existing,
+          group: groupName,
+          leaderId: leader?.id || '',
+          leaderName,
+          adjointId: adjoint?.id || '',
+          adjointName,
+          hiddenMemberIds: existing.hiddenMemberIds || []
+        });
+        await new Promise((resolve, reject) => {
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error || new Error('Impossible d’enregistrer les responsables.'));
+          transaction.onabort = () => reject(transaction.error || new Error('Enregistrement des responsables interrompu.'));
+        });
+        database.close();
+        database = null;
+        status.textContent = 'Responsables de groupe enregistrés.';
+        await loadGroups();
+      } catch (error) {
+        status.textContent = error.message || 'Impossible d’enregistrer les responsables.';
+        console.error('Échec de l’enregistrement des responsables :', error);
+      } finally {
+        database?.close();
+      }
+    }
+    async function saveMemberPrintVisibility(event) {
+      const input = event.currentTarget;
+      const groupName = input.dataset.hidePrintGroup;
+      const memberId = String(input.dataset.hidePrintMember);
+      const status = $('groupsStatus');
+      input.disabled = true;
+      let database;
+      try {
+        database = await openGroupsDatabase();
+        const transaction = database.transaction('groupLeaders', 'readwrite');
+        const store = transaction.objectStore('groupLeaders');
+        const request = store.get(groupName);
+        request.onsuccess = () => {
+          const existing = request.result || { group: groupName };
+          const hiddenIds = new Set((existing.hiddenMemberIds || []).map(String));
+          if (input.checked) hiddenIds.add(memberId);
+          else hiddenIds.delete(memberId);
+          store.put({ ...existing, hiddenMemberIds: [...hiddenIds] });
+        };
+        await new Promise((resolve, reject) => {
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error || new Error('Impossible d’enregistrer le masquage pour l’impression.'));
+          transaction.onabort = () => reject(transaction.error || new Error('Enregistrement du masquage interrompu.'));
+          request.onerror = () => reject(request.error || new Error('Impossible de lire les paramètres du groupe.'));
+        });
+        const cached = groupLeaders.find(item => normalizeGroup(item.group) === normalizeGroup(groupName)) || { group: groupName };
+        const hiddenIds = new Set((cached.hiddenMemberIds || []).map(String));
+        if (input.checked) hiddenIds.add(memberId);
+        else hiddenIds.delete(memberId);
+        groupLeaders = groupLeaders.filter(item => normalizeGroup(item.group) !== normalizeGroup(groupName));
+        groupLeaders.push({ ...cached, hiddenMemberIds: [...hiddenIds] });
+        status.textContent = `Le nom est ${input.checked ? 'masqué' : 'visible'} à l’impression.`;
+      } catch (error) {
+        input.checked = !input.checked;
+        status.textContent = error.message || 'Impossible d’enregistrer le masquage.';
+        console.error('Échec du réglage de visibilité à l’impression :', error);
+      } finally {
+        input.disabled = false;
+        database?.close();
+      }
+    }
+    async function saveSchedule(event) {
+      event.preventDefault();
+      const status = $('scheduleStatus');
+      const schedule = {
+        group: scheduleConfigKey,
+        type: 'predication-schedule',
+        blocks: [1, 2].map(index => ({
+          title: `BLOC ${index}`,
+          groups: $(`block${index}Groups`).value.trim(),
+          host: $(`block${index}Host`).value.trim(),
+          address: $(`block${index}Address`).value.trim(),
+          day: $(`block${index}Day`).value.trim(),
+          time: $(`block${index}Time`).value
+        })),
+        hallWeekdayDays: $('hallWeekdayDays').value.trim(),
+        hallWeekdayTime: $('hallWeekdayTime').value,
+        hallSundayTime: $('hallSundayTime').value,
+        hallPlace: $('hallPlace').value.trim()
+      };
+      status.textContent = 'Enregistrement…';
+      let database;
+      try {
+        database = await openGroupsDatabase();
+        const transaction = database.transaction('groupLeaders', 'readwrite');
+        transaction.objectStore('groupLeaders').put(schedule);
+        await new Promise((resolve, reject) => {
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error || new Error('Impossible d’enregistrer le programme.'));
+          transaction.onabort = () => reject(transaction.error || new Error('Enregistrement du programme interrompu.'));
+        });
+        database.close();
+        database = null;
+        groupLeaders = groupLeaders.filter(item => item.group !== scheduleConfigKey).concat(schedule);
+        renderSchedule();
+        status.textContent = 'Programme, lieux et horaires enregistrés et synchronisés.';
+      } catch (error) {
+        status.textContent = error.message || 'Impossible d’enregistrer le programme.';
+        console.error('Échec de l’enregistrement du programme de prédication :', error);
+      } finally {
+        database?.close();
+      }
+    }
+    function buildPrintArea() {
+      const groups = getGroups();
+      if (groups.length > 7) {
+        $('groupsStatus').textContent = 'L’impression A4 en 8 cases est prévue pour 7 groupes. Il y a actuellement plus de 7 groupes.';
+        return false;
+      }
+      const groupCards = groups.map((group, index) => {
+        const saved = savedLeaders(group.name);
+        const hiddenIds = new Set((saved.hiddenMemberIds || []).map(String));
+        const visibleMembers = orderedMembers(group, saved).filter(entry => !entry.member || !hiddenIds.has(String(entry.member.id)));
+        return `<article class="group-print-card" style="--group-accent:${groupColors[index % groupColors.length]};--member-count:${visibleMembers.length}"><h3>${escapeHtml(group.name)}</h3><ol>${visibleMembers.map(entry => {
+          const roleLabel = entry.role === 'Responsable adjoint' ? 'Resp Adj' : entry.role === 'Responsable' ? 'Responsable' : '';
+          return `<li>${roleLabel ? `<strong>${escapeHtml(entry.name)} — <span class="group-print-role">${roleLabel}</span></strong>` : escapeHtml(entry.name)}</li>`;
+        }).join('')}</ol><p class="group-print-total">Total des membres : ${visibleMembers.length}</p></article>`;
+      }).join('');
+      const rows = groups.map(group => {
+        const hiddenIds = new Set((savedLeaders(group.name).hiddenMemberIds || []).map(String));
+        const visibleGroup = { ...group, members: group.members.filter(member => !hiddenIds.has(String(member.id))) };
+        const counts = countRoles(visibleGroup);
+        return `<tr><th>${escapeHtml(group.name)}</th><td>${visibleGroup.members.length}</td><td>${counts.pp}</td><td>${counts.ancien}</td><td>${counts.assistant}</td><td>${counts.ancienPp}</td><td>${counts.assistantPp}</td></tr>`;
+      }).join('');
+      const totals = groups.reduce((sum, group) => {
+        const hiddenIds = new Set((savedLeaders(group.name).hiddenMemberIds || []).map(String));
+        const visibleGroup = { ...group, members: group.members.filter(member => !hiddenIds.has(String(member.id))) };
+        const counts = countRoles(visibleGroup);
+        sum.members += visibleGroup.members.length;
+        sum.pp += counts.pp;
+        sum.ancien += counts.ancien;
+        sum.assistant += counts.assistant;
+        sum.ancienPp += counts.ancienPp;
+        sum.assistantPp += counts.assistantPp;
+        return sum;
+      }, { members: 0, pp: 0, ancien: 0, assistant: 0, ancienPp: 0, assistantPp: 0 });
+      const schedule = scheduleConfiguration();
+      $('groupPrintArea').innerHTML = `<header class="group-print-header"><p class="group-print-assembly">ASSEMBLÉE LOCALE DE KIN MATETE DEBONHOMME 2 FRANÇAIS</p><h1 class="group-print-title">Groupes de prédication</h1></header><div class="group-print-grid">
+        ${groupCards}<article class="group-print-card" style="--group-accent:#214b63"><h3>Statistiques des groupes</h3><table class="group-print-statistics"><thead><tr><th>Groupe</th><th>Effectif</th><th>PP</th><th>Anc.</th><th>Ass.</th><th>Anc. PP</th><th>Ass. PP</th></tr></thead><tbody>${rows}</tbody><tfoot><tr><th>Total assemblée</th><th>${totals.members}</th><th>${totals.pp}</th><th>${totals.ancien}</th><th>${totals.assistant}</th><th>${totals.ancienPp}</th><th>${totals.assistantPp}</th></tr></tfoot></table>
+          <div class="group-print-schedule">
+            <p><strong>Programme de prédication</strong></p>
+            ${schedule.blocks.map(block => `<p><strong>${escapeHtml(block.title)}</strong> — Groupes ${escapeHtml(block.groups)} : chez ${escapeHtml(block.host)}, ${escapeHtml(block.address)}. ${escapeHtml(block.day)}${displayTime(block.time)}.</p>`).join('')}
+            <p><strong>${escapeHtml(schedule.hallWeekdayDays)} :</strong>${displayTime(schedule.hallWeekdayTime)} ${escapeHtml(hallLocation(schedule.hallPlace))}, toute l’assemblée ensemble.</p>
+            <p><strong>Dimanche :</strong>${displayTime(schedule.hallSundayTime)} ${escapeHtml(hallLocation(schedule.hallPlace))}, toute l’assemblée ensemble.</p>
+          </div>
+        </article>
+      </div>`;
+      return true;
+    }
+    function printGroups() {
+      if (!buildPrintArea()) return;
+      document.body.appendChild($('groupPrintArea'));
+      document.body.classList.add('group-print-mode');
+      window.addEventListener('afterprint', () => {
+        document.body.classList.remove('group-print-mode');
+        $('groupsList').after($('groupPrintArea'));
+      }, { once: true });
+      window.print();
+    }
+    $('groupSelect').addEventListener('change', updateLeaderFields);
+    $('saveLeaders').addEventListener('click', saveLeaders);
+    $('scheduleForm').addEventListener('submit', saveSchedule);
+    window.addEventListener('app-sync-updated', event => {
+      if (event.detail?.database_name === 'ProclamateursDB' && event.detail?.store_name === 'groupLeaders') loadGroups();
+    });
+    window.addEventListener('DOMContentLoaded', loadGroups, { once: true });
+  </script>
+</body>
+</html>

@@ -101,7 +101,9 @@
 </div>
 
 <script>
-  const supabaseClient = window.appAuth?.client;
+  function getSupabaseClient() {
+    return window.appAuth?.client || null;
+  }
 
   async function ensureAuthConfiguration() {
     if (window.appAuth?.validate) {
@@ -113,6 +115,7 @@
       return true;
     }
 
+    const supabaseClient = getSupabaseClient();
     if (supabaseClient && window.appAuth?.configured) return true;
     alert('Supabase n’est pas disponible dans cette session. L’application reste en mode local pendant que la configuration est inactive.');
     return false;
@@ -161,6 +164,11 @@
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!(await ensureAuthConfiguration())) return;
+    const supabaseClient = getSupabaseClient();
+    if (!supabaseClient) {
+      setAuthStatus('Supabase est indisponible pour le moment. Réessayez plus tard.', true);
+      return;
+    }
     restoreLoginEmail();
     const email = loginEmail.value.trim();
     const pass = loginPassword.value;
@@ -198,6 +206,11 @@
   registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!(await ensureAuthConfiguration())) return;
+    const supabaseClient = getSupabaseClient();
+    if (!supabaseClient) {
+      setAuthStatus('Supabase est indisponible pour le moment. Réessayez plus tard.', true);
+      return;
+    }
     const email = document.getElementById('registerEmail').value;
     const pass = document.getElementById('registerPassword').value;
 

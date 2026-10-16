@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Boîte de messagerie</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="app-theme.css">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+  <style>
+    body { background: #f1f4f6; color: #243746; font-family: "Manrope", "Segoe UI", sans-serif; }
+    .page-wrap { max-width: 1120px; margin: 0 auto; padding: 24px 16px; }
+    .card { border: 1px solid #d9e1e6; border-radius: 14px; box-shadow: 0 8px 24px rgba(31,55,68,.06); }
+    .message-body { white-space: pre-wrap; }
+    .report-table td, .report-table th { vertical-align: middle; }
+    .unread { border-left: 4px solid #214b63; }
+  </style>
+</head>
+<body>
+  <main class="page-wrap">
+    <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <h1 class="h3 text-primary mb-1">Boîte de messagerie</h1>
+        <p class="text-muted mb-0">Rappels de rapports, accusés de réception et suivis de groupe.</p>
+      </div>
+      <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" href="index.html">Accueil</a>
+        <button type="button" class="btn btn-outline-primary" id="refreshInboxBtn">Actualiser</button>
+      </div>
+    </header>
+
+    <section id="whatsappConsentPanel" class="card p-3 mb-4" aria-labelledby="whatsappConsentTitle">
+      <h2 id="whatsappConsentTitle" class="h5 text-primary">Rappels WhatsApp</h2>
+      <p class="mb-2">Les rappels WhatsApp sont facultatifs. En activant cette option, vous acceptez de recevoir des messages liés à vos rapports de prédication sur le numéro de téléphone de votre fiche. Après votre accord, cette demande disparaîtra. Pour retirer votre accord, répondez STOP à un message WhatsApp.</p>
+      <div class="form-check mb-2">
+        <input id="whatsappConsent" class="form-check-input" type="checkbox">
+        <label class="form-check-label" for="whatsappConsent">J’accepte de recevoir les rappels de rapports par WhatsApp.</label>
+      </div>
+      <div class="d-flex flex-wrap align-items-center gap-3">
+        <button id="saveWhatsappConsentBtn" type="button" class="btn btn-outline-primary" disabled>Enregistrer mon choix</button>
+        <span id="whatsappConsentStatus" class="small text-muted" role="status">Chargement du consentement…</span>
+      </div>
+    </section>
+
+    <section id="secretaryPanel" class="card p-3 mb-4" hidden>
+      <h2 class="h5 text-primary">Suivi des rapports — secrétaire</h2>
+      <p class="text-muted">Deux jours avant la fin du mois, les proclamateurs sont invités à préparer leur rapport. Le 3, les responsables et adjoints reçoivent le bilan de leur groupe; si aucun rappel n’est déclenché, ils sont relancés le 4. Les retardataires reçoivent un rappel automatique les 5 et 10. Le secrétariat peut déclencher d’autres rappels à partir du 5, y compris après le 10. WhatsApp reste soumis à l’accord explicite du destinataire.</p>
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-sm-5 col-md-4">
+          <label for="reportMonth" class="form-label">Mois du rapport</label>
+          <input id="reportMonth" type="month" class="form-control">
+        </div>
+        <div class="col-sm-7 col-md-4">
+          <label for="reportGroup" class="form-label">Groupe à suivre</label>
+          <select id="reportGroup" class="form-select">
+            <option value="">Tous les groupes</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <button id="loadReportStatusBtn" type="button" class="btn btn-outline-primary w-100">Afficher le suivi</button>
+        </div>
+        <div class="col-md-4">
+          <button id="sendReminderBtn" type="button" class="btn btn-primary w-100" disabled>Rappel du secrétariat — disponible à partir du 5</button>
+        </div>
+        <div class="col-md-6">
+          <button id="manualWhatsappBtn" type="button" class="btn btn-outline-success w-100" disabled>Préparer les rappels WhatsApp pour tous</button>
+        </div>
+      </div>
+      <p class="form-text">Le suivi distingue les rapports en attente des rappels déjà envoyés. Le bouton prépare les messages WhatsApp pour les responsables, leurs adjoints et les retardataires qui n’ont pas encore reçu de rappel. Après chaque envoi manuel dans WhatsApp, confirmez-le ici. Les rappels automatiques par l’API restent réservés aux destinataires consentants.</p>
+      <div id="reportStatusMessage" class="mb-2" role="status"></div>
+      <div id="managerReminderStatus" class="small mb-2" role="status"></div>
+      <div id="manualWhatsappStatus" class="small mb-2" role="status" aria-live="polite"></div>
+      <button id="manualWhatsappNextBtn" type="button" class="btn btn-sm btn-success mb-3" hidden></button>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped report-table mb-0">
+          <thead><tr><th>Proclamateur</th><th>Groupe</th><th>État</th><th>Rapport</th><th>Rappel WhatsApp</th></tr></thead>
+          <tbody id="reportStatusBody"><tr><td colspan="5" class="text-muted">Chargement du suivi…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="managerPanel" class="card p-3 mb-4" hidden>
+      <h2 class="h5 text-primary">Rapports de mon groupe</h2>
+      <p class="text-muted">Le 3, consultez le bilan et rappelez les proclamateurs en attente. Si aucun rappel n’est déclenché, un rappel vous sera envoyé le 4. Les rappels aux proclamateurs passent d’abord par leur responsable ou son adjoint.</p>
+      <div class="row g-2 align-items-end mb-3">
+        <div class="col-sm-5 col-md-4">
+          <label for="managerReportMonth" class="form-label">Mois du rapport</label>
+          <input id="managerReportMonth" type="month" class="form-control">
+        </div>
+        <div class="col-sm-7 col-md-4">
+          <label for="managerReportGroup" class="form-label">Mon groupe</label>
+          <select id="managerReportGroup" class="form-select"></select>
+        </div>
+        <div class="col-md-4">
+          <button id="managerLoadStatusBtn" type="button" class="btn btn-outline-primary w-100">Afficher le bilan</button>
+        </div>
+        <div class="col-md-4">
+          <button id="managerSendReminderBtn" type="button" class="btn btn-primary w-100" disabled>Rappeler les retardataires de mon groupe</button>
+        </div>
+      </div>
+      <div id="managerReportStatus" role="status"></div>
+    </section>
+
+    <section aria-labelledby="messagesTitle">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+        <h2 id="messagesTitle" class="h5 mb-0">Mes messages <span id="unreadBadge" class="badge bg-warning text-dark" hidden>0</span></h2>
+      </div>
+      <div id="inboxMessages" aria-live="polite"><p class="text-muted">Chargement des messages…</p></div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const assemblyId = window.appAuth?.config?.assemblyId;
+      const client = window.appAuth?.client;
+      let access = window.appAuthAccess?.getCached?.() || null;
+      let inboxChannel = null;
+      let reportChannel = null;
+      let reportRows = { people: [], reports: [], groupLeaders: [], secretaryPhone: '' };
+      let reminderStatuses = new Map();
+      let managerGroups = [];
+      let manualWhatsappQueue = [];
+      let manualWhatsappIndex = 0;
+      let manualWhatsappCurrent = null;
+
+      const $ = id => document.getElementById(id);
+      const isSecretary = () => ['owner', 'coordinateur', 'secretaire', 'responsable_predication'].includes(access?.role);
+      const formatMemberName = member => [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ').trim() || member.id;
+      const normalizePhone = value => {
+        let digits = String(value || '').replace(/\D/g, '');
+        if (digits.startsWith('00')) digits = digits.slice(2);
+        else if (digits.startsWith('0')) digits = `243${digits.slice(1)}`;
+        return digits.length >= 8 && digits.length <= 15 ? digits : '';
+      };
+      const nameFromPayload = (payload, fallback = '') =>
+        [payload?.nom, payload?.postnom, payload?.prenom].filter(Boolean).join(' ').trim() || fallback;
+      const reportMonthLabel = month => {
+        const date = new Date(`${month}-01T00:00:00Z`);
+        return Number.isNaN(date.getTime())
+          ? month
+          : new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
+      };
+      const timeGreeting = () => {
+        const hour = Number(new Intl.DateTimeFormat('en-GB', {
+          timeZone: 'Africa/Kinshasa',
+          hour: '2-digit',
+          hourCycle: 'h23'
+        }).format(new Date()));
+        return hour >= 18 || hour < 5 ? 'Bonsoir' : 'Bonjour';
+      };
+      const salutFor = payload => {
+        const sex = String(payload?.sexe || '').trim().toLocaleUpperCase('fr');
+        if (['F', 'FEMME', 'FÉMININ'].includes(sex)) return 'très chère Sr';
+        if (['M', 'HOMME', 'MASCULIN'].includes(sex)) return 'très cher Fr';
+        return '';
+      };
+      const politeOpening = payload => `${timeGreeting()}${salutFor(payload) ? `, ${salutFor(payload)}` : ''}`;
+      const politeClosing = 'Nous vous souhaitons une bonne suite de temps. Que Jéhovah, notre Dieu, vous protège.';
+      const monthKey = () => $('reportMonth').value;
+      const selectedGroup = () => $('reportGroup').value;
+      const kinshasaParts = () => Object.fromEntries(
+        new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Africa/Kinshasa',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        }).formatToParts(new Date()).map(part => [part.type, part.value])
+      );
+      const kinshasaDay = () => Number(kinshasaParts().day);
+      const secretaryCanSend = () => kinshasaDay() >= 5;
+
+      function resetManualWhatsappQueue() {
+        manualWhatsappQueue = [];
+        manualWhatsappIndex = 0;
+        manualWhatsappCurrent = null;
+        $('manualWhatsappNextBtn').hidden = true;
+        $('manualWhatsappStatus').textContent = '';
+      }
+
+      function defaultReportMonth() {
+        const { year, month, day } = kinshasaParts();
+        const date = new Date(Date.UTC(Number(year), Number(month) - 1, 1));
+        if (Number(day) >= 3) date.setUTCMonth(date.getUTCMonth() - 1);
+        return date.toISOString().slice(0, 7);
+      }
+
+      function showError(element, error) {
+        element.textContent = `Erreur : ${error.message || error}`;
+        element.className = 'alert alert-danger py-2';
+        console.error(error);
+      }
+
+      async function loadWhatsappConsent() {
+        if (!client || !assemblyId) return;
+        const { data, error } = await client.rpc('get_my_assembly_whatsapp_consent', {
+          target_assembly_id: assemblyId
+        });
+        if (error) return showError($('whatsappConsentStatus'), error);
+        const consent = data || {};
+        $('whatsappConsentPanel').hidden = Boolean(consent.consented);
+        $('whatsappConsent').checked = Boolean(consent.consented);
+        $('whatsappConsent').disabled = !consent.available || (!consent.hasPhone && !consent.consented);
+        $('saveWhatsappConsentBtn').disabled = !consent.available;
+        $('whatsappConsentStatus').className = 'small text-muted';
+        $('whatsappConsentStatus').textContent = !consent.available
+          ? 'Associez votre compte à votre fiche de proclamateur pour gérer ce choix.'
+          : !consent.hasPhone && !consent.consented
+            ? 'Ajoutez un numéro de téléphone à votre fiche avant de vous inscrire.'
+            : consent.consented
+              ? 'Votre accord est actif. Vous pouvez le retirer à tout moment.'
+              : 'Aucun rappel WhatsApp ne sera envoyé sans votre accord.';
+      }
+
+      async function saveWhatsappConsent() {
+        const button = $('saveWhatsappConsentBtn');
+        button.disabled = true;
+        const { error } = await client.rpc('set_my_assembly_whatsapp_consent', {
+          target_assembly_id: assemblyId,
+          target_consented: $('whatsappConsent').checked
+        });
+        if (error) {
+          button.disabled = false;
+          return showError($('whatsappConsentStatus'), error);
+        }
+        await loadWhatsappConsent();
+        $('whatsappConsentStatus').textContent = $('whatsappConsent').checked
+          ? 'Votre accord WhatsApp est enregistré.'
+          : 'Votre accord WhatsApp est retiré.';
+      }
+
+      function renderMessages(messages) {
+        const container = $('inboxMessages');
+        const unread = messages.filter(message => !message.read_at).length;
+        $('unreadBadge').hidden = unread === 0;
+        $('unreadBadge').textContent = String(unread);
+        container.replaceChildren();
+        if (!messages.length) {
+          const empty = document.createElement('p');
+          empty.className = 'text-muted';
+          empty.textContent = 'Aucun message pour le moment.';
+          container.appendChild(empty);
+          return;
+        }
+
+        messages.forEach(message => {
+          const article = document.createElement('article');
+          article.className = `card p-3 mb-3${message.read_at ? '' : ' unread'}`;
+          const heading = document.createElement('div');
+          heading.className = 'd-flex flex-wrap justify-content-between gap-2 mb-2';
+          const title = document.createElement('h3');
+          title.className = 'h6 text-primary mb-0';
+          title.textContent = message.title;
+          const date = document.createElement('small');
+          date.className = 'text-muted';
+          date.textContent = message.created_at
+            ? new Intl.DateTimeFormat('fr-FR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(message.created_at))
+            : '';
+          heading.append(title, date);
+          const body = document.createElement('p');
+          body.className = 'message-body mb-2';
+          body.textContent = message.body;
+          article.append(heading, body);
+          const pendingMembers = Array.isArray(message.metadata?.pendingMembers)
+            ? message.metadata.pendingMembers
+              .map(member => String(member?.name || '').trim())
+              .filter(Boolean)
+              .sort((left, right) => left.localeCompare(right, 'fr', { sensitivity: 'base' }))
+            : [];
+          if (pendingMembers.length) {
+            const table = document.createElement('table');
+            table.className = 'table table-sm table-striped table-bordered w-auto mb-3';
+            const caption = document.createElement('caption');
+            caption.className = 'caption-top fw-semibold text-primary';
+            caption.textContent = 'Proclamateurs à contacter';
+            table.appendChild(caption);
+            const tableHead = document.createElement('thead');
+            const headRow = document.createElement('tr');
+            ['N°', 'Nom'].forEach(label => {
+              const cell = document.createElement('th');
+              cell.scope = 'col';
+              cell.textContent = label;
+              headRow.appendChild(cell);
+            });
+            tableHead.appendChild(headRow);
+            table.appendChild(tableHead);
+            const tableBody = document.createElement('tbody');
+            pendingMembers.forEach((name, index) => {
+              const row = document.createElement('tr');
+              const number = document.createElement('th');
+              number.scope = 'row';
+              number.textContent = String(index + 1);
+              const nameCell = document.createElement('td');
+              nameCell.textContent = name;
+              row.append(number, nameCell);
+              tableBody.appendChild(row);
+            });
+            table.appendChild(tableBody);
+            article.appendChild(table);
+          }
+          if (!message.read_at) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-sm btn-outline-secondary align-self-start';
+            button.textContent = 'Marquer comme lu';
+            button.addEventListener('click', () => markRead(message.id));
+            article.appendChild(button);
+          }
+          container.appendChild(article);
+        });
+      }
+
+      async function loadMessages() {
+        if (!client || !assemblyId) {
+          $('inboxMessages').textContent = 'La messagerie nécessite une connexion à Supabase.';
+          return;
+        }
+        const { data, error } = await client
+          .from('assembly_inbox_messages')
+          .select('id,title,body,category,reference_month,created_at,read_at,metadata')
+          .eq('assembly_id', assemblyId)
+          .order('created_at', { ascending: false })
+          .limit(150);
+        if (error) return showError($('inboxMessages'), error);
+        renderMessages(data || []);
+      }
+
+      async function markRead(id) {
+        const { error } = await client.rpc('mark_assembly_inbox_message_read', {
+          target_assembly_id: assemblyId,
+          target_message_id: id
+        });
+        if (error) return showError($('inboxMessages'), error);
+        await loadMessages();
+      }
+
+      function reportIdentity(row) {
+        return String(row.payload?.proclamateurId || row.record_id?.replace(/^[^_]+_/, '') || '');
+      }
+
+      function renderReportStatus() {
+        const body = $('reportStatusBody');
+        const reportsByMember = new Map();
+        reportRows.reports.forEach(report => reportsByMember.set(reportIdentity(report), report));
+        const rows = reportRows.people.filter(person => !selectedGroup() || String(person.payload.groupe || '').trim() === selectedGroup()).map(person => ({
+          person,
+          report: reportsByMember.get(String(person.record_id))
+        })).sort((a, b) => formatMemberName(a.person.payload).localeCompare(formatMemberName(b.person.payload), 'fr', { sensitivity: 'base' }));
+        const missing = rows.filter(row => !row.report).length;
+        const reminderPending = rows.filter(row => !row.report && !reminderStatuses.get(String(row.person.record_id))?.reminderSent).length;
+        body.replaceChildren();
+        rows.forEach(({ person, report }) => {
+          const tr = document.createElement('tr');
+          const name = document.createElement('td');
+          name.textContent = formatMemberName(person.payload);
+          const group = document.createElement('td');
+          group.textContent = person.payload.groupe || '—';
+          const status = document.createElement('td');
+          status.textContent = report ? 'Reçu' : 'En attente';
+          status.className = report ? 'text-success fw-semibold' : 'text-danger fw-semibold';
+          const details = document.createElement('td');
+          details.textContent = report
+            ? `${report.payload.heures || 0} h · ${Math.max(Number(report.payload.coursBiblique || 0), Number(report.payload.etudesBibliques || 0))} cours / études`
+            : '—';
+          const action = document.createElement('td');
+          const reminderSent = reminderStatuses.get(String(person.record_id))?.reminderSent;
+          const reminderLabel = document.createElement('span');
+          reminderLabel.className = reminderSent ? 'badge text-bg-success me-2' : 'badge text-bg-warning me-2';
+          reminderLabel.textContent = reminderSent ? 'Rappel envoyé' : 'À rappeler';
+          if (!report) action.appendChild(reminderLabel);
+          if (!report && !reminderSent && normalizePhone(person.payload.telephone)) {
+            const whatsappButton = document.createElement('button');
+            whatsappButton.type = 'button';
+            whatsappButton.className = 'btn btn-sm btn-outline-success';
+            whatsappButton.textContent = 'WhatsApp';
+            whatsappButton.setAttribute('aria-label', `Préparer un rappel WhatsApp pour ${formatMemberName(person.payload)}`);
+            whatsappButton.addEventListener('click', () => {
+              resetManualWhatsappQueue();
+              manualWhatsappQueue = [{
+                name: formatMemberName(person.payload),
+                phone: normalizePhone(person.payload.telephone),
+                proclamateurId: String(person.record_id),
+                message: reportReminderMessage(person),
+              }];
+              manualWhatsappIndex = 0;
+              manualWhatsappCurrent = null;
+              $('manualWhatsappNextBtn').hidden = false;
+              openNextManualWhatsapp();
+            });
+            action.appendChild(whatsappButton);
+          } else if (!report && !reminderSent) {
+            const phoneMissing = document.createElement('span');
+            phoneMissing.className = 'text-muted small';
+            phoneMissing.textContent = 'Téléphone manquant';
+            action.appendChild(phoneMissing);
+          } else if (report) {
+            action.textContent = '—';
+            action.className = 'text-muted small';
+          }
+          tr.append(name, group, status, details, action);
+          body.appendChild(tr);
+        });
+        if (!rows.length) {
+          const tr = document.createElement('tr');
+          const td = document.createElement('td');
+          td.colSpan = 5;
+          td.className = 'text-muted';
+          td.textContent = 'Aucun proclamateur trouvé.';
+          tr.appendChild(td);
+          body.appendChild(tr);
+        }
+        const groupLabel = selectedGroup() || 'tous les groupes';
+        $('reportStatusMessage').textContent = `${groupLabel} : ${rows.length - missing} rapport(s) reçu(s) sur ${rows.length} · ${missing} en attente · ${reminderPending} rappel(s) à envoyer.`;
+        $('reportStatusMessage').className = missing ? 'text-danger fw-semibold' : 'text-success fw-semibold';
+        $('sendReminderBtn').disabled = missing === 0 || !rows.length || !secretaryCanSend();
+        $('sendReminderBtn').textContent = !secretaryCanSend()
+          ? 'Rappel du secrétariat — disponible à partir du 5'
+          : missing
+            ? `Rappeler ${missing} retard(s) — ${groupLabel}`
+            : 'Tous les rapports sont reçus';
+        $('manualWhatsappBtn').disabled = reminderPending === 0 || !rows.length;
+        $('manualWhatsappBtn').textContent = reminderPending
+          ? `Préparer les rappels WhatsApp (${reminderPending} retardataire(s) sans rappel)`
+          : 'Aucun rappel WhatsApp à préparer';
+      }
+
+      function openWhatsappMessage(recipient, onBlocked) {
+        const url = `https://wa.me/${recipient.phone}?text=${encodeURIComponent(recipient.message)}`;
+        const opened = window.open(url, '_blank');
+        if (!opened) {
+          const status = $('manualWhatsappStatus');
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.className = 'ms-2';
+          link.textContent = `Ouvrir WhatsApp pour ${recipient.name}`;
+          if (onBlocked) link.addEventListener('click', onBlocked, { once: true });
+          status.replaceChildren(document.createTextNode('Le navigateur a bloqué l’ouverture automatique. '), link);
+          return false;
+        }
+        opened.opener = null;
+        return true;
+      }
+
+      function reportReminderMessage(person) {
+        const memberName = formatMemberName(person.payload);
+        const variantKey = `${monthKey()}-${person.record_id}`;
+        const variantIndex = [...variantKey].reduce((total, character) => total + character.charCodeAt(0), 0) % 2;
+        const groupName = String(person.payload.groupe || '').trim();
+        const groupLeader = reportRows.groupLeaders.find(row =>
+          String(row.payload.group || '').trim().toLocaleLowerCase('fr') === groupName.toLocaleLowerCase('fr'));
+        const peopleById = new Map(reportRows.people.map(row => [String(row.record_id), row]));
+        const leader = groupLeader ? peopleById.get(String(groupLeader.payload.leaderId || '')) : null;
+        const adjoint = groupLeader ? peopleById.get(String(groupLeader.payload.adjointId || '')) : null;
+        const leaderName = nameFromPayload(leader?.payload, String(groupLeader?.payload.leaderName || '').trim() || 'du groupe');
+        const adjointName = nameFromPayload(adjoint?.payload, String(groupLeader?.payload.adjointName || '').trim() || 'du groupe');
+        const leaderPhone = String(leader?.payload.telephone || '').trim();
+        const adjointPhone = String(adjoint?.payload.telephone || '').trim();
+        const secretaryPhones = reportRows.secretaryPhone.split(' / ').filter(Boolean);
+        const secretaryContact = secretaryPhones.length > 1
+          ? `au secrétariat aux numéros ${secretaryPhones.join(' / ')}`
+          : secretaryPhones.length === 1
+            ? `au secrétariat au numéro ${secretaryPhones[0]}`
+            : 'au secrétariat (numéro non renseigné)';
+        const reminderRequest = variantIndex === 0
+          ? 'Votre rapport d’activité de prédication pour'
+          : 'Nous n’avons pas encore reçu votre rapport d’activité de prédication pour';
+        const reminderAction = variantIndex === 0
+          ? 'Merci de le transmettre dès que possible'
+          : 'Nous vous prions de bien vouloir le transmettre dès que possible';
+        return `${politeOpening(person.payload)} ${memberName}, nous espérons que vous vous portez bien, ainsi que votre famille. ${reminderRequest} ${reportMonthLabel(monthKey())}${variantIndex === 0 ? ' n’a pas encore été reçu' : ''}. ${reminderAction} à votre responsable ${leaderName}${leaderPhone ? ` — ${leaderPhone}` : ''} ou à son adjoint ${adjointName}${adjointPhone ? ` — ${adjointPhone}` : ''}. Il est préférable de passer par le responsable ou son adjoint. À défaut, vous pouvez le remettre ${secretaryContact}. Merci aussi pour les rapports des mois précédents déjà transmis. ${politeClosing}`;
+      }
+
+      function buildManualWhatsappQueue() {
+        const reportsByMember = new Set(reportRows.reports.map(reportIdentity));
+        const peopleById = new Map(reportRows.people.map(row => [String(row.record_id), row]));
+        const groupFilter = selectedGroup().trim().toLocaleLowerCase('fr');
+        const groupSummary = new Map();
+        reportRows.people.forEach(person => {
+          const groupName = String(person.payload.groupe || '').trim();
+          if (!groupName || (groupFilter && groupName.toLocaleLowerCase('fr') !== groupFilter)) return;
+          const summary = groupSummary.get(groupName) || { total: 0, pending: 0, pendingNames: [], unreminded: 0, unremindedNames: [] };
+          summary.total += 1;
+          if (!reportsByMember.has(String(person.record_id))) {
+            summary.pending += 1;
+            summary.pendingNames.push(formatMemberName(person.payload));
+            if (!reminderStatuses.get(String(person.record_id))?.reminderSent) {
+              summary.unreminded += 1;
+              summary.unremindedNames.push(formatMemberName(person.payload));
+            }
+          }
+          groupSummary.set(groupName, summary);
+        });
+        groupSummary.forEach(summary => {
+          summary.pendingNames.sort((left, right) => left.localeCompare(right, 'fr', { sensitivity: 'base' }));
+          summary.unremindedNames.sort((left, right) => left.localeCompare(right, 'fr', { sensitivity: 'base' }));
+        });
+
+        const queue = [];
+        const managerMessages = new Map();
+        reportRows.groupLeaders.forEach(row => {
+          const groupName = String(row.payload.group || '').trim();
+          const summary = groupSummary.get(groupName);
+          if (!summary?.unreminded) return;
+          ['leaderId', 'adjointId'].forEach(field => {
+            const manager = peopleById.get(String(row.payload[field] || ''));
+            const phone = normalizePhone(manager?.payload.telephone);
+            if (!manager || !phone) return;
+            const key = phone;
+            const groups = managerMessages.get(key) || { manager, phone, groups: [] };
+            if (!groups.groups.some(item => item.groupName.toLocaleLowerCase('fr') === groupName.toLocaleLowerCase('fr'))) {
+              groups.groups.push({ groupName, ...summary });
+            }
+            managerMessages.set(key, groups);
+          });
+        });
+        managerMessages.forEach(({ manager, phone, groups }) => {
+          const groupDetails = groups.map(item =>
+            `${item.groupName} : ${item.total - item.pending}/${item.total} rapport(s) remis, ${item.pending} en attente\n`
+              + `Proclamateurs n’ayant pas encore reçu le rappel :\n${item.unremindedNames.map((name, index) => `${index + 1}) ${name}`).join('\n')}`
+          ).join('\n');
+          queue.push({
+            name: formatMemberName(manager.payload),
+            phone,
+            message: `${politeOpening(manager.payload)} ${formatMemberName(manager.payload)}, nous espérons que vous vous portez bien, ainsi que votre famille. Nous vous contactons au sujet du bilan des rapports pour ${reportMonthLabel(monthKey())} :\n${groupDetails}\nMerci de contacter courtoisement les proclamateurs concernés et de les encourager à transmettre leur rapport. ${politeClosing}`,
+          });
+        });
+
+        reportRows.people
+          .filter(person => (!groupFilter || String(person.payload.groupe || '').trim().toLocaleLowerCase('fr') === groupFilter)
+            && !reportsByMember.has(String(person.record_id))
+            && !reminderStatuses.get(String(person.record_id))?.reminderSent)
+          .forEach(person => {
+            const phone = normalizePhone(person.payload.telephone);
+            if (!phone) return;
+            queue.push({
+              name: formatMemberName(person.payload),
+              phone,
+              proclamateurId: String(person.record_id),
+              message: reportReminderMessage(person),
+            });
+          });
+        return queue;
+      }
+
+      function openNextManualWhatsapp() {
+        if (manualWhatsappCurrent || manualWhatsappIndex >= manualWhatsappQueue.length) return;
+        manualWhatsappCurrent = manualWhatsappQueue[manualWhatsappIndex];
+        const opened = openWhatsappMessage(manualWhatsappCurrent);
+        updateManualWhatsappProgress(manualWhatsappCurrent, opened);
+      }
+
+      function updateManualWhatsappProgress(recipient, opened) {
+        const remaining = manualWhatsappQueue.length - manualWhatsappIndex;
+        $('manualWhatsappNextBtn').hidden = false;
+        $('manualWhatsappNextBtn').textContent = `J’ai envoyé le message — continuer (${remaining - 1} restant(s))`;
+        const status = $('manualWhatsappStatus');
+        const blockedLink = opened ? null : status.querySelector('a');
+        status.replaceChildren(document.createTextNode(
+          `${opened ? '' : 'Le navigateur a bloqué l’ouverture automatique. Utilisez le lien ci-dessous. '}`
+          + `Conversation ${manualWhatsappIndex + 1} sur ${manualWhatsappQueue.length} préparée pour ${recipient.name}. Envoyez le message dans WhatsApp, puis confirmez ici pour mettre à jour le suivi.`
+        ));
+        if (blockedLink) status.appendChild(blockedLink);
+      }
+
+      function prepareManualWhatsappReminders() {
+        if (!isSecretary()) return;
+        manualWhatsappQueue = buildManualWhatsappQueue();
+        manualWhatsappIndex = 0;
+        manualWhatsappCurrent = null;
+        $('manualWhatsappNextBtn').hidden = true;
+        if (!manualWhatsappQueue.length) {
+          $('manualWhatsappStatus').textContent = 'Aucun destinataire avec un numéro valide n’attend actuellement un rappel.';
+          return;
+        }
+        $('manualWhatsappStatus').textContent = `${manualWhatsappQueue.length} message(s) préparé(s) pour les responsables, adjoints et proclamateurs qui n’ont pas encore reçu de rappel. Chaque envoi manuel doit être confirmé ici après l’envoi dans WhatsApp.`;
+        $('manualWhatsappNextBtn').textContent = `Ouvrir le prochain message WhatsApp (${manualWhatsappQueue.length} restant(s))`;
+        $('manualWhatsappNextBtn').hidden = false;
+        openNextManualWhatsapp();
+      }
+
+      async function handleManualWhatsappQueueAction() {
+        if (!manualWhatsappCurrent) {
+          openNextManualWhatsapp();
+          return;
+        }
+        const recipient = manualWhatsappCurrent;
+        const button = $('manualWhatsappNextBtn');
+        button.disabled = true;
+        if (recipient.proclamateurId) {
+          const { error } = await client.rpc('record_manual_assembly_report_reminder', {
+            target_assembly_id: assemblyId,
+            target_month: monthKey(),
+            target_proclamateur_id: recipient.proclamateurId
+          });
+          if (error) {
+            button.disabled = false;
+            return showError($('manualWhatsappStatus'), error);
+          }
+          reminderStatuses.set(recipient.proclamateurId, { reminderSent: true });
+        }
+        manualWhatsappIndex += 1;
+        manualWhatsappCurrent = null;
+        button.disabled = false;
+        renderReportStatus();
+        if (manualWhatsappIndex >= manualWhatsappQueue.length) {
+          button.hidden = true;
+          $('manualWhatsappStatus').textContent = 'Merci. Le suivi des rappels WhatsApp est à jour.';
+          return;
+        }
+        button.textContent = `Ouvrir le prochain message WhatsApp (${manualWhatsappQueue.length - manualWhatsappIndex} restant(s))`;
+        $('manualWhatsappStatus').textContent = `Envoi confirmé pour ${recipient.name}. Continuez avec le prochain destinataire.`;
+      }
+
+      async function loadManagerGroups() {
+        if (!client || !assemblyId || !access?.proclamateurId || isSecretary()) return;
+        const { data, error } = await client.rpc('get_my_assembly_report_groups', {
+          target_assembly_id: assemblyId,
+          target_month: $('managerReportMonth').value
+        });
+        if (error) return showError($('managerReportStatus'), error);
+        managerGroups = Array.isArray(data) ? data : [];
+        $('managerPanel').hidden = managerGroups.length === 0;
+        const select = $('managerReportGroup');
+        const previous = select.value;
+        select.replaceChildren();
+        managerGroups.forEach(item => {
+          const option = document.createElement('option');
+          option.value = item.group;
+          option.textContent = item.group;
+          select.appendChild(option);
+        });
+        if (managerGroups.some(item => item.group === previous)) select.value = previous;
+        await renderManagerStatus();
+      }
+
+      async function renderManagerStatus() {
+        const group = managerGroups.find(item => item.group === $('managerReportGroup').value);
+        const status = $('managerReportStatus');
+        if (!group) {
+          status.textContent = 'Aucun groupe n’est associé à votre compte comme responsable ou adjoint.';
+          $('managerSendReminderBtn').disabled = true;
+          return;
+        }
+        status.className = group.pending ? 'alert alert-warning py-2' : 'alert alert-success py-2';
+        status.textContent = `${group.group} — ${group.submitted} rapport(s) remis sur ${group.total} · ${group.pending} en attente.`
+          + (group.triggeredAt ? ' Un rappel a déjà été déclenché par un responsable ou son adjoint.' : '');
+        $('managerSendReminderBtn').disabled = !group.pending || kinshasaDay() < 3;
+        $('managerSendReminderBtn').textContent = kinshasaDay() < 3
+          ? 'Rappel disponible à partir du 3'
+          : group.pending
+            ? `Rappeler les ${group.pending} retardataire(s) de mon groupe`
+            : 'Tous les rapports sont reçus';
+      }
+
+      async function sendManagerReminders() {
+        const group = $('managerReportGroup').value;
+        if (!group || kinshasaDay() < 3) return;
+        const button = $('managerSendReminderBtn');
+        button.disabled = true;
+        button.textContent = 'Envoi en cours…';
+        const { data, error } = await client.rpc('send_assembly_report_reminders', {
+          target_assembly_id: assemblyId,
+          target_month: $('managerReportMonth').value,
+          target_group: group
+        });
+        if (error) {
+          showError($('managerReportStatus'), error);
+          button.disabled = false;
+          return;
+        }
+        const { data: whatsapp, error: whatsappError } = await client.functions.invoke('send-whatsapp-report-reminders', {
+          body: {
+            assemblyId,
+            month: $('managerReportMonth').value,
+            group,
+            reminderKind: 'manager'
+          }
+        });
+        const whatsappResult = whatsappError
+          ? ` WhatsApp : ${whatsappError.message}.`
+          : ` WhatsApp : ${whatsapp?.sent || 0} envoyé(s), ${whatsapp?.skipped || 0} ignoré(s) (accord WhatsApp absent, numéro manquant ou rappel déjà envoyé).`;
+        $('managerReportStatus').textContent = `Rappels dans l’application envoyés à ${data?.proclamateurs || 0} proclamateur(s).${whatsappResult}`;
+        $('managerReportStatus').className = whatsappError ? 'alert alert-warning py-2' : 'alert alert-success py-2';
+        await Promise.all([loadManagerGroups(), loadMessages()]);
+      }
+
+      async function loadReportStatus() {
+        if (!isSecretary()) return;
+        const month = monthKey();
+        resetManualWhatsappQueue();
+        $('manualWhatsappBtn').disabled = true;
+        if (!/^\d{4}-\d{2}$/.test(month)) {
+          $('reportStatusMessage').textContent = 'Choisissez un mois valide.';
+          return;
+        }
+        $('reportStatusMessage').textContent = 'Chargement du suivi…';
+        $('sendReminderBtn').disabled = true;
+        const [peopleResult, reportsResult, leadersResult] = await Promise.all([
+          client.from('app_sync_records').select('record_id,payload').eq('assembly_id', assemblyId)
+            .eq('database_name', 'ProclamateursDB').eq('store_name', 'proclamateurs').is('deleted_at', null),
+          client.from('app_sync_records').select('record_id,payload').eq('assembly_id', assemblyId)
+            .eq('database_name', 'ProclamateursDB').eq('store_name', 'detailPredication').is('deleted_at', null)
+            .contains('payload', { month }),
+          client.from('app_sync_records').select('record_id,payload').eq('assembly_id', assemblyId)
+            .eq('database_name', 'ProclamateursDB').eq('store_name', 'groupLeaders').is('deleted_at', null)
+        ]);
+        if (peopleResult.error) return showError($('reportStatusMessage'), peopleResult.error);
+        if (reportsResult.error) return showError($('reportStatusMessage'), reportsResult.error);
+        if (leadersResult.error) return showError($('reportStatusMessage'), leadersResult.error);
+        const { data: secretaryPhone, error: secretaryContactError } = await client.rpc('get_assembly_secretary_contact', {
+          target_assembly_id: assemblyId
+        });
+        if (secretaryContactError) return showError($('reportStatusMessage'), secretaryContactError);
+        const { data: reminderStatus, error: reminderStatusError } = await client.rpc('get_assembly_report_reminder_status', {
+          target_assembly_id: assemblyId,
+          target_month: month,
+          target_group: null
+        });
+        if (reminderStatusError) return showError($('reportStatusMessage'), reminderStatusError);
+        reminderStatuses = new Map((Array.isArray(reminderStatus) ? reminderStatus : [])
+          .map(item => [String(item.proclamateurId), { reminderSent: Boolean(item.reminderSent) }]));
+        reportRows = {
+          people: peopleResult.data || [],
+          reports: reportsResult.data || [],
+          groupLeaders: leadersResult.data || [],
+          secretaryPhone: String(secretaryPhone || '').trim()
+        };
+        const { data: groupStatuses, error: groupStatusError } = await client.rpc('get_my_assembly_report_groups', {
+          target_assembly_id: assemblyId,
+          target_month: month
+        });
+        if (groupStatusError) return showError($('reportStatusMessage'), groupStatusError);
+        const statusRows = Array.isArray(groupStatuses) ? groupStatuses : [];
+        const groupsWithoutReminder = statusRows
+          .filter(item => item.pending > 0 && !item.triggeredAt)
+          .map(item => item.group);
+        $('managerReminderStatus').textContent = statusRows.length
+          ? `Suivi responsables/adjoints : ${statusRows.filter(item => item.pending === 0).length} groupe(s) terminé(s), ${statusRows.filter(item => item.pending > 0 && item.triggeredAt).length} groupe(s) avec rappel déclenché, ${groupsWithoutReminder.length} groupe(s) sans rappel déclenché${groupsWithoutReminder.length ? ` (${groupsWithoutReminder.join(', ')})` : ''}.`
+          : '';
+        const previousGroup = selectedGroup();
+        const groups = [...new Set((isSecretary()
+          ? reportRows.people.map(row => String(row.payload.groupe || '').trim()).filter(Boolean)
+          : statusRows.map(item => item.group)))]
+          .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
+        $('reportGroup').replaceChildren();
+        const allGroups = document.createElement('option');
+        allGroups.value = '';
+        allGroups.textContent = 'Tous les groupes';
+        $('reportGroup').appendChild(allGroups);
+        groups.forEach(groupName => {
+          const option = document.createElement('option');
+          option.value = groupName;
+          option.textContent = groupName;
+          $('reportGroup').appendChild(option);
+        });
+        $('reportGroup').value = groups.includes(previousGroup) ? previousGroup : '';
+        renderReportStatus();
+      }
+
+      async function sendReminders() {
+        if (!isSecretary()) return;
+        if (!secretaryCanSend()) {
+          $('reportStatusMessage').textContent = 'Le rappel du secrétariat est disponible à partir du 5 du mois.';
+          $('reportStatusMessage').className = 'alert alert-warning py-2';
+          return;
+        }
+        const button = $('sendReminderBtn');
+        button.disabled = true;
+        button.textContent = 'Envoi en cours…';
+        const { data, error } = await client.rpc('send_assembly_report_reminders', {
+          target_assembly_id: assemblyId,
+          target_month: monthKey(),
+          target_group: selectedGroup() || null
+        });
+        if (error) {
+          showError($('reportStatusMessage'), error);
+          button.disabled = false;
+          return;
+        }
+        const { data: whatsapp, error: whatsappError } = await client.functions.invoke('send-whatsapp-report-reminders', {
+          body: {
+            assemblyId,
+            month: monthKey(),
+            group: selectedGroup() || null,
+            reminderKind: kinshasaDay() >= 10 ? 'secretary-follow-up' : 'secretary'
+          }
+        });
+        const whatsappSummary = whatsappError
+          ? ` WhatsApp : l’envoi a échoué (${whatsappError.message}).`
+          : ` WhatsApp : ${whatsapp?.sent || 0} envoyé(s), ${whatsapp?.skipped || 0} ignoré(s) (pas de consentement, de numéro ou rappel déjà envoyé), ${whatsapp?.failed || 0} échec(s).`;
+        $('reportStatusMessage').textContent = `Rappels dans l’application : ${data?.proclamateurs || 0} proclamateur(s) en retard et ${data?.responsables || 0} responsable(s)/adjoint(s) averti(s).${whatsappSummary}`;
+        $('reportStatusMessage').className = whatsappError || whatsapp?.failed ? 'alert alert-warning py-2' : 'alert alert-success py-2';
+        await Promise.all([loadReportStatus(), loadMessages()]);
+      }
+
+      function subscribeRealtime() {
+        if (!client || !assemblyId) return;
+        inboxChannel = client.channel(`inbox-page-${assemblyId}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'assembly_inbox_messages', filter: `assembly_id=eq.${assemblyId}` }, () => loadMessages())
+          .subscribe();
+        if (isSecretary()) {
+          reportChannel = client.channel(`inbox-reports-${assemblyId}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'app_sync_records', filter: `assembly_id=eq.${assemblyId}` }, payload => {
+              if (['proclamateurs', 'detailPredication'].includes(payload.new?.store_name)) {
+                loadReportStatus();
+                loadMessages();
+              }
+            })
+            .subscribe();
+        }
+      }
+
+      function initialize() {
+        access = window.appAuthAccess?.getCached?.() || access;
+        $('reportMonth').value = defaultReportMonth();
+        $('managerReportMonth').value = defaultReportMonth();
+        $('secretaryPanel').hidden = !isSecretary();
+        $('refreshInboxBtn').addEventListener('click', loadMessages);
+        $('loadReportStatusBtn').addEventListener('click', loadReportStatus);
+        $('reportMonth').addEventListener('change', loadReportStatus);
+        $('reportGroup').addEventListener('change', () => {
+          resetManualWhatsappQueue();
+          renderReportStatus();
+        });
+        $('managerReportMonth').addEventListener('change', loadManagerGroups);
+        $('managerReportGroup').addEventListener('change', renderManagerStatus);
+        $('managerLoadStatusBtn').addEventListener('click', loadManagerGroups);
+        $('managerSendReminderBtn').addEventListener('click', sendManagerReminders);
+        $('sendReminderBtn').addEventListener('click', sendReminders);
+        $('manualWhatsappBtn').addEventListener('click', prepareManualWhatsappReminders);
+        $('manualWhatsappNextBtn').addEventListener('click', handleManualWhatsappQueueAction);
+        $('saveWhatsappConsentBtn').addEventListener('click', saveWhatsappConsent);
+        window.addEventListener('app-access-ready', event => {
+          access = event.detail || access;
+          $('secretaryPanel').hidden = !isSecretary();
+          loadWhatsappConsent();
+          if (isSecretary()) loadReportStatus();
+          else loadManagerGroups();
+        });
+        subscribeRealtime();
+        loadWhatsappConsent();
+        loadMessages();
+        if (isSecretary()) loadReportStatus();
+        else loadManagerGroups();
+      }
+
+      window.addEventListener('DOMContentLoaded', initialize);
+    })();
+  </script>
+</body>
+</html>

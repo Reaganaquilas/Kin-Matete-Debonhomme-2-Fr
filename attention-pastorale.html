@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attention pastorale</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+  <link rel="stylesheet" href="app-theme.css">
+  <style>
+    :root { --primary: #214b63; --border: #d9e1e6; --text: #243746; --muted: #687984; }
+    body { margin: 0; background: #f1f4f6; color: var(--text); font-family: "Manrope", "Segoe UI", sans-serif; }
+    .sidebar { min-height: 100vh; padding: 28px 18px; background: #172f3d; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 12px; background: var(--primary); color: #fff; font-size: 1.25rem; font-weight: 800; }
+    .brand-name { color: #fff; font-size: 1.05rem; font-weight: 800; }
+    .brand-caption { color: rgba(255,255,255,.55); font-size: .7rem; letter-spacing: .08em; text-transform: uppercase; }
+    .menu-label { margin: 0 12px 10px; color: rgba(255,255,255,.42); font-size: .66rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    .sidebar-menu { display: grid; gap: 5px; }
+    .sidebar-menu a { display: block; padding: 11px 13px; border-radius: 9px; color: rgba(255,255,255,.68); font-weight: 700; text-decoration: none; }
+    .sidebar-menu a:hover, .sidebar-menu a.active { background: rgba(255,255,255,.14); color: #fff; }
+    .content-area { padding: 32px clamp(16px, 3vw, 42px); }
+    .page-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .user-info { color: var(--muted); font-size: .82rem; }
+    .status-table { font-size: .88rem; }
+    .status-table th { background: #f3f8ff; color: #344054; white-space: nowrap; }
+    .status-table td { vertical-align: top; }
+    .empty-state { padding: 2rem; color: #64748b; }
+    .category-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px; border: 1px solid var(--border); border-radius: 12px; background: #f8fafb; }
+    .category-tabs.has-active { margin-bottom: 18px; }
+    .category-tab { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 10px 14px; border: 1px solid var(--border); border-radius: 9px; background: #fff; color: var(--text); font-size: .78rem; font-weight: 600; line-height: 1.3; text-align: left; }
+    .category-tab.active { border-color: var(--primary); background: #eaf1f4; color: var(--primary); }
+    .category-panel { display: none; }
+    .category-panel.active { display: block; }
+    .status-list { padding: 18px; border: 1px solid var(--border); border-radius: 12px; background: #fff; box-shadow: 0 8px 18px rgba(15,23,42,.04); }
+    .pdf-report { position: absolute; left: -10000px; top: 0; display: block; width: 180mm; padding: 12mm; background: #fff; color: #111827; font-family: Arial, sans-serif; }
+    .pdf-report h1 { font-size: 20px; text-align: center; }
+    .pdf-report table { width: 100%; border-collapse: collapse; font-size: 9px; }
+    .pdf-report th, .pdf-report td { padding: 5px; border: 1px solid #94a3b8; text-align: left; }
+    @media (max-width: 767px) { .sidebar { min-height: auto; padding: 16px; } .content-area { padding: 18px 12px; } }
+    @media (max-width: 576px) { .page-heading { align-items: flex-start; flex-direction: column; } .category-tabs { grid-template-columns: 1fr; } }
+  </style>
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <nav class="col-md-3 col-lg-2 sidebar">
+        <div class="d-flex align-items-center gap-3 mb-5">
+          <div class="brand-mark">DB</div><div><div class="brand-name">KIN MATETE</div><div class="brand-caption">Espace de suivi</div></div>
+        </div>
+        <div class="menu-label">Navigation</div>
+        <div class="sidebar-menu">
+          <a href="index.html">Accueil</a>
+          <a data-page="proclamateurs" href="Proclamateurs.html">Proclamateurs</a>
+          <a data-access-feature="pdf:allgroups" href="groupes.html">Les groupes de prédication</a>
+          <a data-page="rapports" href="Rapports.html">Rapports</a>
+          <a class="active" data-access-feature="rapports:attention" href="attention-pastorale.html">Attention pastorale</a>
+          <a data-page="programmation" href="Programmation.html">Programmation</a>
+          <a data-page="souscription" href="Souscription.html">Souscription</a>
+          <a data-page="assistance" href="assistance.html">Assistance aux Réunions</a>
+          <a data-page="pdf" href="pdf.html">Fichiers PDF</a>
+          <a href="connexion.html">Déconnexion</a>
+        </div>
+      </nav>
+      <main class="col-md-9 col-lg-10 content-area" data-access-feature="rapports:attention">
+        <div class="page-heading">
+          <div><div class="text-uppercase small fw-bold text-primary">Suivi</div><h1 class="h2 mb-0">Attention pastorale</h1></div>
+          <div class="d-flex align-items-center flex-wrap justify-content-end gap-3">
+            <a class="btn btn-outline-primary" href="pionnier_encourager.html" target="_blank" rel="noopener">Pionniers à encourager</a>
+            <span class="user-info" id="userInfo">Utilisateur connecté</span>
+          </div>
+        </div>
+        <section class="card p-3 mb-4">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-3"><label class="form-label" for="periodType">Période</label><select id="periodType" class="form-select"><option value="month">Mois précis</option><option value="last3">3 derniers mois</option><option value="last6">6 derniers mois</option><option value="serviceYear">Année de service</option></select></div>
+            <div class="col-md-3" id="monthWrapper"><label class="form-label" for="monthPicker">Mois sélectionné</label><input id="monthPicker" type="month" class="form-control"></div>
+            <div class="col-md-3 d-none" id="endMonthWrapper"><label class="form-label" for="endMonthPicker">Fin de période</label><input id="endMonthPicker" type="month" class="form-control"></div>
+            <div class="col-md-3 d-none" id="serviceYearWrapper"><label class="form-label" for="serviceYearSelect">Année de service</label><select id="serviceYearSelect" class="form-select"></select></div>
+            <div class="col-md-3"><button id="refreshBtn" type="button" class="btn btn-primary w-100">Mettre à jour</button></div>
+          </div>
+          <div id="periodLabel" class="small text-muted mt-3"></div>
+        </section>
+        <section class="card p-3">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+            <div><h2 class="h5 mb-1">Proclamateurs à suivre</h2><p class="text-muted small mb-0">Choisissez une catégorie pour afficher les proclamateurs concernés.</p></div>
+            <button id="exportStatusPdfBtn" type="button" class="btn btn-outline-primary">Enregistrer en PDF</button>
+          </div>
+          <div id="loadStatus" class="small text-muted mb-2" role="status" aria-live="polite">Chargement des données…</div>
+          <div id="statusLists"></div>
+        </section>
+        <div id="pdfReport" class="pdf-report"></div>
+      </main>
+    </div>
+  </div>
+  <script>
+    const $ = id => document.getElementById(id);
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthKey = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let proclamateurs = [];
+    let reports = [];
+    let groupLeaders = [];
+    let submittedReportKeys = new Set();
+    const escapeHtml = value => String(value || '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character]));
+    const memberName = member => [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ') || member.id;
+    const memberFullName = member => [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+    const dateFromMonth = key => { const [year, month] = key.split('-').map(Number); return new Date(year, month - 1, 1); };
+    const monthKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    function normalizeIdentityName(value) { return String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/gi, '').toLowerCase(); }
+    function canonicalIdentityName(value) {
+      const normalized = normalizeIdentityName(value);
+      const alias = identityAliases.find(([oldName, newName]) => oldName !== newName && [oldName, newName].some(name => normalizeIdentityName(name) === normalized));
+      return normalizeIdentityName(alias ? alias[1] : value);
+    }
+    const identityAliases = [
+      ['KALOMBO ESTHER', 'KALOMBO NGOYA ESTHER'], ['KALOMBO REGINE', 'KALOMBO KAPINGA REGINE'],
+      ['KALOMBO WYLLIANA', 'KALOMBO KAPINGA WYLLIANA'], ['KALOMBO ALICE', 'KALOMBO TSHINGUTA ALICE'],
+      ['KALOMBO SHITA ANGELA', 'KALOMBO MBOMBO ANGELA'], ['MBO ISAAC', 'MBO NSUKA ISAAC'],
+      ['SUKASUKA KAPILA DORCAS', 'SUKASUKA KAPILA REBECCA'], ['KALOMBO NZAJI NORBERT', 'KALOMBO NZAJI NORBY'],
+      ['KIKWAMA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCASY'], ['BUABUA SEYA STEPHANE', 'SEYA STEPHANE'],
+      ['MBONGO STEVE', 'MBONGO SHITA STEVE'], ['BUABUA SEYA GLORY', 'SEYA GLORY'],
+      ['LONGOMBE PLK', 'LONGOMBE KANZA PATRICK PLK'], ['MUKWESO DELLY', 'MUKWESO PONIA DELLY'],
+      ['MANSWA ARMAND', 'MANSWA ARMAND ARMAND'], ['MASWA ARMAND ARMAND', 'MANSWA ARMAND ARMAND'],
+      ['KIKWAMA MBWELEKA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS'],
+      ['KIKWAMA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS']
+    ];
+    function monthsBetween(start, end) {
+      const result = [];
+      const cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+      while (cursor <= end) { result.push(monthKey(cursor)); cursor.setMonth(cursor.getMonth() + 1); }
+      return result;
+    }
+    function selectedRange() {
+      const type = $('periodType').value;
+      if (type === 'serviceYear') {
+        const year = Number($('serviceYearSelect').value);
+        return { start: new Date(year - 1, 8, 1), end: new Date(year, 7, 31) };
+      }
+      const endKey = type === 'month' ? ($('monthPicker').value || currentMonthKey) : ($('endMonthPicker').value || currentMonthKey);
+      const endDate = dateFromMonth(endKey);
+      const start = new Date(endDate);
+      if (type === 'last3') start.setMonth(start.getMonth() - 2);
+      if (type === 'last6') start.setMonth(start.getMonth() - 5);
+      return { start, end: new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0) };
+    }
+    function rebuildSubmittedIndex() {
+      submittedReportKeys = new Set();
+      const membersById = new Map(proclamateurs.map(member => [String(member.id).trim(), member]));
+      reports.forEach(record => {
+        if (!['yes', 'oui', 'true', '1'].includes(String(record.aprecher || '').trim().toLowerCase())) return;
+        const month = String(record.month || '').trim();
+        if (!month) return;
+        const member = membersById.get(String(record.proclamateurId || '').trim());
+        if (member) submittedReportKeys.add(`id:${String(member.id).trim()}|${month}`);
+        const name = member ? memberFullName(member) : record.nom;
+        if (name) submittedReportKeys.add(`name:${canonicalIdentityName(name)}|${month}`);
+      });
+    }
+    function reportWasSubmitted(member, key) {
+      return submittedReportKeys.has(`id:${String(member.id).trim()}|${key}`) ||
+        submittedReportKeys.has(`name:${canonicalIdentityName(memberFullName(member))}|${key}`);
+    }
+    function longestNoRun(member, keys) {
+      let current = 0, longest = 0;
+      keys.forEach(key => { current = reportWasSubmitted(member, key) ? 0 : current + 1; longest = Math.max(longest, current); });
+      return longest;
+    }
+    function groupLeader(member) {
+      return groupLeaders.find(item => String(item.group || '').trim().toLocaleLowerCase('fr') === String(member.groupe || '').trim().toLocaleLowerCase('fr'))?.leaderName || 'Non défini';
+    }
+    function formatMonth(key) {
+      const [year, month] = key.split('-').map(Number);
+      return new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    }
+    function missingMonths(member, keys) { return keys.filter(key => !reportWasSubmitted(member, key)).map(formatMonth).join(', ') || '-'; }
+    function sortMembers(members) {
+      return members.slice().sort((a, b) =>
+        String(a.groupe || '').localeCompare(String(b.groupe || ''), 'fr', { numeric: true, sensitivity: 'base' }) ||
+        memberName(a).localeCompare(memberName(b), 'fr', { sensitivity: 'base' })
+      );
+    }
+    function statusTable(members, keys, emptyText) {
+      if (!members.length) return `<div class="empty-state">${emptyText}</div>`;
+      const rows = sortMembers(members).map(member => `<tr><td>${escapeHtml(memberName(member))}<br><small class="text-muted">${escapeHtml(member.id)}</small></td><td>${escapeHtml(member.groupe || '-')}</td><td>${escapeHtml(groupLeader(member))}</td><td>${escapeHtml(member.telephone || '-')}</td><td>${escapeHtml(missingMonths(member, keys))}</td></tr>`).join('');
+      return `<div class="table-responsive"><table class="table table-sm table-striped status-table mb-0"><thead><tr><th>Nom</th><th>Groupe</th><th>Responsable</th><th>Téléphone</th><th>Mois sans OUI</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    function renderStatusLists(inactiveMembers, irregularMembers, tendingIrregularMembers, tendingInactiveMembers, keys, periodLabel) {
+      const categories = [
+        { key: 'inactive', label: 'Proclamateurs inactifs', count: inactiveMembers.length, table: statusTable(inactiveMembers, keys, 'Aucun proclamateur inactif pour cette période.'), subtitle: 'exactement 6 mois consécutifs' },
+        { key: 'irregular', label: 'Proclamateurs irréguliers', count: irregularMembers.length, table: statusTable(irregularMembers, keys, 'Aucun proclamateur irrégulier pour cette période.'), subtitle: 'exactement 3 mois consécutifs' },
+        { key: 'tendingIrregular', label: 'Proclamateurs qui tendent à devenir irréguliers', count: tendingIrregularMembers.length, table: statusTable(tendingIrregularMembers, keys, 'Aucun proclamateur dans cette catégorie.'), subtitle: 'exactement 2 mois consécutifs' },
+        { key: 'tendingInactive', label: 'Proclamateurs qui tendent à devenir inactifs', count: tendingInactiveMembers.length, table: statusTable(tendingInactiveMembers, keys, 'Aucun proclamateur dans cette catégorie.'), subtitle: '4 ou 5 mois consécutifs' }
+      ];
+      $('statusLists').innerHTML = `<div class="category-tabs">${categories.map(({ key, label, count }) => `<button type="button" class="category-tab" data-category="${key}" aria-pressed="false">${label}<span class="badge bg-light text-dark">${count}</span></button>`).join('')}</div>
+        <div class="tab-panels">${categories.map(({ key, label, table, subtitle, count }) => `<div class="category-panel" data-panel="${key}"><div class="status-list"><h3 class="h6 text-primary">${label} (${subtitle}) : ${count}</h3>${table}</div></div>`).join('')}</div>`;
+      const tabs = [...$('statusLists').querySelectorAll('.category-tab')];
+      const panels = [...$('statusLists').querySelectorAll('.category-panel')];
+      tabs.forEach(tab => tab.addEventListener('click', () => {
+        tabs.forEach(item => {
+          const active = item === tab;
+          item.classList.toggle('active', active);
+          item.setAttribute('aria-pressed', String(active));
+        });
+        panels.forEach(panel => panel.classList.toggle('active', panel.dataset.panel === tab.dataset.category));
+        $('statusLists').querySelector('.category-tabs').classList.add('has-active');
+      }));
+      $('pdfReport').innerHTML = `<h1>ASSEMBLÉE LOCALE DE MATETE DE BONHOMME 2 FRANÇAIS (55954)</h1><h2>Liste des proclamateurs à suivre</h2><p>Période : ${escapeHtml(periodLabel)}</p>${categories.map(({ label, table, subtitle, count }) => `<h3>${label} (${subtitle}) : ${count}</h3>${table}`).join('')}`;
+    }
+    function render() {
+      const range = selectedRange();
+      const keys = monthsBetween(range.start, range.end).filter(key => key <= currentMonthKey);
+      const historyEnd = new Date(range.end.getFullYear(), range.end.getMonth(), 1);
+      const historyStart = new Date(historyEnd);
+      historyStart.setMonth(historyStart.getMonth() - 5);
+      const serviceYearEnd = historyEnd.getMonth() >= 8 ? historyEnd.getFullYear() + 1 : historyEnd.getFullYear();
+      const serviceStart = new Date(serviceYearEnd - 1, 8, 1);
+      if (historyStart < serviceStart) historyStart.setTime(serviceStart.getTime());
+      const statusKeys = $('periodType').value === 'month' ? monthsBetween(historyStart, historyEnd).filter(key => key <= currentMonthKey) : keys;
+      const inactive = proclamateurs.filter(member => longestNoRun(member, statusKeys) === 6);
+      const irregular = proclamateurs.filter(member => longestNoRun(member, statusKeys) === 3);
+      const tendingIrregular = proclamateurs.filter(member => longestNoRun(member, statusKeys) === 2);
+      const tendingInactive = proclamateurs.filter(member => [4, 5].includes(longestNoRun(member, statusKeys)));
+      $('periodLabel').textContent = `Période analysée : ${range.start.toLocaleDateString('fr-FR')} au ${range.end.toLocaleDateString('fr-FR')}`;
+      renderStatusLists(inactive, irregular, tendingIrregular, tendingInactive, statusKeys, $('periodLabel').textContent.replace('Période analysée : ', ''));
+    }
+    function updatePeriodInputs() {
+      const type = $('periodType').value;
+      $('monthWrapper').classList.toggle('d-none', type !== 'month');
+      $('endMonthWrapper').classList.toggle('d-none', type !== 'last3' && type !== 'last6');
+      $('serviceYearWrapper').classList.toggle('d-none', type !== 'serviceYear');
+      render();
+    }
+    async function loadData() {
+      let database;
+      try {
+        database = await new Promise((resolve, reject) => {
+          const request = indexedDB.open('ProclamateursDB', 5);
+          request.onupgradeneeded = event => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains('proclamateurs')) db.createObjectStore('proclamateurs', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('detailPredication')) db.createObjectStore('detailPredication', { keyPath: 'id' });
+            if (!db.objectStoreNames.contains('pionniersAuxiliaire')) db.createObjectStore('pionniersAuxiliaire', { keyPath: 'proclamateurId' });
+            if (!db.objectStoreNames.contains('permanentCandidatures')) db.createObjectStore('permanentCandidatures', { keyPath: 'proclamateurId' });
+            if (!db.objectStoreNames.contains('groupLeaders')) db.createObjectStore('groupLeaders', { keyPath: 'group' });
+          };
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error || new Error('Impossible d’ouvrir la base des proclamateurs.'));
+          request.onblocked = () => reject(new Error('La base des proclamateurs est utilisée par une autre page.'));
+        });
+        const read = store => new Promise((resolve, reject) => {
+          if (!database.objectStoreNames.contains(store)) { resolve([]); return; }
+          const request = database.transaction(store, 'readonly').objectStore(store).getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error || new Error(`Impossible de lire ${store}.`));
+        });
+        [proclamateurs, reports, groupLeaders] = await Promise.all([read('proclamateurs'), read('detailPredication'), read('groupLeaders')]);
+        rebuildSubmittedIndex();
+        $('loadStatus').textContent = '';
+        render();
+      } catch (error) {
+        $('loadStatus').textContent = error.message || 'Impossible de charger les données de suivi.';
+        console.error('Échec du chargement des données d’attention pastorale :', error);
+      } finally {
+        database?.close();
+      }
+    }
+    async function exportStatusPdf() {
+      const suffix = $('periodType').value === 'serviceYear' ? `annee-service-${$('serviceYearSelect').value}` :
+        $('periodType').value === 'month' ? $('monthPicker').value : `${$('periodType').value}-${$('endMonthPicker').value}`;
+      const clone = $('pdfReport').cloneNode(true);
+      clone.style.position = 'static';
+      clone.style.left = 'auto';
+      clone.style.width = '180mm';
+      document.body.appendChild(clone);
+      try {
+        await html2pdf().set({ margin: 10, filename: `proclamateurs-a-suivre-${suffix}.pdf`, image: { type: 'jpeg', quality: .98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(clone).save();
+      } catch (error) {
+        $('loadStatus').textContent = `Échec de la création du PDF : ${error.message || error}`;
+        console.error('Échec de l’export PDF de l’attention pastorale :', error);
+      } finally {
+        clone.remove();
+      }
+    }
+    $('periodType').addEventListener('change', updatePeriodInputs);
+    $('refreshBtn').addEventListener('click', render);
+    $('exportStatusPdfBtn').addEventListener('click', exportStatusPdf);
+    window.addEventListener('DOMContentLoaded', () => {
+      $('monthPicker').value = currentMonthKey;
+      $('endMonthPicker').value = currentMonthKey;
+      for (let year = currentYear - 3; year <= currentYear + 1; year += 1) $('serviceYearSelect').add(new Option(`${year} (1 sept. ${year - 1} - 31 août ${year})`, year));
+      $('serviceYearSelect').value = currentYear;
+      loadData();
+    }, { once: true });
+  </script>
+</body>
+</html>

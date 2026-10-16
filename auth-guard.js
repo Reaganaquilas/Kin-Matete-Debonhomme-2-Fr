@@ -2,7 +2,10 @@
   const pageNames = {
     'index.html': 'home',
     'Proclamateurs.html': 'proclamateurs',
+    'groupes.html': 'pdf:allgroups',
     'Rapports.html': 'rapports',
+    'Messagerie.html': 'rapports',
+    'attention-pastorale.html': 'rapports:attention',
     'Programmation.html': 'programmation',
     'Souscription.html': 'souscription',
     'assistance.html': 'assistance',
@@ -52,7 +55,8 @@
   }
 
   function hasPageAccess(access, page) {
-    return ['owner', 'coordinateur', 'secretaire'].includes(access.role) || access.pages.some(item => item === page || item.startsWith(`${page}:`));
+    const parent = page.split(':')[0];
+    return ['owner', 'coordinateur', 'secretaire'].includes(access.role) || access.pages.some(item => item === page || item === parent || item.startsWith(`${page}:`));
   }
 
   function showAccessStatus(access) {
@@ -79,12 +83,12 @@
   async function loadAccess(userId) {
     const assemblyId = window.appAuth.config.assemblyId;
     const { data: membership, error: membershipError } = await window.appAuth.client
-      .from('assembly_memberships').select('role').eq('assembly_id', assemblyId).eq('user_id', userId).maybeSingle();
+      .from('assembly_memberships').select('role,proclamateur_id').eq('assembly_id', assemblyId).eq('user_id', userId).maybeSingle();
     if (membershipError || !membership) return null;
     const { data: permissions, error: permissionsError } = await window.appAuth.client
       .from('assembly_page_permissions').select('page_key').eq('assembly_id', assemblyId).eq('user_id', userId);
     if (permissionsError) throw permissionsError;
-    return { role: membership.role, pages: (permissions || []).map(item => item.page_key) };
+    return { role: membership.role, pages: (permissions || []).map(item => item.page_key), proclamateurId: membership.proclamateur_id || '' };
   }
 
   async function requestAccess() {

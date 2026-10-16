@@ -364,7 +364,11 @@
     request.onsuccess = event => {
       db = event.target.result;
       updateSortHeaders();
-      getAllProclamateurs(items => mergeLegacyIdentityRecords(items, refreshAllLists));
+      getAllProclamateurs(items => mergeLegacyIdentityRecords(items, () => {
+        refreshAllLists();
+        const requestedId = new URLSearchParams(window.location.search).get('proclamateurId');
+        if (requestedId) editProclamateur(requestedId);
+      }));
     };
 
     request.onblocked = () => {

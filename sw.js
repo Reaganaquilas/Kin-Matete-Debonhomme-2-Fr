@@ -1,7 +1,8 @@
-const CACHE_NAME = 'assemblee-cache-v3';
+const CACHE_NAME = 'assemblee-cache-v5';
 const APP_SHELL = [
   './',
   './index.html',
+  './Messagerie.html',
   './connexion.html',
   './auth-config.js',
   './auth-guard.js',

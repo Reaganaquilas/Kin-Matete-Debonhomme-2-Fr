@@ -137,6 +137,57 @@
       font-size: 0.75rem;
       font-weight: 700;
     }
+    .report-entry-modal .modal-content {
+      border: 0;
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: 0 24px 70px rgba(15, 35, 50, 0.28);
+    }
+    .report-entry-modal .modal-dialog {
+      max-width: 500px;
+    }
+    .report-entry-modal .modal-header {
+      border: 0;
+      padding: 1rem 1.25rem;
+      background: linear-gradient(135deg, #172f3d, #28617e);
+      color: #fff;
+    }
+    .report-entry-modal .modal-title {
+      color: #fff;
+      font-weight: 750;
+    }
+    .report-entry-modal .modal-body {
+      padding: 1rem;
+      background: #f7fafc;
+    }
+    .report-entry-modal .report-member-card {
+      border: 1px solid #dbe7ef;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .report-entry-modal .report-member-card h6 { color: #214b63; font-weight: 800; }
+    .report-entry-modal .report-member-meta { color: #687984; font-size: .82rem; }
+    .report-entry-modal .existing-report-notice {
+      border: 1px solid #b8dec8;
+      border-radius: 12px;
+      background: #f0faf4;
+      color: #215c3a;
+    }
+    .report-entry-modal .report-form-card {
+      border: 1px solid #e2eaf0;
+      border-radius: 16px;
+      box-shadow: 0 8px 22px rgba(20, 50, 70, 0.07);
+    }
+    .report-entry-modal .form-control,
+    .report-entry-modal .form-select {
+      min-height: 46px;
+      background-color: #fff;
+    }
+    .report-entry-modal .modal-footer {
+      border-color: #e7edf2;
+      padding: .75rem 1.25rem;
+      background: #fff;
+    }
   </style>
   <link rel="stylesheet" href="app-theme.css">
   <script src="vendor/supabase.js"></script>
@@ -173,6 +224,7 @@
         <div class="tab-pane fade show active" id="details">
           <div class="card p-3">
             <h5 class="text-primary">Détails Prédication</h5>
+            <div id="reportAccessNotice" class="alert alert-info d-none" role="status"></div>
             <div class="row mb-3">
               <div class="col-md-6">
                 <p class="mb-2"><strong>Mois sélectionné :</strong> <span id="currentMonthLabel">--</span></p>
@@ -210,6 +262,11 @@
                 </div>
               </div>
             </div>
+            <section class="card p-3 mb-4" aria-labelledby="groupReportStatsTitle">
+              <h6 id="groupReportStatsTitle" class="text-primary mb-1">Statistiques des rapports par groupe</h6>
+              <p id="groupReportStatsPeriod" class="text-muted small mb-2"></p>
+              <div id="groupReportStats" aria-live="polite"></div>
+            </section>
             <div class="row mb-4">
               <div class="col-md-12">
                 <label class="form-label">Sélection</label>
@@ -228,6 +285,9 @@
                 </div>
               </div>
               <div class="mt-2 text-muted"><small id="detailGroupHelp">Sélectionnez un groupe pour afficher ses membres.</small></div>
+              <button type="button" id="startGroupReportBtn" class="btn btn-primary mt-3 d-none" onclick="startSelectedGroupReportBatch()">
+                Commencer la saisie du groupe
+              </button>
             </div>
 
             <div id="detailIndividualSearch" class="mb-4 d-none">
@@ -255,35 +315,50 @@
               </table>
             </div>
 
-            <div id="detailSelectedCard" class="card border-secondary mb-4 d-none"></div>
-
-            <div id="detailFormCard" class="card p-3 d-none">
-              <h6 class="text-primary">Détails du proclamateur</h6>
-              <div id="detailFormInfo" class="mb-3"></div>
-              <div class="row gy-3">
-                <div class="col-md-3">
-                  <label class="form-label">A précher</label>
-                  <select id="detailAprecher" class="form-select">
-                    <option value="yes">Oui</option>
-                    <option value="no">Non</option>
-                  </select>
+            <div class="modal fade report-entry-modal" id="detailEntryModal" tabindex="-1" aria-labelledby="detailEntryModalTitle" aria-hidden="true">
+              <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable report-entry-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <div>
+                      <h5 class="modal-title" id="detailEntryModalTitle">Saisie du rapport</h5>
+                      <div class="small text-white-50">Rapport de prédication · <span id="detailModalMonthLabel">--</span></div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Fermer" onclick="clearDetailSelection()"></button>
+                  </div>
+                  <div class="modal-body">
+                    <div id="detailSelectedCard" class="report-member-card mb-3 d-none"></div>
+                    <div id="existingReportNotice" class="existing-report-notice p-3 mb-3 d-none"></div>
+                    <div id="detailFormCard" class="report-form-card p-3 d-none">
+                      <h6 class="text-primary mb-3">Détails du rapport</h6>
+                      <div id="detailFormInfo" class="mb-3"></div>
+                      <div id="groupReportProgress" class="alert alert-info py-2" role="status"></div>
+                      <div class="row gy-3">
+                        <div class="col-md-3">
+                          <label class="form-label" for="detailAprecher">A prêché</label>
+                          <select id="detailAprecher" class="form-select">
+                            <option value="yes">Oui</option>
+                            <option value="no">Non</option>
+                          </select>
+                        </div>
+                        <div class="col-md-3">
+                          <label class="form-label" for="detailHeure">Heures</label>
+                          <input type="number" id="detailHeure" class="form-control" min="0" value="0">
+                        </div>
+                        <div class="col-md-4">
+                          <label class="form-label" for="detailCours">Cours / études bibliques</label>
+                          <input type="number" id="detailCours" class="form-control" min="0" value="0">
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="clearDetailSelection()">Annuler</button>
+                    <div>
+                      <button type="button" id="skipGroupReportBtn" class="btn btn-outline-primary me-2 d-none" onclick="skipGroupReport()">Passer au suivant →</button>
+                      <button type="button" id="saveDetailBtn" class="btn btn-success px-4" onclick="saveDetailRecord()">Enregistrer le rapport</button>
+                    </div>
+                  </div>
                 </div>
-                <div class="col-md-3">
-                  <label class="form-label">Heure</label>
-                  <input type="number" id="detailHeure" class="form-control" min="0" value="0">
-                </div>
-                <div class="col-md-3">
-                  <label class="form-label">Nbre Cours biblique</label>
-                  <input type="number" id="detailCours" class="form-control" min="0" value="0">
-                </div>
-                <div class="col-md-3 d-none" id="detailEtudesWrapper">
-                  <label class="form-label">Nombre d'étude biblique</label>
-                  <input type="number" id="detailEtudes" class="form-control" min="0" value="0">
-                </div>
-              </div>
-              <div class="mt-4">
-                <button type="button" class="btn btn-success me-2" onclick="saveDetailRecord()">Valider</button>
-                <button type="button" class="btn btn-secondary" onclick="clearDetailSelection()">Annuler</button>
               </div>
             </div>
 
@@ -296,10 +371,10 @@
                 <div class="table-responsive">
                   <table class="table table-sm table-striped mb-0">
                     <thead class="table-light">
-                      <tr><th>ID</th><th>Nom</th><th>Statut</th><th>A précher</th><th>Cours</th><th>Études</th><th>Heure</th><th></th></tr>
+                      <tr><th>ID</th><th>Nom</th><th>Statut</th><th>A précher</th><th>Cours / études</th><th>Heure</th><th></th></tr>
                     </thead>
                     <tbody id="detailRecordsBody">
-                      <tr><td colspan="8" class="text-center">Aucun enregistrement pour le mois courant.</td></tr>
+                      <tr><td colspan="7" class="text-center">Aucun enregistrement pour le mois courant.</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -622,12 +697,22 @@
 <script>
   let db;
   let proclamateurs = [];
+  let allProclamateurs = [];
   let paSubscriptions = [];
   let detailRecords = [];
+  let allDetailRecords = [];
+  let groupLeaders = [];
+  let reportAccess = null;
+  let reportScopeReady = false;
+  let canViewGroupReports = false;
+  let reportSyncRefreshTimer = null;
+  const reportSyncRefreshStores = new Set();
   let detailFilter = 'none';
   let detailGroup = '';
   let detailQuery = '';
   let detailSelected = null;
+  let groupReportBatch = null;
+  let detailSaveInProgress = false;
   let selectedDetailMonthKey = null;
   let multiMonthMode = false; // mode de saisie multi-mois
   let editOriginalRecordId = null; // track record being edited
@@ -715,6 +800,102 @@
     return db.transaction(name, mode).objectStore(name);
   }
 
+  function normalizeReportGroup(value) {
+    return String(value || '').trim().toLocaleLowerCase('fr');
+  }
+
+  function isUnrestrictedReportRole(role) {
+    return ['owner', 'coordinateur', 'secretaire', 'responsable_predication'].includes(role);
+  }
+
+  function isGroupManager(memberId, groupName) {
+    const groupKey = normalizeReportGroup(groupName);
+    return groupLeaders.some(item =>
+      normalizeReportGroup(item.group) === groupKey &&
+      [item.leaderId, item.adjointId].some(id => id && String(id) === String(memberId))
+    );
+  }
+
+  function canManageGroupReports(groupName) {
+    return isUnrestrictedReportRole(reportAccess?.role)
+      || isGroupManager(reportAccess?.proclamateurId, groupName);
+  }
+
+  function setReportAccessNotice(message, visible = true) {
+    const notice = document.getElementById('reportAccessNotice');
+    if (!notice) return;
+    notice.textContent = message;
+    notice.classList.toggle('d-none', !visible);
+  }
+
+  function updateReportTabVisibility(hasFullAccess) {
+    const groupTabs = new Set(['rapports:analyseAssemblee', 'rapports:groupe', 'rapports:proclamateurs']);
+    document.querySelectorAll('#rapportMenu [data-access-feature]').forEach(link => {
+      const feature = link.dataset.accessFeature;
+      const allowed = hasFullAccess || feature === 'rapports:details' || (canViewGroupReports && groupTabs.has(feature));
+      link.classList.toggle('d-none', !allowed);
+    });
+    const activeLink = document.querySelector('#rapportMenu .nav-link.active');
+    if (activeLink?.classList.contains('d-none')) {
+      document.querySelector('#rapportMenu [data-access-feature="rapports:details"]')?.click();
+    }
+    const statsSection = document.getElementById('groupReportStats')?.closest('section');
+    statsSection?.classList.toggle('d-none', !hasFullAccess && !canViewGroupReports);
+  }
+
+  function applyReportAccessScope() {
+    if (!reportScopeReady) return;
+    const fullAccess = isUnrestrictedReportRole(reportAccess?.role);
+    canViewGroupReports = fullAccess;
+    if (fullAccess) {
+      proclamateurs = allProclamateurs.slice();
+      detailRecords = allDetailRecords.slice();
+      setReportAccessNotice('', false);
+    } else {
+      const memberId = String(reportAccess?.proclamateurId || '');
+      const member = allProclamateurs.find(item => String(item.id) === memberId);
+      if (!member) {
+        proclamateurs = [];
+        detailRecords = [];
+        setReportAccessNotice('Votre compte doit être associé à votre fiche de proclamateur par le coordinateur ou le secrétaire avant de consulter ou saisir les rapports.');
+      } else {
+        const groupName = String(member.groupe || '').trim();
+        const managesGroup = Boolean(groupName && isGroupManager(memberId, groupName));
+        const canViewGroup = managesGroup || ['ancien', 'assistant'].includes(reportAccess.role);
+        canViewGroupReports = canViewGroup && Boolean(groupName);
+        const visibleMembers = canViewGroup && groupName
+          ? allProclamateurs.filter(item => normalizeReportGroup(item.groupe) === normalizeReportGroup(groupName))
+          : [member];
+        const visibleIds = new Set(visibleMembers.map(item => String(item.id)));
+        proclamateurs = visibleMembers;
+        detailRecords = allDetailRecords.filter(record => visibleIds.has(String(record.proclamateurId)));
+        setReportAccessNotice(
+          managesGroup
+            ? `Accès responsable : rapports du groupe « ${groupName} ».`
+            : canViewGroup
+              ? `Accès ancien/assistant : rapports du groupe « ${groupName} » uniquement.`
+              : `Accès personnel : seul votre rapport est visible.`
+        );
+      }
+    }
+    window.__PROCL_LIST = proclamateurs;
+    updateReportTabVisibility(fullAccess);
+  }
+
+  function canCreateReportFor(member) {
+    if (!member || !reportScopeReady) return false;
+    if (isUnrestrictedReportRole(reportAccess?.role)) return true;
+    const memberId = String(member.id);
+    if (memberId === String(reportAccess?.proclamateurId || '')) return true;
+    return isGroupManager(reportAccess?.proclamateurId, member.groupe);
+  }
+
+  function canManageMemberReport(member) {
+    if (!member || !reportScopeReady) return false;
+    if (isUnrestrictedReportRole(reportAccess?.role)) return true;
+    return isGroupManager(reportAccess?.proclamateurId, member.groupe);
+  }
+
   function normalizeIdentityName(value) {
     return String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
   }
@@ -784,6 +965,15 @@
 
   async function initializeReportPage() {
     await mergeLegacyReports();
+    reportAccess = window.appAuthAccess?.getCached() || null;
+    if (db.objectStoreNames.contains('groupLeaders')) {
+      groupLeaders = await new Promise((resolve, reject) => {
+        const request = getObjectStore('groupLeaders').getAll();
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => reject(request.error || new Error('Impossible de charger les responsables de groupe.'));
+      });
+    }
+    reportScopeReady = true;
     selectedDetailMonthKey = currentMonthKey;
     document.getElementById('currentMonthLabel').textContent = formatMonthKey(selectedDetailMonthKey);
     setSelectedDetailMonthValue(selectedDetailMonthKey);
@@ -806,12 +996,16 @@
     return `${months[Number(month) - 1]} ${year}`;
   }
 
+  function getReportCourseCount(record) {
+    return Math.max(Number(record.coursBiblique || 0), Number(record.etudesBibliques || 0));
+  }
+
   function loadProclamateurs() {
     const store = getObjectStore('proclamateurs');
     const request = store.getAll();
     request.onsuccess = () => {
-      proclamateurs = request.result || [];
-      window.__PROCL_LIST = proclamateurs;
+      allProclamateurs = request.result || [];
+      applyReportAccessScope();
       populateGroupSelect();
       populateSectionGroupSelects();
       refreshDetailList();
@@ -837,13 +1031,39 @@
     const store = getObjectStore('detailPredication');
     const request = store.getAll();
     request.onsuccess = () => {
-      detailRecords = request.result || [];
+      allDetailRecords = request.result || [];
+      applyReportAccessScope();
       renderDetailRecords(detailRecords);
       refreshAnalysisReport();
       refreshAllReports();
       updateStatsChart();
     };
     request.onerror = () => showToast('Impossible de charger les enregistrements de prédication.', 'danger');
+  }
+
+  function refreshReportDataAfterSync(event) {
+    const update = event.detail || {};
+    if (!db || update.database_name !== 'ProclamateursDB' || !['proclamateurs', 'detailPredication', 'groupLeaders'].includes(update.store_name)) return;
+    reportSyncRefreshStores.add(update.store_name);
+    window.clearTimeout(reportSyncRefreshTimer);
+    reportSyncRefreshTimer = window.setTimeout(() => {
+      const stores = new Set(reportSyncRefreshStores);
+      reportSyncRefreshStores.clear();
+      if (stores.has('proclamateurs')) loadProclamateurs();
+      if (stores.has('detailPredication')) loadDetailRecords();
+      if (stores.has('groupLeaders')) {
+        const request = getObjectStore('groupLeaders').getAll();
+        request.onsuccess = () => {
+          groupLeaders = request.result || [];
+          applyReportAccessScope();
+          populateGroupSelect();
+          refreshDetailList();
+          renderDetailRecords(detailRecords);
+          refreshAllReports();
+        };
+        request.onerror = () => showToast('Impossible de mettre à jour les responsables de groupe synchronisés.', 'danger');
+      }
+    }, 150);
   }
 
   function initializeChart() {
@@ -1049,7 +1269,7 @@
         const key = record.month;
         if (!months[key]) return;
         months[key].aprecher = months[key].aprecher || record.aprecher === 'yes';
-        months[key].cours += Number(record.coursBiblique || 0);
+        months[key].cours += getReportCourseCount(record);
         months[key].heures += Number(record.heures || 0);
       });
       const totalAprecher = Object.values(months).filter(m => m.aprecher).length;
@@ -1097,7 +1317,7 @@
         const key = record.month;
         if (!months[key]) return;
         months[key].aprecher = months[key].aprecher || record.aprecher === 'yes';
-        months[key].cours += Number(record.coursBiblique || 0);
+        months[key].cours += getReportCourseCount(record);
         months[key].heures += Number(record.heures || 0);
       });
 
@@ -1405,25 +1625,22 @@
           totalAprecher: 0,
           totalCours: 0,
           totalHeures: 0,
-          totalEtudes: 0,
           countMonths: 0
         };
       }
       const monthKey = `${record.month}`;
       if (!grouped[identityKey].months[monthKey]) {
-        grouped[identityKey].months[monthKey] = { aprecher: false, cours: 0, heures: 0, etudes: 0 };
+        grouped[identityKey].months[monthKey] = { aprecher: false, cours: 0, heures: 0 };
       }
       grouped[identityKey].months[monthKey].aprecher = grouped[identityKey].months[monthKey].aprecher || record.aprecher === 'yes';
-      grouped[identityKey].months[monthKey].cours += Number(record.coursBiblique || 0);
+      grouped[identityKey].months[monthKey].cours += getReportCourseCount(record);
       grouped[identityKey].months[monthKey].heures += Number(record.heures || 0);
-      grouped[identityKey].months[monthKey].etudes += Number(record.etudesBibliques || 0);
     });
     Object.values(grouped).forEach(item => {
       item.countMonths = Object.keys(item.months).length;
       item.totalAprecher = Object.values(item.months).filter(m => m.aprecher).length;
       item.totalCours = Object.values(item.months).reduce((sum, m) => sum + m.cours, 0);
       item.totalHeures = Object.values(item.months).reduce((sum, m) => sum + m.heures, 0);
-      item.totalEtudes = Object.values(item.months).reduce((sum, m) => sum + m.etudes, 0);
     });
     renderAnalysisReport(grouped, start, end);
   }
@@ -1463,6 +1680,14 @@
   }
 
   function selectDetailGroup(group) {
+    if (detailGroup !== group) {
+      groupReportBatch = null;
+      detailSelected = null;
+      document.getElementById('detailSelectedCard').classList.add('d-none');
+      document.getElementById('detailFormCard').classList.add('d-none');
+      document.getElementById('groupReportProgress').classList.add('d-none');
+      hideDetailEntryModal();
+    }
     detailFilter = 'group';
     detailGroup = group;
     document.getElementById('detailGroupSelect').value = group;
@@ -1476,6 +1701,10 @@
   }
 
   function setDetailFilter(filter) {
+    groupReportBatch = null;
+    detailSelected = null;
+    hideDetailEntryModal();
+    document.getElementById('groupReportProgress').classList.add('d-none');
     detailFilter = filter;
     detailQuery = '';
     detailGroup = '';
@@ -1490,14 +1719,19 @@
   }
 
   function clearDetailSelection() {
+    groupReportBatch = null;
     detailSelected = null;
     editOriginalRecordId = null;
-    detailGroup = '';
     detailQuery = '';
     document.getElementById('detailSearchInput').value = '';
-    document.getElementById('detailGroupSelect').value = '';
+    if (detailFilter !== 'group') {
+      detailGroup = '';
+      document.getElementById('detailGroupSelect').value = '';
+    }
     document.getElementById('detailSelectedCard').classList.add('d-none');
     document.getElementById('detailFormCard').classList.add('d-none');
+    document.getElementById('groupReportProgress').classList.add('d-none');
+    hideDetailEntryModal();
     if (detailFilter === 'group') {
       document.getElementById('detailGroupHelp').textContent = 'Sélectionnez un groupe pour afficher ses membres.';
     }
@@ -1507,6 +1741,8 @@
   function refreshDetailList() {
     detailQuery = document.getElementById('detailSearchInput') ? document.getElementById('detailSearchInput').value.trim().toLowerCase() : '';
     detailGroup = document.getElementById('detailGroupSelect') ? document.getElementById('detailGroupSelect').value : detailGroup;
+    renderGroupReportStatistics();
+    updateGroupReportStartButton();
     const helper = document.getElementById('detailGroupHelp');
     const listContainer = document.getElementById('detailListContainer');
     let list = [];
@@ -1531,6 +1767,112 @@
     renderDetailList(list);
   }
 
+  function updateGroupReportStartButton() {
+    const button = document.getElementById('startGroupReportBtn');
+    if (!button) return;
+    const canStart = detailFilter === 'group' && detailGroup
+      && canManageGroupReports(detailGroup);
+    button.classList.toggle('d-none', !canStart);
+    if (!canStart) return;
+    const groupMembers = proclamateurs.filter(item =>
+      (item.groupe || '').trim().toLocaleLowerCase('fr') === detailGroup.trim().toLocaleLowerCase('fr'));
+    const existingIds = getGroupReportIdsForMonth(groupMembers, selectedDetailMonthKey);
+    const pendingCount = groupMembers.filter(item => !existingIds.has(String(item.id))).length;
+    button.disabled = pendingCount === 0;
+    button.textContent = pendingCount
+      ? `Commencer la saisie du groupe (${pendingCount} rapport${pendingCount === 1 ? '' : 's'} à remplir)`
+      : `Tous les rapports de ${formatMonthKey(selectedDetailMonthKey)} sont déjà saisis`;
+  }
+
+  function startSelectedGroupReportBatch() {
+    if (!detailGroup || !canManageGroupReports(detailGroup)) {
+      showToast('Seul le responsable ou son adjoint peut saisir les rapports des autres membres du groupe.', 'warning');
+      return;
+    }
+    const groupMembers = proclamateurs
+      .filter(item => (item.groupe || '').trim().toLocaleLowerCase('fr') === detailGroup.trim().toLocaleLowerCase('fr'))
+      .sort((left, right) =>
+        `${left.nom || ''} ${left.postnom || ''} ${left.prenom || ''}`.localeCompare(
+          `${right.nom || ''} ${right.postnom || ''} ${right.prenom || ''}`,
+          'fr',
+          { sensitivity: 'base' }
+        ));
+    const existingIds = getGroupReportIdsForMonth(groupMembers, selectedDetailMonthKey);
+    const pendingMembers = groupMembers.filter(item => !existingIds.has(String(item.id)));
+    if (!pendingMembers.length) {
+      showToast(`Tous les rapports du groupe « ${detailGroup} » sont déjà saisis pour ${formatMonthKey(selectedDetailMonthKey)}.`, 'success');
+      return;
+    }
+    if (startGroupReportBatch(pendingMembers[0].id)) selectDetail(pendingMembers[0].id);
+  }
+
+  function renderGroupReportStatistics() {
+    const container = document.getElementById('groupReportStats');
+    const period = document.getElementById('groupReportStatsPeriod');
+    if (!container || !period) return;
+
+    period.textContent = `Période : ${formatMonthKey(selectedDetailMonthKey || currentMonthKey)}. Les groupes sont classés du moins au plus complet.`;
+    const groups = new Map();
+    const memberGroup = new Map();
+
+    proclamateurs.forEach(member => {
+      const name = String(member.groupe || '').trim();
+      if (!name) return;
+      const key = name.toLocaleLowerCase('fr');
+      if (!groups.has(key)) groups.set(key, { name, memberIds: new Set(), reportIds: new Set() });
+      const group = groups.get(key);
+      group.memberIds.add(String(member.id));
+      memberGroup.set(String(member.id), key);
+    });
+
+    detailRecords
+      .filter(record => record.month === (selectedDetailMonthKey || currentMonthKey))
+      .forEach(record => {
+        const key = memberGroup.get(String(record.proclamateurId));
+        const group = groups.get(key);
+        if (group) group.reportIds.add(String(record.proclamateurId));
+      });
+
+    const statistics = [...groups.values()]
+      .map(group => ({
+        ...group,
+        received: group.reportIds.size,
+        total: group.memberIds.size,
+        percentage: group.memberIds.size ? Math.round(group.reportIds.size / group.memberIds.size * 100) : 0
+      }))
+      .sort((a, b) => a.percentage - b.percentage || a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+
+    if (!statistics.length) {
+      container.innerHTML = '<p class="text-muted mb-0">Aucun groupe avec des proclamateurs n’a été trouvé.</p>';
+      return;
+    }
+
+    const lowest = statistics.find(group => group.percentage < 100);
+    const followUp = lowest
+      ? `<p class="alert alert-warning py-2 mb-3">À suivre en priorité : <strong>${escapeReportHtml(lowest.name)}</strong> (${lowest.received}/${lowest.total}, ${lowest.percentage} %).</p>`
+      : '<p class="alert alert-success py-2 mb-3">Tous les groupes ont remis leur rapport pour ce mois.</p>';
+    container.innerHTML = `${followUp}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead class="table-light"><tr><th>Groupe</th><th>Rapports reçus</th><th>Avancement</th></tr></thead>
+          <tbody>${statistics.map((group, index) => `
+            <tr class="${index === 0 && group.percentage < 100 ? 'table-warning' : ''}">
+              <th scope="row">${escapeReportHtml(group.name)}</th>
+              <td>${group.received} / ${group.total}</td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" role="progressbar" aria-label="Rapports reçus pour ${escapeReportHtml(group.name)}" aria-valuenow="${group.percentage}" aria-valuemin="0" aria-valuemax="100" style="height:0.65rem">
+                    <div class="progress-bar ${group.percentage < 50 ? 'bg-danger' : group.percentage < 100 ? 'bg-warning' : 'bg-success'}" style="width:${group.percentage}%"></div>
+                  </div>
+                  <span class="small">${group.percentage}%</span>
+                </div>
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  }
+
   function renderDetailList(items) {
     const body = document.getElementById('detailListBody');
     if (!items.length) {
@@ -1543,7 +1885,15 @@
     const activePAIds = paSubscriptions
       .filter(record => record.selectedMonths && record.selectedMonths.includes(selectedDetailMonthKey))
       .map(record => String(record.proclamateurId));
-    body.innerHTML = items.map(item => {
+    const collator = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
+    const orderedItems = items.slice().sort((left, right) => {
+      if (detailFilter === 'group') {
+        return getMemberFullName(left).localeCompare(getMemberFullName(right), 'fr', { sensitivity: 'base' });
+      }
+      const groupOrder = collator.compare(String(left.groupe || 'Sans groupe'), String(right.groupe || 'Sans groupe'));
+      return groupOrder || getMemberFullName(left).localeCompare(getMemberFullName(right), 'fr', { sensitivity: 'base' });
+    });
+    body.innerHTML = orderedItems.map(item => {
       const status = getProclamateurStatus(item, activePAIds);
       return `
         <tr>
@@ -1567,9 +1917,78 @@
     return 'Proclamateur';
   }
 
+  function getDetailReportForMember(memberId, month = selectedDetailMonthKey) {
+    return detailRecords.find(record =>
+      String(record.proclamateurId) === String(memberId) && record.month === month
+    ) || null;
+  }
+
+  function renderExistingReportNotice(record) {
+    const notice = document.getElementById('existingReportNotice');
+    notice.replaceChildren();
+    notice.classList.remove('d-none');
+
+    const title = document.createElement('h6');
+    title.className = 'mb-2';
+    title.textContent = `Rapport déjà saisi — ${formatMonthKey(record.month)}`;
+
+    const details = document.createElement('p');
+    details.className = 'small mb-3';
+    details.textContent = `A prêché : ${record.aprecher === 'yes' ? 'Oui' : 'Non'} · Cours / études bibliques : ${getReportCourseCount(record)}`
+      + (record.special
+        ? ` · Heures : ${Number(record.heures || 0)}`
+        : '');
+    notice.append(title, details);
+
+    if (canManageMemberReport(detailSelected)) {
+      const editButton = document.createElement('button');
+      editButton.type = 'button';
+      editButton.className = 'btn btn-sm btn-outline-success';
+      editButton.textContent = 'Modifier ce rapport';
+      editButton.addEventListener('click', () => beginEditDetailRecord(record));
+      notice.appendChild(editButton);
+    } else {
+      const permissionNote = document.createElement('p');
+      permissionNote.className = 'small text-muted mb-0';
+      permissionNote.textContent = 'La modification de ce rapport est réservée au responsable ou à son adjoint.';
+      notice.appendChild(permissionNote);
+    }
+  }
+
+  function beginEditDetailRecord(record) {
+    if (!detailSelected || !canManageMemberReport(detailSelected)) {
+      showToast('Seul le responsable ou son adjoint peut modifier ce rapport.', 'warning');
+      return;
+    }
+    editOriginalRecordId = record.id;
+    document.getElementById('detailAprecher').value = record.aprecher || 'no';
+    document.getElementById('detailHeure').value = Number(record.heures || 0);
+    document.getElementById('detailCours').value = getReportCourseCount(record);
+    document.getElementById('detailFormCard').classList.remove('d-none');
+    document.getElementById('saveDetailBtn').classList.remove('d-none');
+    document.getElementById('saveDetailBtn').textContent = 'Enregistrer les modifications';
+    showDetailEntryModal();
+  }
+
   function selectDetail(id) {
-    detailSelected = proclamateurs.find(item => String(item.id) === String(id)) || null;
+    const selectedMember = proclamateurs.find(item => String(item.id) === String(id));
+    const existingRecord = selectedMember ? getDetailReportForMember(selectedMember.id) : null;
+    const batchGroup = detailFilter === 'all'
+      ? String(selectedMember?.groupe || '').trim()
+      : detailGroup;
+    if (!existingRecord && !groupReportBatch && ['group', 'all'].includes(detailFilter) && batchGroup && !editOriginalRecordId
+      && canManageGroupReports(batchGroup)) {
+      if (detailFilter === 'all') detailGroup = batchGroup;
+      startSelectedGroupReportBatch();
+      return;
+    }
+    detailSelected = selectedMember || null;
     if (!detailSelected) return;
+    if (!canCreateReportFor(detailSelected)) {
+      detailSelected = null;
+      showToast('Vous pouvez saisir uniquement votre propre rapport, sauf si vous êtes responsable ou adjoint de ce groupe.', 'warning');
+      return;
+    }
     const card = document.getElementById('detailSelectedCard');
     const activePAIds = paSubscriptions
       .filter(record => record.selectedMonths && record.selectedMonths.includes(selectedDetailMonthKey))
@@ -1577,27 +1996,187 @@
     const isPermanent = ['Ancien PP', 'Assistant PP', 'PP'].includes(String(detailSelected.service || '').trim());
     const isAuxiliaire = ['PA', 'Ancien PA', 'Assistant PA'].includes(String(detailSelected.service || '').trim()) || activePAIds.includes(String(detailSelected.id));
     const isSpecial = isPermanent || isAuxiliaire;
-    const detailEtudesWrapper = document.getElementById('detailEtudesWrapper');
-    detailEtudesWrapper.classList.toggle('d-none', !isSpecial);
+    const progress = document.getElementById('groupReportProgress');
+    progress.classList.remove('d-none');
+    if (groupReportBatch) {
+      progress.textContent = `Mois : ${formatMonthKey(groupReportBatch.month)} · Groupe « ${groupReportBatch.group} » · Proclamateur ${groupReportBatch.completed + groupReportBatch.skipped + 1} sur ${groupReportBatch.total}.`;
+    } else {
+      progress.textContent = `Mois du rapport : ${formatMonthKey(selectedDetailMonthKey)}.`;
+    }
+    document.getElementById('detailModalMonthLabel').textContent = formatMonthKey(selectedDetailMonthKey);
+    document.getElementById('detailEntryModalTitle').textContent = groupReportBatch
+      ? `Saisie des rapports — ${groupReportBatch.group}`
+      : 'Saisie du rapport';
+    document.getElementById('skipGroupReportBtn').classList.toggle('d-none', !groupReportBatch);
+    document.getElementById('skipGroupReportBtn').textContent = groupReportBatch?.pendingIds.length
+      ? 'Passer au suivant →'
+      : 'Passer et terminer ce mois';
 
     document.getElementById('detailListContainer').classList.add('d-none');
     card.classList.remove('d-none');
-    card.innerHTML = `
-      <div class="card-body">
-        <h6 class="card-title">${detailSelected.nom} ${detailSelected.postnom} ${detailSelected.prenom}</h6>
-        <p><strong>ID :</strong> ${detailSelected.id}</p>
-        <p><strong>Sert comme :</strong> ${detailSelected.service || '-'}</p>
-        <p><strong>Groupe :</strong> ${detailSelected.groupe || '-'}</p>
-        <p><strong>Statut de PA :</strong> ${isAuxiliaire ? 'Actif ce mois' : 'Non actif'}</p>
-      </div>`;
+    card.replaceChildren();
+    const memberCardBody = document.createElement('div');
+    memberCardBody.className = 'p-3';
+    const memberTitle = document.createElement('h6');
+    memberTitle.className = 'mb-2';
+    memberTitle.textContent = getMemberFullName(detailSelected);
+    const memberMeta = document.createElement('div');
+    memberMeta.className = 'report-member-meta d-flex flex-wrap gap-2';
+    [
+      `ID : ${detailSelected.id}`,
+      `Groupe : ${detailSelected.groupe || '—'}`,
+      `Service : ${detailSelected.service || '—'}`,
+      `PA : ${isAuxiliaire ? 'Actif' : 'Non actif'}`
+    ].forEach(label => {
+      const badge = document.createElement('span');
+      badge.className = 'badge text-bg-light border';
+      badge.textContent = label;
+      memberMeta.appendChild(badge);
+    });
+    memberCardBody.append(memberTitle, memberMeta);
+    card.appendChild(memberCardBody);
     document.getElementById('detailFormCard').classList.remove('d-none');
-    document.getElementById('detailAprecher').value = 'yes';
-    document.getElementById('detailHeure').value = isSpecial ? 0 : '';
-    document.getElementById('detailCours').value = 0;
-    document.getElementById('detailEtudes').value = isSpecial ? 0 : 0;
+    const existingNotice = document.getElementById('existingReportNotice');
+    existingNotice.classList.add('d-none');
+    document.getElementById('saveDetailBtn').textContent = 'Enregistrer le rapport';
+    if (existingRecord && editOriginalRecordId !== existingRecord.id) {
+      document.getElementById('detailFormCard').classList.add('d-none');
+      document.getElementById('saveDetailBtn').classList.add('d-none');
+      renderExistingReportNotice(existingRecord);
+    } else {
+      existingNotice.replaceChildren();
+      existingNotice.classList.add('d-none');
+      document.getElementById('saveDetailBtn').classList.remove('d-none');
+      document.getElementById('detailAprecher').value = existingRecord?.aprecher || 'yes';
+      document.getElementById('detailHeure').value = existingRecord?.heures ?? (isSpecial ? 0 : '');
+      document.getElementById('detailCours').value = existingRecord ? getReportCourseCount(existingRecord) : 0;
+      if (existingRecord && editOriginalRecordId === existingRecord.id) {
+        document.getElementById('saveDetailBtn').textContent = 'Enregistrer les modifications';
+      }
+    }
+    showDetailEntryModal();
+  }
+
+  function startGroupReportBatch(id) {
+    if (!canManageGroupReports(detailGroup)) {
+      showToast('Seul le responsable ou son adjoint peut saisir les rapports des autres membres du groupe.', 'warning');
+      return false;
+    }
+    const groupMembers = proclamateurs
+      .filter(item => normalizeReportGroup(item.groupe) === normalizeReportGroup(detailGroup))
+      .sort((left, right) => getMemberFullName(left).localeCompare(getMemberFullName(right), 'fr', { sensitivity: 'base' }));
+    const selectedId = String(id);
+    const existingIds = getGroupReportIdsForMonth(groupMembers, selectedDetailMonthKey);
+    if (existingIds.has(selectedId)) {
+      showToast('Un rapport existe déjà pour ce proclamateur et ce mois. Utilisez « Modifier » dans les enregistrements de prédication.', 'warning');
+      return false;
+    }
+
+    const selectedIndex = groupMembers.findIndex(item => String(item.id) === selectedId);
+    if (selectedIndex < 0) return false;
+    const orderedMembers = groupMembers.slice(selectedIndex).concat(groupMembers.slice(0, selectedIndex));
+    const pendingIds = orderedMembers.map(item => String(item.id)).filter(memberId => !existingIds.has(memberId));
+    groupReportBatch = createGroupReportBatch(detailGroup, selectedDetailMonthKey, groupMembers.length, existingIds, pendingIds.slice(1));
+    return true;
+  }
+
+  function getGroupReportIdsForMonth(groupMembers, month) {
+    const memberIds = new Set(groupMembers.map(item => String(item.id)));
+    return new Set(detailRecords
+      .filter(record => record.month === month && memberIds.has(String(record.proclamateurId)))
+      .map(record => String(record.proclamateurId)));
+  }
+
+  function createGroupReportBatch(group, month, total, completedIds, pendingIds) {
+    return { group, month, total, completed: completedIds.size, skipped: 0, pendingIds };
+  }
+
+  function skipGroupReport() {
+    if (!groupReportBatch || detailSaveInProgress) return;
+    const batch = groupReportBatch;
+    batch.skipped += 1;
+    const nextId = batch.pendingIds.shift();
+    if (nextId) {
+      showToast(`Rapport de ${formatMonthKey(batch.month)} passé pour ce proclamateur. Passage au suivant.`, 'warning');
+      selectDetail(nextId);
+      return;
+    }
+    finishGroupReportBatch(batch);
+  }
+
+  function advanceGroupReportBatch(record, alreadySaved = false) {
+    if (!groupReportBatch) return false;
+    const batch = groupReportBatch;
+    batch.completed += 1;
+    if (record) {
+      detailRecords = detailRecords.filter(item =>
+        !(String(item.proclamateurId) === String(record.proclamateurId) && item.month === record.month)
+      );
+      detailRecords.push(record);
+      renderDetailRecords(detailRecords);
+    }
+
+    const nextId = batch.pendingIds.shift();
+    if (nextId) {
+      showToast(alreadySaved ? `Rapport de ${formatMonthKey(batch.month)} déjà saisi. Passage au proclamateur suivant.` : `Rapport de ${formatMonthKey(batch.month)} enregistré. Passage automatique au suivant.`, alreadySaved ? 'warning' : 'success');
+      selectDetail(nextId);
+      return true;
+    }
+
+    finishGroupReportBatch(batch);
+    return true;
+  }
+
+  function finishGroupReportBatch(batch) {
+    if (multiMonthMode) {
+      const nextMonth = nextMonthKey(batch.month);
+      setSelectedDetailMonthValue(nextMonth);
+      renderDetailRecords(detailRecords);
+      refreshDetailList();
+      const groupMembers = proclamateurs
+        .filter(item => normalizeReportGroup(item.groupe) === normalizeReportGroup(batch.group))
+        .sort((left, right) => getMemberFullName(left).localeCompare(getMemberFullName(right), 'fr', { sensitivity: 'base' }));
+      const completedIds = getGroupReportIdsForMonth(groupMembers, nextMonth);
+      const pendingIds = groupMembers.map(item => String(item.id)).filter(id => !completedIds.has(id));
+      if (pendingIds.length) {
+        groupReportBatch = createGroupReportBatch(batch.group, nextMonth, groupMembers.length, completedIds, pendingIds.slice(1));
+        const skippedText = batch.skipped ? ` ${batch.skipped} proclamateur(s) passé(s) sans rapport.` : '';
+        showToast(`Groupe « ${batch.group} » : parcours de ${formatMonthKey(batch.month)} terminé (${batch.completed}/${batch.total} rapport(s) saisi(s)).${skippedText} On passe à ${formatMonthKey(nextMonth)}.`, 'success');
+        selectDetail(pendingIds[0]);
+        return true;
+      }
+      groupReportBatch = null;
+      detailSelected = null;
+      document.getElementById('detailSelectedCard').classList.add('d-none');
+      document.getElementById('detailFormCard').classList.add('d-none');
+      document.getElementById('groupReportProgress').classList.add('d-none');
+      document.getElementById('skipGroupReportBtn').classList.add('d-none');
+      hideDetailEntryModal();
+      const skippedText = batch.skipped ? ` ${batch.skipped} proclamateur(s) passé(s) sans rapport.` : '';
+      showToast(`Groupe « ${batch.group} » : parcours de ${formatMonthKey(batch.month)} terminé (${batch.completed}/${batch.total} rapport(s) saisi(s)).${skippedText} ${formatMonthKey(nextMonth)} est déjà complet (${completedIds.size}/${groupMembers.length}).`, 'success');
+      return;
+    }
+
+    groupReportBatch = null;
+    detailSelected = null;
+    document.getElementById('detailSelectedCard').classList.add('d-none');
+    document.getElementById('detailFormCard').classList.add('d-none');
+    document.getElementById('groupReportProgress').classList.add('d-none');
+    document.getElementById('skipGroupReportBtn').classList.add('d-none');
+    hideDetailEntryModal();
+    refreshDetailList();
+    const skippedText = batch.skipped ? ` ${batch.skipped} proclamateur(s) passé(s) sans rapport.` : '';
+    showToast(`Groupe « ${batch.group} » : parcours de ${formatMonthKey(batch.month)} terminé (${batch.completed}/${batch.total} rapport(s) saisi(s)).${skippedText}`, 'success');
   }
 
   function onDetailMonthChange(monthKey) {
+    groupReportBatch = null;
+    detailSelected = null;
+    editOriginalRecordId = null;
+    document.getElementById('detailSelectedCard').classList.add('d-none');
+    document.getElementById('detailFormCard').classList.add('d-none');
+    document.getElementById('groupReportProgress').classList.add('d-none');
+    hideDetailEntryModal();
     selectedDetailMonthKey = monthKey || currentMonthKey;
     document.getElementById('currentMonthLabel').textContent = formatMonthKey(selectedDetailMonthKey);
     refreshDetailList();
@@ -1606,14 +2185,21 @@
 
   function getSelectedDetailMonthValue() {
     const select = document.getElementById('detailMonthSelect');
-    if (select && !select.classList.contains('d-none')) return select.value;
+    if (select && !select.classList.contains('d-none')) return select.value || selectedDetailMonthKey || currentMonthKey;
     const picker = document.getElementById('detailMonthPicker');
-    return (picker && picker.value) ? picker.value : currentMonthKey;
+    return (picker && picker.value) ? picker.value : (selectedDetailMonthKey || currentMonthKey);
   }
 
   function setSelectedDetailMonthValue(value) {
     const select = document.getElementById('detailMonthSelect');
     const picker = document.getElementById('detailMonthPicker');
+    const useServiceYear = document.getElementById('detailUseServiceYear')?.checked;
+    if (useServiceYear && select && !select.classList.contains('d-none') && !Array.from(select.options).some(option => option.value === value)) {
+      const serviceYear = computeServiceYearFromMonth(value);
+      document.getElementById('detailServiceYearSelect').value = String(serviceYear);
+      selectedDetailMonthKey = value;
+      applyServiceYearRangeToPicker(serviceYear);
+    }
     if (select && !select.classList.contains('d-none')) {
       select.value = value;
     } else if (picker) {
@@ -1727,6 +2313,19 @@
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
 
+  function getDetailEntryModal() {
+    const element = document.getElementById('detailEntryModal');
+    return element ? bootstrap.Modal.getOrCreateInstance(element) : null;
+  }
+
+  function showDetailEntryModal() {
+    getDetailEntryModal()?.show();
+  }
+
+  function hideDetailEntryModal() {
+    getDetailEntryModal()?.hide();
+  }
+
   function setMultiMonthMode(enabled) {
     multiMonthMode = !!enabled;
     const finishBtn = document.getElementById('multiMonthFinishBtn');
@@ -1748,14 +2347,25 @@
   }
 
   function saveDetailRecord() {
+    if (detailSaveInProgress) return;
     if (!detailSelected) {
       showToast('Aucun proclamateur sélectionné.', 'warning');
       return;
     }
+    if (editOriginalRecordId && !canManageMemberReport(detailSelected)) {
+      showToast('Seul le responsable ou son adjoint peut modifier un rapport déjà enregistré.', 'warning');
+      return;
+    }
+    if (!editOriginalRecordId && !canCreateReportFor(detailSelected)) {
+      showToast('Vous pouvez saisir uniquement votre propre rapport, sauf si vous êtes responsable ou adjoint de ce groupe.', 'warning');
+      return;
+    }
+    detailSaveInProgress = true;
+    const wasEditing = Boolean(editOriginalRecordId);
+    document.getElementById('saveDetailBtn').disabled = true;
     const aPrecher = document.getElementById('detailAprecher').value;
     const heure = Number(document.getElementById('detailHeure').value || 0);
     const cours = Number(document.getElementById('detailCours').value || 0);
-    const etudes = Number(document.getElementById('detailEtudes').value || 0);
     selectedDetailMonthKey = getSelectedDetailMonthValue() || currentMonthKey;
     document.getElementById('currentMonthLabel').textContent = formatMonthKey(selectedDetailMonthKey);
     const activePAIds = paSubscriptions
@@ -1774,7 +2384,7 @@
       aprecher: aPrecher,
       coursBiblique: cours,
       heures: isSpecial ? heure : 0,
-      etudesBibliques: isSpecial ? etudes : 0,
+      etudesBibliques: isSpecial ? cours : 0,
       special: isSpecial,
       updatedAt: new Date().toISOString()
     };
@@ -1788,12 +2398,16 @@
       );
       if (existingRecord) {
         showToast('Un rapport existe déjà pour ce proclamateur et ce mois. Utilisez « Modifier » dans les enregistrements de prédication.', 'warning');
+        detailSaveInProgress = false;
+        document.getElementById('saveDetailBtn').disabled = false;
+        if (groupReportBatch) advanceGroupReportBatch(null, true);
         return;
       }
 
       const request = store.put(record);
       request.onsuccess = () => {
-        showToast('Détails de prédication enregistrés.', 'success');
+        detailSaveInProgress = false;
+        document.getElementById('saveDetailBtn').disabled = false;
         if (editOriginalRecordId && editOriginalRecordId !== record.id) {
           try {
             const delStore = getObjectStore('detailPredication', 'readwrite');
@@ -1801,6 +2415,17 @@
           } catch (e) { /* ignore */ }
         }
         editOriginalRecordId = null;
+        if (wasEditing) {
+          clearDetailSelection();
+          loadDetailRecords();
+          showToast('Le rapport a été modifié avec succès.', 'success');
+          return;
+        }
+        if (advanceGroupReportBatch(record)) {
+          loadDetailRecords();
+          return;
+        }
+        showToast('Détails de prédication enregistrés.', 'success');
         if (multiMonthMode) {
           const old = selectedDetailMonthKey;
           const nxt = nextMonthKey(old || currentMonthKey);
@@ -1815,35 +2440,79 @@
           loadDetailRecords();
         }
       };
-      request.onerror = () => showToast('Impossible d’enregistrer le détail.', 'danger');
+      request.onerror = () => {
+        detailSaveInProgress = false;
+        document.getElementById('saveDetailBtn').disabled = false;
+        showToast('Impossible d’enregistrer le détail.', 'danger');
+      };
     };
-    existingRecordsRequest.onerror = () => showToast('Impossible de vérifier les rapports déjà enregistrés.', 'danger');
+    existingRecordsRequest.onerror = () => {
+      detailSaveInProgress = false;
+      document.getElementById('saveDetailBtn').disabled = false;
+      showToast('Impossible de vérifier les rapports déjà enregistrés.', 'danger');
+    };
   }
 
   function renderDetailRecords(records) {
+    renderGroupReportStatistics();
     const body = document.getElementById('detailRecordsBody');
-    const filtered = records.filter(record => record.month === selectedDetailMonthKey);
+    const filtered = records
+      .filter(record => record.month === selectedDetailMonthKey)
+      .map(record => {
+        const member = proclamateurs.find(item => String(item.id) === String(record.proclamateurId));
+        return {
+          ...record,
+          groupLabel: String(record.groupe || member?.groupe || 'Sans groupe').trim() || 'Sans groupe',
+          sortName: String(record.nom || [member?.nom, member?.postnom, member?.prenom].filter(Boolean).join(' ')).trim()
+        };
+      })
+      .sort((a, b) =>
+        a.groupLabel.localeCompare(b.groupLabel, 'fr', { sensitivity: 'base' }) ||
+        a.sortName.localeCompare(b.sortName, 'fr', { sensitivity: 'base' })
+      );
     if (!filtered.length) {
-      body.innerHTML = '<tr><td colspan="8" class="text-center">Aucun enregistrement pour le mois sélectionné.</td></tr>';
+      body.innerHTML = '<tr><td colspan="7" class="text-center">Aucun enregistrement pour le mois sélectionné.</td></tr>';
       return;
     }
-    body.innerHTML = filtered.map(record => `
-      <tr>
-        <td>${record.proclamateurId}</td>
-        <td>${record.nom}</td>
-        <td>${record.special ? (['Ancien PP', 'Assistant PP', 'PP'].includes(record.service) ? 'Pionnier Permanent' : 'Pionnier Auxiliaire') : 'Proclamateur'}</td>
-        <td>${record.aprecher === 'yes' ? 'Oui' : 'Non'}</td>
-        <td>${record.coursBiblique}</td>
-        <td>${record.special ? record.etudesBibliques : '-'}</td>
-        <td>${record.special ? record.heures : '-'}</td>
-        <td>
-          <button class="btn btn-sm btn-outline-primary me-1" type="button" onclick="editDetailRecord('${record.id}')">Modifier</button>
-          <button class="btn btn-sm btn-outline-danger" type="button" onclick="deleteDetailRecord('${record.id}')">Supprimer</button>
-        </td>
-      </tr>`).join('');
+    let previousGroup = null;
+    body.innerHTML = filtered.map(record => {
+      const groupHeader = record.groupLabel === previousGroup ? '' : `<tr class="table-secondary"><th colspan="7">Groupe : ${escapeReportHtml(record.groupLabel)}</th></tr>`;
+      previousGroup = record.groupLabel;
+      const member = proclamateurs.find(item => String(item.id) === String(record.proclamateurId));
+      const canManage = canManageMemberReport(member);
+      return `${groupHeader}
+        <tr>
+          <td>${escapeReportHtml(record.proclamateurId)}</td>
+          <td>${escapeReportHtml(record.sortName)}</td>
+          <td>${record.special ? (['Ancien PP', 'Assistant PP', 'PP'].includes(record.service) ? 'Pionnier Permanent' : 'Pionnier Auxiliaire') : 'Proclamateur'}</td>
+          <td>${record.aprecher === 'yes' ? 'Oui' : 'Non'}</td>
+          <td>${getReportCourseCount(record)}</td>
+          <td>${record.special ? record.heures : '-'}</td>
+          <td>
+            ${canManage ? `<button class="btn btn-sm btn-outline-primary me-1" type="button" onclick="editDetailRecord('${escapeReportHtml(record.id)}')">Modifier</button>
+            <button class="btn btn-sm btn-outline-danger" type="button" onclick="deleteDetailRecord('${escapeReportHtml(record.id)}')">Supprimer</button>` : '<span class="text-muted small">Lecture seule</span>'}
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function escapeReportHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, character => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    })[character]);
   }
 
   function deleteDetailRecord(id) {
+    const record = detailRecords.find(item => String(item.id) === String(id));
+    const member = record && proclamateurs.find(item => String(item.id) === String(record.proclamateurId));
+    if (!record || !canManageMemberReport(member)) {
+      showToast('Seul le responsable ou son adjoint peut supprimer ce rapport.', 'warning');
+      return;
+    }
     const store = getObjectStore('detailPredication', 'readwrite');
     const request = store.delete(id);
     request.onsuccess = () => {
@@ -1859,17 +2528,16 @@
     // find proclamateur
     const p = proclamateurs.find(pr => pr.id === rec.proclamateurId);
     if (!p) return showToast('Proclamateur introuvable.', 'warning');
-    detailSelected = p;
+    if (!canManageMemberReport(p)) return showToast('Seul le responsable ou son adjoint peut modifier ce rapport.', 'warning');
     editOriginalRecordId = rec.id;
+    selectedDetailMonthKey = rec.month || selectedDetailMonthKey || currentMonthKey;
+    setSelectedDetailMonthValue(selectedDetailMonthKey);
     // set up UI as if selected
     selectDetail(p.id);
     // populate form values from record
-    selectedDetailMonthKey = rec.month || selectedDetailMonthKey || currentMonthKey;
-    setSelectedDetailMonthValue(selectedDetailMonthKey);
     document.getElementById('detailAprecher').value = rec.aprecher || 'no';
     document.getElementById('detailHeure').value = rec.heures || 0;
-    document.getElementById('detailCours').value = rec.coursBiblique || 0;
-    document.getElementById('detailEtudes').value = rec.etudesBibliques || 0;
+    document.getElementById('detailCours').value = getReportCourseCount(rec);
     // show records for that month
     renderDetailRecords(detailRecords);
   }
@@ -1880,6 +2548,9 @@
     if (toastEl && toastBody) {
       toast = new bootstrap.Toast(toastEl, { delay: 3000 });
     }
+    document.getElementById('detailEntryModal')?.addEventListener('hidden.bs.modal', () => {
+      if (detailSelected) clearDetailSelection();
+    });
 
     const searchInput = document.getElementById('detailSearchInput');
     const groupSelect = document.getElementById('detailGroupSelect');
@@ -1906,6 +2577,15 @@
       });
     }
     openDatabase();
+  });
+  window.addEventListener('app-sync-updated', refreshReportDataAfterSync);
+  window.addEventListener('app-access-ready', event => {
+    reportAccess = event.detail || null;
+    if (!reportScopeReady) return;
+    applyReportAccessScope();
+    refreshDetailList();
+    renderDetailRecords(detailRecords);
+    refreshAllReports();
   });
 </script>
 </body>
