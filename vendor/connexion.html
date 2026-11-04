@@ -1,0 +1,305 @@
+﻿<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connexion</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="realtime-manager.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+  <style>
+    body {
+      background: #172f3d;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .login-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-card h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #214b63;
+      font-weight: 700;
+    }
+    .form-label { font-weight: 600; }
+    .btn-primary {
+      width: 100%;
+      font-weight: 600;
+      background-color: #214b63;
+      border: none;
+    }
+    .btn-primary:hover { background-color: #173b4e; }
+    .toggle-link {
+      display: block;
+      text-align: center;
+      margin-top: 15px;
+      cursor: pointer;
+      color: #214b63;
+      font-weight: 500;
+    }
+    .toggle-link[hidden] { display: none; }
+    .auth-status {
+      margin: 14px 0 0;
+      padding: 12px;
+      border: 1px solid #d6e0e5;
+      border-radius: 8px;
+      background: #f3f7f9;
+      color: #385363;
+      font-size: 0.82rem;
+      text-align: center;
+    }
+    .auth-status[hidden] { display: none; }
+    .auth-status[data-error="true"] {
+      border-color: #e0bcbc;
+      background: #fff3f3;
+      color: #7c2525;
+    }
+  </style>
+  <link rel="stylesheet" href="app-theme.css">
+</head>
+<body>
+
+<div class="login-card">
+  <h2 id="formTitle">Connexion</h2>
+  
+  <!-- Formulaire connexion -->
+  <form id="loginForm">
+    <div class="mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-control" id="loginEmail" autocomplete="username" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Mot de passe</label>
+      <input type="password" class="form-control" id="loginPassword" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Se connecter</button>
+  </form>
+
+  <!-- Formulaire inscription -->
+  <form id="registerForm" style="display:none;">
+    <div class="mb-3">
+      <label class="form-label" for="registerLastName">Nom</label>
+      <input type="text" class="form-control" id="registerLastName" autocomplete="family-name" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label" for="registerFirstName">Prénom</label>
+      <input type="text" class="form-control" id="registerFirstName" autocomplete="given-name" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-control" id="registerEmail" required>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Mot de passe</label>
+      <input type="password" class="form-control" id="registerPassword" required>
+    </div>
+    <button type="submit" class="btn btn-primary">S’inscrire</button>
+  </form>
+
+    <p id="authStatus" class="auth-status" role="status" aria-live="polite" hidden></p>
+  <span class="toggle-link" id="toggleForm" hidden>Créer un compte</span>
+</div>
+
+<script>
+  function getSupabaseClient() {
+    return window.appAuth?.client || null;
+  }
+
+  async function ensureAuthConfiguration() {
+    if (window.appAuth?.validate) {
+      const isConfigured = await window.appAuth.validate();
+      if (!isConfigured || !window.appAuth?.client) {
+        alert('Supabase n’est pas disponible dans cette session. L’application reste en mode local pendant que la configuration est inactive.');
+        return false;
+      }
+      return true;
+    }
+
+    const supabaseClient = getSupabaseClient();
+    if (supabaseClient && window.appAuth?.configured) return true;
+    alert('Supabase n’est pas disponible dans cette session. L’application reste en mode local pendant que la configuration est inactive.');
+    return false;
+  }
+
+  // Toggle entre connexion et inscription
+  const toggleLink = document.getElementById('toggleForm');
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const formTitle = document.getElementById('formTitle');
+  const authStatus = document.getElementById('authStatus');
+  const loginEmail = document.getElementById('loginEmail');
+  const loginPassword = document.getElementById('loginPassword');
+  const savedLoginEmailKey = 'assemblee-login-email';
+  const invitationToken = new URLSearchParams(window.location.search).get('invitation') || '';
+
+  function restoreLoginEmail() {
+    if (!loginEmail.value) loginEmail.value = localStorage.getItem(savedLoginEmailKey) || '';
+  }
+
+  restoreLoginEmail();
+  loginEmail.addEventListener('input', () => {
+    localStorage.setItem(savedLoginEmailKey, loginEmail.value);
+  });
+  loginPassword.addEventListener('focus', restoreLoginEmail);
+
+  function setAuthStatus(message, isError = false) {
+    authStatus.textContent = message;
+    authStatus.dataset.error = isError ? 'true' : 'false';
+    authStatus.hidden = !message;
+  }
+
+  toggleLink.addEventListener('click', () => {
+    if (loginForm.style.display === "none") {
+      loginForm.style.display = "block";
+      registerForm.style.display = "none";
+      formTitle.textContent = "Connexion";
+      toggleLink.textContent = "Créer un compte";
+    } else {
+      loginForm.style.display = "none";
+      registerForm.style.display = "block";
+      formTitle.textContent = "Inscription";
+      toggleLink.textContent = "Déjà inscrit ? Se connecter";
+    }
+  });
+
+  async function validateInvitation(email = '') {
+    if (!invitationToken) {
+      toggleLink.hidden = true;
+      registerForm.style.display = 'none';
+      setAuthStatus('Nouveau membre ? Ce lien ouvre seulement la connexion. Pour créer un compte, un responsable doit d’abord associer votre adresse e-mail à votre fiche de membre, puis vous transmettre votre lien personnel depuis « Gérer les accès » → « Inviter un membre effectif ». Le lien est lié à votre adresse, à usage unique et valable 7 jours.');
+      return false;
+    }
+    if (!(await ensureAuthConfiguration())) {
+      toggleLink.hidden = true;
+      return false;
+    }
+    let validation;
+    try {
+      validation = await getSupabaseClient().rpc('validate_assembly_member_invitation', {
+        target_token: invitationToken,
+        target_email: email.trim() || null
+      });
+    } catch (error) {
+      console.error('Vérification de l’invitation impossible :', error);
+      if (!email) {
+        toggleLink.hidden = true;
+        registerForm.style.display = 'none';
+      }
+      setAuthStatus(`Le serveur n’a pas pu vérifier l’invitation : ${error.message || error}. Contactez le responsable.`, true);
+      return false;
+    }
+    const { data, error } = validation;
+    if (error) {
+      if (!email) {
+        toggleLink.hidden = true;
+        registerForm.style.display = 'none';
+      }
+      console.error('Vérification de l’invitation refusée par Supabase :', error);
+      setAuthStatus(`Le serveur n’a pas pu vérifier l’invitation : ${error.message || 'erreur Supabase inconnue'}. Contactez le responsable.`, true);
+      return false;
+    }
+    if (!data?.valid) {
+      if (!email) {
+        toggleLink.hidden = true;
+        registerForm.style.display = 'none';
+      }
+      setAuthStatus(email
+        ? 'Le lien ne correspond pas à cette adresse e-mail. Vérifiez l’adresse communiquée par votre responsable.'
+        : 'Ce lien d’invitation est invalide, expiré ou déjà utilisé.', true);
+      return false;
+    }
+    toggleLink.hidden = false;
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'block';
+    formTitle.textContent = 'Créer mon compte';
+    toggleLink.textContent = 'Déjà inscrit ? Se connecter';
+    setAuthStatus('Invitation valide : créez votre compte pour accéder à l’application.');
+    return true;
+  }
+
+  // Connexion
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!(await ensureAuthConfiguration())) return;
+    const supabaseClient = getSupabaseClient();
+    if (!supabaseClient) {
+      setAuthStatus('Supabase est indisponible pour le moment. Réessayez plus tard.', true);
+      return;
+    }
+    restoreLoginEmail();
+    const email = loginEmail.value.trim();
+    const pass = loginPassword.value;
+    setAuthStatus('Connexion en cours...');
+
+    let result;
+    try {
+      result = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+    } catch (error) {
+      setAuthStatus('Une connexion Internet est nécessaire pour vérifier votre appartenance à l’assemblée.', true);
+      return;
+    }
+    const { data, error } = result;
+
+    if (error) {
+      setAuthStatus(/failed to fetch|network|fetch/i.test(error.message)
+        ? 'Une connexion Internet est nécessaire pour vérifier votre appartenance à l’assemblée.'
+        : 'Erreur de connexion : ' + error.message, true);
+    } else {
+      localStorage.setItem('assemblee-offline-email', email.trim().toLowerCase());
+      window.location.href = "index.html";
+    }
+  });
+
+  // Inscription
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('registerEmail').value.trim().toLowerCase();
+    if (!invitationToken || !(await validateInvitation(email))) return;
+    if (!(await ensureAuthConfiguration())) return;
+    const supabaseClient = getSupabaseClient();
+    if (!supabaseClient) {
+      setAuthStatus('Supabase est indisponible pour le moment. Réessayez plus tard.', true);
+      return;
+    }
+    const pass = document.getElementById('registerPassword').value;
+
+    const { data, error } = await supabaseClient.auth.signUp({
+      email,
+      password: pass,
+      options: {
+        data: {
+          nom: document.getElementById('registerLastName').value.trim(),
+          prenom: document.getElementById('registerFirstName').value.trim(),
+          assembly_invitation: invitationToken
+        }
+      }
+    });
+
+    if (error) {
+      setAuthStatus('Erreur d’inscription : ' + error.message, true);
+    } else {
+      setAuthStatus('Inscription reçue. Vérifiez votre courriel pour confirmer votre compte avant de vous connecter.');
+      // bascule vers connexion
+      loginForm.style.display = "block";
+      registerForm.style.display = "none";
+      formTitle.textContent = "Connexion";
+      toggleLink.textContent = "Créer un compte";
+      toggleLink.hidden = true;
+    }
+  });
+  validateInvitation();
+</script>
+
+</body>
+</html>

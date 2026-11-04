@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tableau de bord</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+  <style>
+    :root {
+      --primary: #214b63;
+      --primary-soft: #eef2f5;
+      --accent: #214b63;
+      --border: #d9e1e6;
+      --text: #243746;
+      --muted: #687984;
+      --bg: #f1f4f6;
+      --card: #ffffff;
+      --nav: #172f3d;
+      --shadow: 0 10px 24px rgba(31, 55, 68, 0.07);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Manrope", "Segoe UI", sans-serif;
+    }
+
+    .sidebar {
+      min-height: 100vh;
+      background: var(--nav);
+      padding: 28px 18px;
+      border-right: 1px solid rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .sidebar::after {
+      display: none;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 12px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 1.25rem;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .brand-name {
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .brand-caption {
+      color: rgba(255,255,255,0.55);
+      background: transparent;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .menu-label {
+      margin: 0 12px 14px;
+      color: rgba(255,255,255,0.42);
+      font-size: 0.66rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .sidebar-menu {
+      display: grid;
+      gap: 18px;
+    }
+    .sidebar-section {
+      display: grid;
+      gap: 4px;
+    }
+    .sidebar-section-label {
+      margin: 0 12px 3px;
+      color: rgba(255,255,255,0.42);
+      font-size: 0.62rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      line-height: 1.3;
+      text-transform: uppercase;
+    }
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      min-height: 42px;
+      color: rgba(255,255,255,0.68);
+      padding: 9px 12px;
+      border-radius: 9px;
+      border: 0 !important;
+      margin: 0;
+      font-size: 0.86rem;
+      font-weight: 650;
+      line-height: 1.35;
+      text-decoration: none !important;
+      box-shadow: none !important;
+      transition: 0.2s ease;
+    }
+
+    .sidebar a:hover {
+      background: rgba(255,255,255,0.09);
+      color: #fff;
+      transform: translateX(3px);
+    }
+
+    .sidebar a.active {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+      box-shadow: none !important;
+    }
+    .sidebar a.active::before {
+      content: "";
+      width: 3px;
+      height: 20px;
+      margin-left: -12px;
+      margin-right: 9px;
+      border-radius: 0 4px 4px 0;
+      background: #79c4d8;
+    }
+    .sidebar-logout {
+      margin-top: 8px !important;
+      padding-top: 14px !important;
+      border-top: 1px solid rgba(255,255,255,0.12) !important;
+      color: rgba(255,255,255,0.5) !important;
+    }
+    .sidebar-logout:hover { color: #fff !important; }
+    .sidebar a:focus-visible { outline: 2px solid rgba(255,255,255,0.75); outline-offset: 2px; }
+    .sidebar a.sidebar-sub-link {
+      margin: -4px 0 2px 14px;
+      padding: 7px 13px;
+      border-left: 2px solid rgba(255,255,255,0.24) !important;
+      border-radius: 0 8px 8px 0;
+      font-size: 0.88rem;
+    }
+
+    .main {
+      padding: 38px clamp(20px, 4vw, 56px);
+      max-width: 1500px;
+    }
+
+    .user-info {
+      position: absolute;
+      right: clamp(20px, 4vw, 56px);
+      top: 30px;
+      background: rgba(255,255,255,0.7);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 800;
+    }
+
+    .data-tools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.78);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .data-tools-statuses { display: flex; flex-wrap: wrap; gap: 4px 14px; min-width: 0; }
+    .data-tools-actions { display: flex; flex-wrap: wrap; gap: 8px; flex-shrink: 0; }
+    .data-tools-actions .btn { white-space: nowrap; }
+    .data-tools-status { margin: 0; color: var(--primary); font-size: 0.74rem; font-weight: 700; }
+    .access-admin { display:none; position:fixed; top:28px; right:28px; z-index:1100; width:min(680px, calc(100vw - 40px)); max-height:calc(100vh - 56px); overflow:auto; margin:0; border-top:4px solid var(--primary); box-shadow:0 22px 60px rgba(23,47,61,.25); }
+    .access-admin.is-visible { display:block; }
+    .access-admin-link { display:none !important; }
+    .access-admin-link.is-visible { display:block !important; }
+    .access-admin-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:end; }
+    .access-member-association { grid-column:1 / -1; }
+    .access-pages { display:flex; flex-wrap:wrap; gap:8px 16px; padding:10px 0 2px; }
+    .access-pages label { color:var(--text); font-size:.78rem; font-weight:700; }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: var(--shadow);
+    }
+
+    .hero-kicker {
+      color: var(--accent);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.13em;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+
+    .hero-title {
+      max-width: none;
+      margin: 0 0 24px;
+      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+      font-size: clamp(1rem, 2.55vw, 2.45rem);
+      font-weight: 700;
+      letter-spacing: 0.015em;
+      line-height: 1;
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .hero-title .text-muted { color: var(--muted) !important; font-weight: 600; }
+
+    .period-panel {
+      background: #fff;
+      border: 1px solid var(--border);
+      color: var(--text);
+      box-shadow: 0 8px 20px rgba(31, 55, 68, 0.05);
+    }
+
+    .period-panel .form-label {
+      color: var(--muted);
+      font-size: 0.73rem;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .period-panel .form-select,
+    .period-panel .form-control {
+      border: 1px solid var(--border);
+      background-color: #fff;
+      color: var(--text);
+    }
+
+    .period-panel .form-select option { color: var(--text); }
+    .period-panel .btn-primary { font-weight: 800; }
+    .period-panel #periodLabel { color: var(--muted) !important; font-size: 0.82rem; }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .home-group-members {
+      max-height: 220px;
+      overflow-y: auto;
+      padding-left: 1.25rem;
+      font-size: 0.82rem;
+    }
+
+    .home-groups-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .home-group-card, .home-groups-actions {
+      min-width: 0;
+      min-height: 150px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+    .home-group-card h3 { margin: 0; font-size: 1rem; }
+    .home-group-toggle { width: 100%; text-align: left; color: var(--primary); }
+    .home-group-details { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+    .home-groups-actions { display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+    #groupPrintArea { display: none; }
+
+    @media (max-width: 1100px) {
+      .home-groups-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 576px) {
+      .home-groups-grid { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      @page { size: A4 landscape; margin: 6mm; }
+      body.group-print-mode > * { display: none !important; }
+      body.group-print-mode #groupPrintArea {
+        display: block !important;
+        position: static;
+        padding: 0;
+        color: #111;
+        background: #fff;
+        font: 8pt/1.2 Arial, sans-serif;
+      }
+      .group-print-title { margin: 0 0 3mm; text-align: center; font-size: 13pt; }
+      .group-print-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-rows: repeat(2, 91mm);
+        gap: 2mm;
+      }
+      .group-print-card {
+        overflow: hidden;
+        padding: 2mm;
+        border: 0.3mm solid #555;
+        break-inside: avoid;
+      }
+      .group-print-card h3 { margin: 0 0 1.5mm; font-size: 9pt; }
+      .group-print-card p { margin: 0 0 1mm; }
+      .group-print-card ol { margin: 1mm 0 0; padding-left: 5mm; }
+      .group-print-statistics { width: 100%; border-collapse: collapse; font-size: 6.5pt; }
+      .group-print-statistics th, .group-print-statistics td {
+        padding: 1mm 0.5mm;
+        border: 0.2mm solid #777;
+        text-align: center;
+        overflow-wrap: anywhere;
+      }
+      .group-print-statistics th:first-child, .group-print-statistics td:first-child { text-align: left; }
+    }
+
+    .secondary-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin: 30px 0 16px;
+    }
+
+    .section-kicker {
+      color: var(--accent);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .section-heading h2 {
+      margin: 4px 0 0;
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .section-note {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-align: right;
+    }
+
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 20px;
+      box-shadow: 0 8px 20px rgba(31, 55, 68, 0.05);
+      min-height: 170px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card.featured {
+      border-top: 3px solid var(--primary);
+    }
+
+    .stat-card.compact {
+      min-height: 132px;
+    }
+
+    .meeting-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      background: #fff;
+      border-left: 3px solid var(--primary);
+    }
+
+    .meeting-card .stat-title {
+      margin-bottom: 8px;
+    }
+
+    .meeting-card .stat-value {
+      font-size: 2.3rem;
+    }
+
+    .meeting-symbol {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--primary);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .weekend .meeting-symbol {
+      color: var(--accent);
+    }
+
+    .stat-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.02em;
+      margin-bottom: 14px;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 2.15rem;
+      font-weight: 800;
+      line-height: 1.1;
+      color: var(--primary);
+    }
+
+    .stat-card.compact .stat-value {
+      font-size: 1.7rem;
+    }
+
+    .mini-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .mini-box {
+      background: transparent;
+      border: 0;
+      border-top: 1px solid var(--border);
+      border-radius: 0;
+      padding: 12px 0 0;
+    }
+
+    .mini-label {
+      font-size: 0.92rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    .mini-value {
+      margin-top: 8px;
+      font-size: 1.45rem;
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1.1;
+    }
+
+    .status-list {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.04);
+    }
+
+    #statusPanel {
+      padding: 26px;
+    }
+
+    .status-heading {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+    }
+
+    .status-heading h2 {
+      margin: 4px 0 0;
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+
+    .status-heading p {
+      max-width: 520px;
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .status-accent { color: var(--primary) !important; }
+
+    .status-table {
+      font-size: 0.88rem;
+    }
+
+    .status-table th {
+      background: #f3f8ff;
+      color: #344054;
+      white-space: nowrap;
+    }
+
+    .status-table td {
+      vertical-align: top;
+    }
+
+    .category-tabs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px;
+      margin-bottom: 0;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #f8fafb;
+    }
+
+    #statusLists.has-active-category .category-tabs {
+      margin-bottom: 18px;
+    }
+
+    .category-tab {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 48px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      border-radius: 9px;
+      padding: 10px 14px;
+      font-family: "Manrope", "Segoe UI", sans-serif;
+      font-weight: 600;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      text-align: left;
+      transition: 0.2s ease;
+    }
+
+    .category-tab:hover {
+      border-color: #9eb4c0;
+      color: var(--primary);
+    }
+
+    .category-tab.active {
+      background: #eaf1f4;
+      border-color: var(--primary);
+      color: var(--primary);
+      box-shadow: none;
+    }
+
+    .category-tab .badge {
+      flex: 0 0 auto;
+      padding: 4px 7px;
+      background: #f1f4f6 !important;
+      color: var(--primary) !important;
+      font-weight: 700;
+    }
+
+    .category-tab.active .badge {
+      background: #fff !important;
+    }
+
+    .category-panel {
+      display: none;
+    }
+
+    .category-panel.active {
+      display: block;
+    }
+
+    .badge {
+      font-size: 0.72rem;
+      vertical-align: middle;
+    }
+
+    .pdf-report { position: absolute; left: -10000px; top: 0; display: block; width: 180mm; background: white; color: #111827; padding: 12mm; font-family: Arial, sans-serif; }
+    .pdf-report h1 { font-size: 18px; text-align: center; margin-bottom: 12px; }
+    .pdf-report h2 { font-size: 16px; border-bottom: 1px solid #111827; padding-bottom: 6px; }
+    .pdf-report h3 { font-size: 14px; margin-bottom: 8px; }
+    .pdf-report table { width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 16px; }
+    .pdf-report th, .pdf-report td { border: 1px solid #98a2b3; padding: 5px; text-align: left; }
+    .pdf-report th { background: #eaf2ff; }
+
+    @media (max-width: 991px) {
+      .stat-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 767px) {
+      .sidebar { min-height: auto; padding: 18px 16px; }
+      .sidebar .d-flex.align-items-center.gap-3.mb-5 { margin-bottom: 18px !important; }
+      .sidebar-menu { grid-template-columns: 1fr; gap: 14px; }
+      .sidebar-section { align-content: start; }
+      .sidebar a { min-height: 40px; padding: 9px 10px; font-size: 0.78rem; }
+      .sidebar a.active::before { margin-left: -10px; margin-right: 7px; }
+      .sidebar-section-label { margin-left: 10px; margin-right: 4px; }
+      .sidebar-logout { grid-column: 1 / -1; margin-top: 0 !important; }
+      .menu-label { margin-bottom: 10px; }
+      .main { padding: 16px; }
+      .user-info { position: static; margin-bottom: 12px; }
+      .hero-title { margin-bottom: 18px; font-size: 1.55rem; line-height: 1.12; white-space: normal; overflow-wrap: anywhere; }
+      .stat-grid, .secondary-grid { grid-template-columns: 1fr; }
+      .mini-grid { grid-template-columns: 1fr; }
+      .section-heading, .status-heading { align-items: flex-start; flex-direction: column; }
+      .section-note { text-align: left; }
+      .meeting-card { align-items: flex-start; flex-wrap: wrap; }
+      .meeting-card .stat-value { margin-left: auto; }
+      .category-tabs { grid-template-columns: 1fr; }
+      #statusPanel { padding: 18px; }
+      .data-tools { align-items: flex-start; flex-direction: column; }
+      .data-tools-statuses { width: 100%; }
+      .data-tools-actions { width: 100%; }
+      .data-tools-actions .btn { flex: 1 1 180px; }
+      .access-admin-grid { grid-template-columns:1fr; }
+      .panel { padding: 18px; }
+      .status-table { min-width: 620px; }
+      .table-responsive { overflow-x: auto; }
+    }
+  </style>
+  <link rel="stylesheet" href="app-theme.css">
+  <script src="vendor/supabase.js"></script>
+  <script src="auth-config.js"></script>
+  <script src="realtime-manager.js"></script>
+  <script src="sync-engine.js"></script>
+  <script src="auth-guard.js"></script>
+</head>
+<body>
+  <div class="container-fluid">
+    <div class="row">
+      <nav class="col-md-3 col-lg-2 sidebar">
+        <div class="d-flex align-items-center gap-3 mb-5">
+          <div class="brand-mark">DB</div>
+          <div>
+            <div class="brand-name">KIN MATETE</div>
+            <div class="brand-caption">Espace de suivi</div>
+          </div>
+        </div>
+        <div class="menu-label">Navigation</div>
+        <div class="sidebar-menu">
+          <div class="sidebar-section" aria-label="Membres et groupes">
+            <div class="sidebar-section-label">Membres et groupes</div>
+            <a data-page="proclamateurs" href="Proclamateurs.html">Proclamateurs</a>
+            <a data-access-feature="pdf:allgroups" href="groupes.html">Groupes de prédication</a>
+          </div>
+          <div class="sidebar-section" aria-label="Suivi et communication">
+            <div class="sidebar-section-label">Suivi et communication</div>
+            <a data-page="rapports" href="Rapports.html">Rapports</a>
+            <a data-page="rapports" href="Messagerie.html">Boîte de messagerie</a>
+            <a data-access-feature="rapports:attention" href="attention-pastorale.html">Attention pastorale</a>
+          </div>
+          <div class="sidebar-section" aria-label="Activités">
+            <div class="sidebar-section-label">Activités</div>
+            <a data-page="programmation" href="Programmation.html">Programmation</a>
+            <a data-page="souscription" href="Souscription.html">Souscription</a>
+            <a data-page="assistance" href="assistance.html">Assistance aux réunions</a>
+          </div>
+          <div class="sidebar-section" aria-label="Documents et administration">
+            <div class="sidebar-section-label">Documents et administration</div>
+            <a data-page="pdf" href="pdf.html">Fichiers PDF</a>
+            <a href="#" id="accessAdminLink" class="access-admin-link">Gestion des accès</a>
+          </div>
+          <div class="sidebar-section">
+            <a href="connexion.html" id="logoutLink" class="sidebar-logout">Déconnexion</a>
+          </div>
+        </div>
+      </nav>
+      <main class="col-md-9 col-lg-10 main position-relative">
+        <div class="user-info" id="userInfo">Utilisateur connecté</div>
+        <div class="hero-kicker">Tableau de bord · Vue générale</div>
+        <h1 class="hero-title">ASSEMBLÉE LOCALE DE KIN MATETE DE BONHOMME 2 FRANÇAIS <span class="text-muted">(55954)</span></h1>
+        <section class="data-tools" aria-label="Actions">
+          <div class="data-tools-statuses">
+            <p id="dataBackupStatus" class="data-tools-status" role="status" aria-live="polite"></p>
+            <p id="syncStatus" class="data-tools-status" role="status" aria-live="polite"></p>
+          </div>
+          <div class="data-tools-actions">
+            <button id="exportDataBtn" type="button" class="btn btn-primary btn-sm">Sauvegarder les données</button>
+            <button id="importDataBtn" type="button" class="btn btn-primary btn-sm">Restaurer une sauvegarde</button>
+            <input id="importDataInput" type="file" accept="application/json,.json" hidden>
+          </div>
+        </section>
+        <section id="accessAdmin" class="panel access-admin" aria-label="Gestion des accès">
+          <div class="d-flex justify-content-between align-items-start gap-3">
+            <div><div class="hero-kicker">Administration</div><h2 class="h5 mb-1">Gérer les accès</h2></div>
+            <button id="closeAccessAdmin" type="button" class="btn btn-sm btn-outline-secondary">Fermer</button>
+          </div>
+          <p class="section-note mb-3">Sélectionnez les fonctionnalités visibles pour chaque utilisateur.</p>
+          <div class="access-admin-grid">
+            <div><label class="form-label" for="accessUserEmail">Email de l’utilisateur</label><input id="accessUserEmail" type="email" class="form-control" placeholder="utilisateur@example.com"></div>
+            <div><label class="form-label" for="accessUserRole">Rôle</label><select id="accessUserRole" class="form-select"><option value="proclamateur">Proclamateur</option><option value="assistant">Assistant</option><option value="ancien">Ancien</option><option value="responsable_predication">Responsable de prédication</option><option value="coordinateur">Coordinateur</option><option value="secretaire">Secrétaire</option></select></div>
+            <div class="access-member-association"><label class="form-label" for="accessUserMemberId">Fiche du proclamateur associée</label><select id="accessUserMemberId" class="form-select"><option value="">Choisir une fiche de proclamateur</option></select><div class="form-text">Cette association détermine le rapport personnel et le groupe de l’utilisateur.</div></div>
+          </div>
+          <div class="mt-3"><span class="form-label d-block">Pages et sous-onglets autorisés</span><div id="accessPages" class="access-pages"></div></div>
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-3"><button id="saveAccessBtn" type="button" class="btn btn-primary">Enregistrer l’accès</button><span id="accessAdminStatus" class="data-tools-status" role="status" aria-live="polite"></span></div>
+          <div class="mt-4 p-3 border rounded-3 bg-light">
+            <h3 class="h6 mb-1">Inviter un membre effectif</h3>
+            <p class="small text-muted mb-3">Le lien est à usage unique, lié à la fiche et à l’adresse e-mail saisie. Il expire après 7 jours.</p>
+            <div class="row g-2 align-items-end">
+              <div class="col-md-5"><label class="form-label" for="inviteMemberId">Membre à inviter</label><select id="inviteMemberId" class="form-select"><option value="">Choisir un proclamateur</option></select></div>
+              <div class="col-md-5"><label class="form-label" for="inviteMemberEmail">E-mail du membre</label><input id="inviteMemberEmail" type="email" class="form-control" autocomplete="off" required></div>
+              <div class="col-md-2"><button id="createMemberInviteBtn" type="button" class="btn btn-outline-primary w-100">Créer</button></div>
+            </div>
+            <div id="memberInviteResult" class="mt-3 d-none">
+              <label class="form-label" for="memberInviteUrl">Lien personnel à transmettre</label>
+              <div class="input-group"><input id="memberInviteUrl" class="form-control" type="text" readonly><button id="copyMemberInviteBtn" class="btn btn-outline-secondary" type="button">Copier</button></div>
+              <div id="memberInviteStatus" class="form-text" role="status" aria-live="polite"></div>
+            </div>
+          </div>
+          <div class="mt-4"><h3 class="h6 mb-2">Demandes en attente</h3><div id="accessRequests" class="small text-muted">Chargement...</div></div>
+          <div class="mt-4"><h3 class="h6 mb-2">Utilisateurs autorisés</h3><div id="accessUsers" class="small text-muted">Chargement...</div></div>
+        </section>
+        <div class="panel period-panel mb-4">
+          <div class="row g-3 align-items-end">
+            <div class="col-md-4"><label class="form-label">Période</label><select id="periodType" class="form-select"><option value="month">Mois précis</option><option value="last3">3 derniers mois</option><option value="last6">6 derniers mois</option><option value="serviceYear">Année de service</option></select></div>
+            <div class="col-md-4" id="monthWrapper"><label class="form-label">Mois</label><input id="monthPicker" type="month" class="form-control"></div>
+            <div class="col-md-4 d-none" id="serviceYearWrapper"><label class="form-label">Année de service</label><select id="serviceYearSelect" class="form-select"></select></div>
+            <div class="col-md-4 d-none" id="endMonthWrapper"><label class="form-label">Fin de période</label><input id="endMonthPicker" type="month" class="form-control"></div>
+            <div class="col-md-4"><button id="refreshBtn" class="btn btn-primary w-100">Mettre à jour</button></div>
+          </div>
+          <div id="periodLabel" class="text-muted mt-3"></div>
+        </div>
+        <div class="panel mt-4">
+          <div class="stat-grid">
+            <div class="stat-card featured">
+              <div class="stat-title">Proclamateurs actifs</div>
+              <div class="stat-value" id="homeProclamateursActifs">0</div>
+              <div class="mini-grid">
+                <div class="mini-box">
+                  <div class="mini-label">Nombre de fiches d'activité (S-4)</div>
+                  <div class="mini-value" id="homeProclamateursFiches">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Cours bibliques</div>
+                  <div class="mini-value" id="homeProclamateursCours">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-title">Pionniers Permanents</div>
+              <div class="stat-value" id="homePpTotal">0</div>
+              <div class="mini-grid">
+                <div class="mini-box">
+                  <div class="mini-label">Fiches d'activité (PP)</div>
+                  <div class="mini-value" id="homePpFiches">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Heures PP</div>
+                  <div class="mini-value" id="homePpHeures">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Cours bibliques</div>
+                  <div class="mini-value" id="homePpCours">0</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="stat-card">
+              <div class="stat-title">Pionniers Auxiliaires</div>
+              <div class="stat-value" id="homePaTotal">0</div>
+              <div class="mini-grid">
+                <div class="mini-box">
+                  <div class="mini-label">Fiches d'activité (PA)</div>
+                  <div class="mini-value" id="homePaFiches">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Heures PA</div>
+                  <div class="mini-value" id="homePaHeures">0</div>
+                </div>
+                <div class="mini-box">
+                  <div class="mini-label">Cours bibliques</div>
+                  <div class="mini-value" id="homePaCours">0</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </main>
+    </div>
+  </div>
+  <script>
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthKey = `${currentYear}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    let proclamateurs = [], reports = [], paSubscriptions = [], groupLeaders = [], attendance = [], chart;
+    let submittedReportKeys = new Set();
+    const identityAliases = [
+      ['KALOMBO ESTHER', 'KALOMBO NGOYA ESTHER'],
+      ['KALOMBO REGINE', 'KALOMBO KAPINGA REGINE'],
+      ['KALOMBO WYLLIANA', 'KALOMBO KAPINGA WYLLIANA'],
+      ['KALOMBO ALICE', 'KALOMBO TSHINGUTA ALICE'],
+      ['KALOMBO SHITA ANGELA', 'KALOMBO MBOMBO ANGELA'],
+      ['MBO ISAAC', 'MBO NSUKA ISAAC'],
+      ['SUKASUKA KAPILA DORCAS', 'SUKASUKA KAPILA REBECCA'],
+      ['BUABUA SYLVIE', 'BUABUA SYLVIE'],
+      ['KIANA JOCHEL', 'KIANA JOCHEL'],
+      ['KALOMBO NZAJI NORBERT', 'KALOMBO NZAJI NORBY'],
+      ['KIKWAMA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCASY'],
+      ['BUABUA SEYA STEPHANE', 'SEYA STEPHANE'],
+      ['MBONGO STEVE', 'MBONGO SHITA STEVE'],
+      ['BUABUA SEYA GLORY', 'SEYA GLORY'],
+      ['LONGOMBE PLK', 'LONGOMBE KANZA PATRICK PLK'],
+      ['MUKWESO DELLY', 'MUKWESO PONIA DELLY'],
+      ['MANSWA ARMAND', 'MANSWA ARMAND ARMAND'],
+      ['MASWA ARMAND ARMAND', 'MANSWA ARMAND ARMAND'],
+      ['KIKWAMA MBWELEKA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS'],
+      ['KIKWAMA DORCAS', 'KIKWAMA MBWELEKA KALEKA DORCAS']
+    ];
+    const $ = id => document.getElementById(id);
+    const setText = (id, value) => {
+      const element = $(id);
+      if (!element) return;
+      element.textContent = value;
+    };
+    const setTextBoth = (primaryId, secondaryId, value) => {
+      setText(primaryId, value);
+      setText(secondaryId, value);
+    };
+    const dateFromMonth = key => { const [year, month] = key.split('-').map(Number); return new Date(year, month - 1, 1); };
+    const monthKey = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    function serviceYearRange(year) { return { start: new Date(year - 1, 8, 1), end: new Date(year, 7, 31) }; }
+    function monthRange(key) { const start = dateFromMonth(key); const end = new Date(start.getFullYear(), start.getMonth() + 1, 0); return { start, end }; }
+    function selectedRange() {
+      const type = $('periodType').value;
+      if (type === 'serviceYear') return serviceYearRange(Number($('serviceYearSelect').value));
+      const endKey = type === 'month' ? ($('monthPicker').value || currentMonthKey) : ($('endMonthPicker').value || currentMonthKey);
+      const end = monthRange(endKey).end;
+      const start = dateFromMonth(endKey);
+      if (type === 'last3') start.setMonth(start.getMonth() - 2);
+      if (type === 'last6') start.setMonth(start.getMonth() - 5);
+      return { start, end };
+    }
+    function monthsBetween(start, end) { const result = []; const cursor = new Date(start.getFullYear(), start.getMonth(), 1); while (cursor <= end) { result.push(monthKey(cursor)); cursor.setMonth(cursor.getMonth() + 1); } return result; }
+    function normalizeIdentityName(value) { return String(value || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/[^a-z0-9]/gi, '').toLowerCase(); }
+    function memberFullName(member) { return [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim(); }
+    function canonicalIdentityName(value) {
+      const normalized = normalizeIdentityName(value);
+      const alias = identityAliases.find(([oldName, newName]) => oldName !== newName && [oldName, newName].some(name => normalizeIdentityName(name) === normalized));
+      return normalizeIdentityName(alias ? alias[1] : value);
+    }
+    function reportBelongsToMember(record, member) {
+      if (String(record.proclamateurId).trim() === String(member.id).trim()) return true;
+      return canonicalIdentityName(record.nom) === canonicalIdentityName(memberFullName(member));
+    }
+    function rebuildSubmittedReportIndex() {
+      submittedReportKeys = new Set();
+      const membersById = new Map(proclamateurs.map(member => [String(member.id).trim(), member]));
+      reports.forEach(record => {
+        if (!['yes', 'oui', 'true', '1'].includes(String(record.aprecher || '').trim().toLowerCase())) return;
+        const month = String(record.month || '').trim();
+        if (!month) return;
+        const member = membersById.get(String(record.proclamateurId || '').trim());
+        if (member) submittedReportKeys.add(`id:${String(member.id).trim()}|${month}`);
+        const name = member ? memberFullName(member) : record.nom;
+        if (name) submittedReportKeys.add(`name:${canonicalIdentityName(name)}|${month}`);
+      });
+    }
+    function reportWasSubmitted(memberId, key) {
+      const member = proclamateurs.find(item => String(item.id).trim() === String(memberId).trim());
+      return submittedReportKeys.has(`id:${String(memberId).trim()}|${key}`) || (member && submittedReportKeys.has(`name:${canonicalIdentityName(memberFullName(member))}|${key}`));
+    }
+    function longestNoRun(memberId, keys) { let current = 0; let longest = 0; for (const key of keys) { current = reportWasSubmitted(memberId, key) ? 0 : current + 1; longest = Math.max(longest, current); } return longest; }
+    function averageAttendance(type, range) { const values = attendance.filter(item => item.type === type && new Date(`${item.dateKey}T00:00:00`) >= range.start && new Date(`${item.dateKey}T00:00:00`) <= range.end).map(item => Number(item.attendees || 0)); return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0; }
+    function normalizeService(value) { return String(value || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+    function isYesAnswer(value) { return ['yes', 'oui', 'true', '1', 'y', 'o'].includes(String(value || '').trim().toLowerCase()); }
+    function matchesServiceSet(service, options) {
+      const normalized = normalizeService(service);
+      return options.some(option => normalized === normalizeService(option));
+    }
+    function isActiveProclamateur(member, months = []) {
+      if (!matchesServiceSet(member.service, ['PB', 'PNB', 'SSPT', 'Ancien', 'Assistant'])) return false;
+      return !months.length || !isAuxiliaryForRange(member, months);
+    }
+    function isAuxiliaryForRange(member, months) {
+      if (matchesServiceSet(member.service, ['PA'])) return true;
+      return paSubscriptions.some(record => String(record.proclamateurId) === String(member.id) && Array.isArray(record.selectedMonths) && record.selectedMonths.some(month => months.includes(String(month))));
+    }
+    function updateHomeStats() {
+      const range = selectedRange();
+      const months = monthsBetween(range.start, range.end).filter(key => key <= currentMonthKey);
+      const memberById = new Map(proclamateurs.map(member => [String(member.id), member]));
+      const relevantRecords = reports.filter(record => {
+        const month = String(record.month || '').trim();
+        return month && months.includes(month);
+      });
+
+      let fiches = 0;
+      let coursTotal = 0;
+      let ppCours = 0;
+      let paCours = 0;
+      let paHeures = 0;
+      let ppHeures = 0;
+      let paFiches = 0;
+      let ppFiches = 0;
+      const ficheMembers = new Set();
+      const paMembers = new Set();
+      const ppMembers = new Set();
+
+      relevantRecords.forEach(record => {
+        const member = memberById.get(String(record.proclamateurId)) || proclamateurs.find(item => reportBelongsToMember(record, item));
+        if (!member) return;
+
+        const service = normalizeService(member.service);
+        const isStandardProclamateur = isActiveProclamateur(member, months);
+        const isPa = isAuxiliaryForRange(member, months) || matchesServiceSet(service, ['assistant pa', 'ancien pa', 'pionnier auxiliaire', 'assistant pionnier auxiliaire', 'ancien pionnier auxiliaire']);
+        const isPp = matchesServiceSet(service, ['pp', 'assistant pp', 'ancien pp', 'pionnier permanent', 'assistant pionnier permanent', 'ancien pionnier permanent']);
+
+        if (isStandardProclamateur) {
+          coursTotal += Number(record.coursBiblique || 0);
+          if (isYesAnswer(record.aprecher)) ficheMembers.add(String(member.id));
+        }
+        if (isPa) {
+          paHeures += Number(record.heures || 0);
+          if (isYesAnswer(record.aprecher)) {
+            paMembers.add(String(member.id));
+            paCours += Number(record.coursBiblique || 0);
+          }
+        }
+        if (isPp) {
+          ppHeures += Number(record.heures || 0);
+          if (isYesAnswer(record.aprecher)) {
+            ppMembers.add(String(member.id));
+            ppCours += Number(record.coursBiblique || 0);
+          }
+        }
+      });
+
+      paFiches = paMembers.size;
+      ppFiches = ppMembers.size;
+
+      const active = proclamateurs.filter(item => isActiveProclamateur(item, months) && months.some(key => reportWasSubmitted(item.id, key))).length;
+      fiches = active;
+      const paTotal = proclamateurs.filter(item => isAuxiliaryForRange(item, months) || matchesServiceSet(String(item.service || '').trim(), ['Ancien PA', 'Assistant PA', 'pionnier auxiliaire', 'assistant pionnier auxiliaire', 'ancien pionnier auxiliaire', 'assistant pa', 'ancien pa'])).length;
+      const ppTotal = proclamateurs.filter(item => matchesServiceSet(String(item.service || '').trim(), ['PP', 'Ancien PP', 'Assistant PP', 'pionnier permanent', 'assistant pionnier permanent', 'ancien pionnier permanent'])).length;
+
+      setText('homeProclamateursActifs', active);
+      setText('homePpTotal', ppTotal);
+      setText('homePaTotal', paTotal);
+      setText('homeMoySemaine', averageAttendance('week', range).toFixed(1).replace('.', ','));
+      setText('homeMoyWeekend', averageAttendance('weekend', range).toFixed(1).replace('.', ','));
+      setText('homeProclamateursFiches', fiches);
+      setText('homeProclamateursCours', coursTotal);
+      setText('homePaHeures', paHeures);
+      setText('homePpHeures', ppHeures);
+      setText('homePaFiches', paFiches);
+      setText('homePpFiches', ppFiches);
+      setText('homePpCours', ppCours);
+      setText('homePaCours', paCours);
+
+      if ($('activeCount')) $('activeCount').textContent = active;
+      if ($('ppCount')) $('ppCount').textContent = ppTotal;
+      if ($('weekAverage')) $('weekAverage').textContent = averageAttendance('week', range).toFixed(1).replace('.', ',');
+      if ($('weekendAverage')) $('weekendAverage').textContent = averageAttendance('weekend', range).toFixed(1).replace('.', ',');
+    }
+    function openStore(databaseName, version, storeName) { return new Promise(resolve => { const request = indexedDB.open(databaseName, version); request.onupgradeneeded = event => { const database = event.target.result; if (databaseName === 'ProclamateursDB') { if (!database.objectStoreNames.contains('proclamateurs')) database.createObjectStore('proclamateurs', { keyPath: 'id' }); if (!database.objectStoreNames.contains('pionniersAuxiliaire')) database.createObjectStore('pionniersAuxiliaire', { keyPath: 'proclamateurId' }); if (!database.objectStoreNames.contains('permanentCandidatures')) database.createObjectStore('permanentCandidatures', { keyPath: 'proclamateurId' }); if (!database.objectStoreNames.contains('detailPredication')) database.createObjectStore('detailPredication', { keyPath: 'id' }); if (!database.objectStoreNames.contains('groupLeaders')) database.createObjectStore('groupLeaders', { keyPath: 'group' }); } if (databaseName === 'AssistanceDB' && !database.objectStoreNames.contains('attendance')) database.createObjectStore('attendance', { keyPath: 'id' }); }; request.onsuccess = event => { const db = event.target.result; if (!db.objectStoreNames.contains(storeName)) { resolve([]); return; } const get = db.transaction(storeName, 'readonly').objectStore(storeName).getAll(); get.onsuccess = () => { resolve(get.result || []); }; get.onerror = () => resolve([]); }; request.onerror = () => resolve([]); }); }
+    const backupDatabases = [
+      { name: 'ProclamateursDB', version: 5, stores: ['proclamateurs', 'detailPredication', 'pionniersAuxiliaire', 'permanentCandidatures', 'groupLeaders'] },
+      { name: 'AssistanceDB', version: 2, stores: ['attendance'] },
+      { name: 'ProgrammationDB', version: 2, stores: ['visites', 'epreuves', 'formations'] },
+      { name: 'GestionDB', version: 1, stores: ['tasks'] }
+    ];
+    function setBackupStatus(message, isError = false) { const status = $('dataBackupStatus'); if (status) { status.textContent = message; status.style.color = isError ? '#8b5960' : ''; } }
+    function backupStoreOptions(storeName) { return storeName === 'tasks' || ['visites', 'epreuves', 'formations'].includes(storeName) ? { keyPath: 'id', autoIncrement: true } : { keyPath: storeName === 'pionniersAuxiliaire' || storeName === 'permanentCandidatures' ? 'proclamateurId' : storeName === 'groupLeaders' ? 'group' : 'id' }; }
+    function addMissingBackupStores(database, config) { config.stores.forEach(storeName => { if (!database.objectStoreNames.contains(storeName)) database.createObjectStore(storeName, backupStoreOptions(storeName)); }); }
+    function openBackupDatabase(config) { return new Promise((resolve, reject) => { const firstRequest = indexedDB.open(config.name); firstRequest.onsuccess = event => { const database = event.target.result; const missing = config.stores.some(storeName => !database.objectStoreNames.contains(storeName)); if (!missing) { resolve(database); return; } const nextVersion = database.version + 1; database.close(); const upgradeRequest = indexedDB.open(config.name, nextVersion); upgradeRequest.onupgradeneeded = upgradeEvent => addMissingBackupStores(upgradeEvent.target.result, config); upgradeRequest.onsuccess = upgradeEvent => resolve(upgradeEvent.target.result); upgradeRequest.onerror = () => reject(upgradeRequest.error || new Error(`Impossible de mettre à niveau ${config.name}`)); upgradeRequest.onblocked = () => reject(new Error(`La base ${config.name} est utilisée par une autre page.`)); }; firstRequest.onerror = () => reject(firstRequest.error || new Error(`Impossible d’ouvrir ${config.name}`)); firstRequest.onblocked = () => reject(new Error(`La base ${config.name} est utilisée par une autre page.`)); }); }
+    function readBackupStore(database, storeName) { return new Promise((resolve, reject) => { if (!database.objectStoreNames.contains(storeName)) { resolve([]); return; } const request = database.transaction(storeName, 'readonly').objectStore(storeName).getAll(); request.onsuccess = () => resolve(request.result || []); request.onerror = () => reject(request.error); }); }
+    async function createBackup() { const databases = []; for (const config of backupDatabases) { const database = await openBackupDatabase(config); const stores = {}; for (const storeName of config.stores) stores[storeName] = await readBackupStore(database, storeName); database.close(); databases.push({ name: config.name, version: database.version, stores }); } return { format: 'assemblee-backup', version: 1, createdAt: new Date().toISOString(), databases }; }
+    function downloadBackup(backup) { const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }); const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = `sauvegarde-assemblee-${new Date().toISOString().slice(0, 10)}.json`; document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url); }
+    async function restoreBackup(backup) { if (!backup || backup.format !== 'assemblee-backup' || backup.version !== 1 || !Array.isArray(backup.databases)) throw new Error('Format de sauvegarde non reconnu.'); for (const config of backupDatabases) { const source = backup.databases.find(item => item.name === config.name); const database = await openBackupDatabase(config); const transaction = database.transaction(config.stores, 'readwrite'); config.stores.forEach(storeName => { const store = transaction.objectStore(storeName); store.clear(); const records = source?.stores?.[storeName]; if (Array.isArray(records)) records.forEach(record => store.put(record)); }); await new Promise((resolve, reject) => { transaction.oncomplete = resolve; transaction.onerror = () => reject(transaction.error || new Error(`Restauration impossible pour ${config.name}`)); transaction.onabort = () => reject(transaction.error || new Error(`Restauration interrompue pour ${config.name}`)); }); database.close(); } }
+    async function handleDataExport() { try { setBackupStatus('Préparation de la sauvegarde...'); const backup = await createBackup(); downloadBackup(backup); setBackupStatus(`Sauvegarde créée le ${new Date().toLocaleString('fr-FR')}.`); } catch (error) { console.error(error); setBackupStatus(`Échec de la sauvegarde : ${error.message}`, true); } }
+    async function handleDataImport(event) { const file = event.target.files?.[0]; event.target.value = ''; if (!file) return; if (!window.confirm('La restauration remplacera les données locales actuelles. Une sauvegarde actuelle est-elle déjà enregistrée ?')) return; try { const backup = JSON.parse(await file.text()); setBackupStatus('Restauration en cours...'); await restoreBackup(backup); setBackupStatus('Restauration terminée. Rechargement de la page...'); window.setTimeout(() => window.location.reload(), 500); } catch (error) { console.error(error); setBackupStatus(`Échec de la restauration : ${error.message}`, true); } }
+    async function loadData() { [proclamateurs, reports, paSubscriptions, groupLeaders, attendance] = await Promise.all([openStore('ProclamateursDB', 5, 'proclamateurs'), openStore('ProclamateursDB', 5, 'detailPredication'), openStore('ProclamateursDB', 5, 'pionniersAuxiliaire'), openStore('ProclamateursDB', 5, 'groupLeaders'), openStore('AssistanceDB', 2, 'attendance')]); populateAccessMemberOptions(); window.dispatchEvent(new Event('app-proclamateurs-loaded')); rebuildSubmittedReportIndex(); updateHomeStats(); render(); }
+    function escapeHtml(value) { return String(value || '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character])); }
+    function memberName(member) { return [member.nom, member.postnom, member.prenom].filter(Boolean).join(' ') || member.id; }
+    function normalizeGroupName(value) { return String(value || '').trim().toLocaleLowerCase('fr'); }
+    function normalizeMemberName(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('fr'); }
+    function getHomeGroupEntries() {
+      const groups = new Map();
+      proclamateurs.forEach(member => {
+        const name = String(member.groupe || '').trim();
+        if (!name) return;
+        const key = normalizeGroupName(name);
+        if (!groups.has(key)) groups.set(key, { name, members: [] });
+        groups.get(key).members.push(member);
+      });
+      const entries = [...groups.values()]
+        .map(group => ({ ...group, members: group.members.sort((a, b) => memberName(a).localeCompare(memberName(b), 'fr', { sensitivity: 'base' })) }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' }));
+      for (let index = entries.length; index < 7; index += 1) {
+        entries.push({ name: `Groupe ${index + 1}`, members: [], placeholder: true });
+      }
+      return entries;
+    }
+    function groupLeaderRecord(groupName) {
+      return groupLeaders.find(item => normalizeGroupName(item.group) === normalizeGroupName(groupName)) || {};
+    }
+    function groupMemberOrder(group, saved) {
+      const remaining = group.members.slice();
+      const resolveMember = (id, name) => remaining.find(member =>
+        (id && String(member.id) === String(id)) ||
+        (name && normalizeMemberName(memberName(member)) === normalizeMemberName(name))
+      );
+      const leader = resolveMember(saved.leaderId, saved.leaderName);
+      if (leader) remaining.splice(remaining.indexOf(leader), 1);
+      const adjoint = resolveMember(saved.adjointId, saved.adjointName);
+      if (adjoint) remaining.splice(remaining.indexOf(adjoint), 1);
+      remaining.sort((a, b) => memberName(a).localeCompare(memberName(b), 'fr', { sensitivity: 'base' }));
+      return [
+        { name: saved.leaderName || (leader ? memberName(leader) : ''), role: 'Responsable', member: leader },
+        { name: saved.adjointName || (adjoint ? memberName(adjoint) : ''), role: 'Responsable adjoint', member: adjoint },
+        ...remaining.map(member => ({ name: memberName(member), member }))
+      ].filter(entry => entry.name);
+    }
+    function groupRoleCounts(group) {
+      return group.members.reduce((counts, member) => {
+        const roles = [member.service || '', ...(Array.isArray(member.roles) ? member.roles : [])].join(' ').toLocaleLowerCase('fr');
+        if (/\b(pp|pionnier permanent)\b/.test(roles)) counts.pp += 1;
+        if (/\b(ancien|elder)\b/.test(roles)) counts.ancien += 1;
+        if (/\bassistant\b/.test(roles)) counts.assistant += 1;
+        if (/\bancien\s*pp\b|\bpp\s*ancien\b/.test(roles)) counts.ancienPp += 1;
+        if (/\bassistant\s*pp\b|\bpp\s*assistant\b/.test(roles)) counts.assistantPp += 1;
+        return counts;
+      }, { pp: 0, ancien: 0, assistant: 0, ancienPp: 0, assistantPp: 0 });
+    }
+    function renderHomeGroups() {
+      const list = $('homeGroupsList');
+      const select = $('homeGroupSelect');
+      const datalist = $('homeProclamateursList');
+      if (!list || !select || !datalist) return;
+      const selectedGroup = select.value;
+      const groups = getHomeGroupEntries();
+      const realGroups = groups.filter(group => !group.placeholder);
+      select.innerHTML = '<option value="">-- Choisir un groupe --</option>' + realGroups.map(group => `<option value="${escapeHtml(group.name)}">${escapeHtml(group.name)}</option>`).join('');
+      if (realGroups.some(group => group.name === selectedGroup)) select.value = selectedGroup;
+      datalist.innerHTML = '';
+      list.innerHTML = groups.map((group, index) => {
+        const saved = groupLeaderRecord(group.name);
+        const ordered = groupMemberOrder(group, saved);
+        const memberRows = ordered.map(entry => `<li>${entry.role ? `<strong>${escapeHtml(entry.name)} — ${escapeHtml(entry.role)}</strong>` : escapeHtml(entry.name)}</li>`).join('');
+        const details = group.placeholder
+          ? '<p class="small text-muted mb-0">Aucun membre attribué.</p>'
+          : `<p class="small mb-2">${group.members.length} proclamateur${group.members.length === 1 ? '' : 's'}</p>
+             <ol class="home-group-members mb-2">${memberRows || '<li>Aucun membre</li>'}</ol>
+             <button type="button" class="btn btn-sm btn-outline-primary" data-edit-group="${escapeHtml(group.name)}">Modifier les responsables</button>`;
+        return `<article class="home-group-card">
+          <button type="button" class="btn btn-link home-group-toggle p-0" data-group-toggle="${index}" aria-expanded="false">
+            <h3>${escapeHtml(group.name)}</h3>
+            <span class="small text-muted">${group.members.length} proclamateur${group.members.length === 1 ? '' : 's'}</span>
+          </button>
+          <div class="home-group-details d-none" data-group-details="${index}">
+            ${details}
+          </div>
+        </article>`;
+      }).join('') + `<article class="home-groups-actions" data-access-feature="pdf:allgroups">
+        <button type="button" class="btn btn-primary" id="toggleAllHomeGroups">Afficher tous les groupes</button>
+        <button type="button" class="btn btn-outline-primary" id="printHomeGroups">Imprimer les 7 groupes (A4)</button>
+      </article>`;
+      list.querySelectorAll('[data-group-toggle]').forEach(button => button.addEventListener('click', () => {
+        const details = list.querySelector(`[data-group-details="${button.dataset.groupToggle}"]`);
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        details.classList.toggle('d-none', expanded);
+      }));
+      list.querySelectorAll('[data-edit-group]').forEach(button => button.addEventListener('click', () => {
+        selectHomeGroupForEditing(button.dataset.editGroup);
+      }));
+      $('toggleAllHomeGroups').addEventListener('click', toggleAllHomeGroups);
+      $('printHomeGroups').addEventListener('click', printHomeGroups);
+      updateHomeGroupLeaderFields();
+    }
+    function selectHomeGroupForEditing(groupName) {
+      $('homeGroupSelect').value = groupName;
+      updateHomeGroupLeaderFields();
+      $('homeGroupEditor').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('homeGroupLeader').focus({ preventScroll: true });
+    }
+    function toggleAllHomeGroups() {
+      const details = [...document.querySelectorAll('[data-group-details]')];
+      const showAll = details.some(item => item.classList.contains('d-none'));
+      details.forEach(item => item.classList.toggle('d-none', !showAll));
+      document.querySelectorAll('[data-group-toggle]').forEach(button => button.setAttribute('aria-expanded', String(showAll)));
+      $('toggleAllHomeGroups').textContent = showAll ? 'Cacher tous les groupes' : 'Afficher tous les groupes';
+    }
+    function buildGroupPrintArea() {
+      const groups = getHomeGroupEntries();
+      const printArea = $('groupPrintArea');
+      const groupCards = groups.map(group => {
+        const saved = groupLeaderRecord(group.name);
+        const members = groupMemberOrder(group, saved);
+        return `<article class="group-print-card">
+          <h3>${escapeHtml(group.name)}</h3>
+          <ol>${members.map(entry => `<li>${entry.role ? `<strong>${escapeHtml(entry.name)} — ${escapeHtml(entry.role)}</strong>` : escapeHtml(entry.name)}</li>`).join('')}</ol>
+        </article>`;
+      }).join('');
+      const rows = groups.map(group => {
+        const counts = groupRoleCounts(group);
+        return `<tr><th>${escapeHtml(group.name)}</th><td>${counts.pp}</td><td>${counts.ancien}</td><td>${counts.assistant}</td><td>${counts.ancienPp}</td><td>${counts.assistantPp}</td></tr>`;
+      }).join('');
+      printArea.innerHTML = `<h1 class="group-print-title">Groupes de prédication</h1>
+        <div class="group-print-grid">
+          ${groupCards}
+          <article class="group-print-card">
+            <h3>Statistiques des groupes</h3>
+            <table class="group-print-statistics">
+              <thead><tr><th>Groupe</th><th>PP</th><th>Anc.</th><th>Ass.</th><th>Anc. PP</th><th>Ass. PP</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>
+          </article>
+        </div>`;
+    }
+    function printHomeGroups() {
+      buildGroupPrintArea();
+      document.body.appendChild($('groupPrintArea'));
+      document.body.classList.add('group-print-mode');
+      window.addEventListener('afterprint', () => {
+        document.body.classList.remove('group-print-mode');
+        $('homeGroupsList').after($('groupPrintArea'));
+      }, { once: true });
+      window.print();
+    }
+    function updateHomeGroupLeaderFields() {
+      const group = $('homeGroupSelect')?.value;
+      const saved = groupLeaderRecord(group);
+      const members = proclamateurs
+        .filter(member => normalizeGroupName(member.groupe) === normalizeGroupName(group))
+        .sort((a, b) => memberName(a).localeCompare(memberName(b), 'fr', { sensitivity: 'base' }));
+      $('homeProclamateursList').innerHTML = members
+        .map(memberName)
+        .map(name => `<option value="${escapeHtml(name)}"></option>`).join('');
+      if ($('homeGroupLeader')) $('homeGroupLeader').value = saved?.leaderName || '';
+      if ($('homeGroupAdjoint')) $('homeGroupAdjoint').value = saved?.adjointName || '';
+    }
+    async function saveHomeGroupLeaders() {
+      const group = $('homeGroupSelect')?.value;
+      const status = $('homeGroupStatus');
+      let database;
+      if (!group) {
+        status.textContent = 'Sélectionnez un groupe.';
+        return;
+      }
+      status.textContent = 'Enregistrement…';
+      try {
+        const leaderName = $('homeGroupLeader').value.trim();
+        const adjointName = $('homeGroupAdjoint').value.trim();
+        const groupMembers = proclamateurs.filter(member =>
+          normalizeGroupName(member.groupe) === normalizeGroupName(group)
+        );
+        const findGroupMember = name => groupMembers.find(member =>
+          normalizeMemberName(memberName(member)) === normalizeMemberName(name)
+        );
+        const leader = findGroupMember(leaderName);
+        const adjoint = findGroupMember(adjointName);
+        if ((leaderName && !leader) || (adjointName && !adjoint)) {
+          status.textContent = 'Choisissez des responsables appartenant au groupe sélectionné.';
+          return;
+        }
+        if (leader && adjoint && String(leader.id) === String(adjoint.id)) {
+          status.textContent = 'Le responsable et son adjoint doivent être deux personnes différentes.';
+          return;
+        }
+        database = await new Promise((resolve, reject) => {
+          const request = indexedDB.open('ProclamateursDB', 5);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error || new Error('Impossible d’ouvrir la base des proclamateurs.'));
+          request.onblocked = () => reject(new Error('La base des proclamateurs est utilisée par une autre page.'));
+        });
+        await new Promise((resolve, reject) => {
+          const transaction = database.transaction('groupLeaders', 'readwrite');
+          transaction.objectStore('groupLeaders').put({
+            group,
+            leaderId: leader?.id || '',
+            leaderName,
+            adjointId: adjoint?.id || '',
+            adjointName
+          });
+          transaction.oncomplete = resolve;
+          transaction.onerror = () => reject(transaction.error || new Error('Impossible d’enregistrer les responsables.'));
+          transaction.onabort = () => reject(transaction.error || new Error('Enregistrement des responsables interrompu.'));
+        });
+        database.close();
+        database = null;
+        status.textContent = 'Responsables de groupe enregistrés.';
+        await loadData();
+      } catch (error) {
+        database?.close();
+        status.textContent = error.message || 'Impossible d’enregistrer les responsables.';
+        console.error('Échec de l’enregistrement des responsables de groupe :', error);
+      }
+    }
+    function missingMonths(member, keys) { return keys.filter(key => !reportWasSubmitted(member.id, key)).join(', ') || '-'; }
+    function groupLeader(member) { return groupLeaders.find(item => String(item.group || '').trim().toLowerCase() === String(member.groupe || '').trim().toLowerCase())?.leaderName || 'Non défini'; }
+    function formatMonthKey(key) { const [year, month] = key.split('-').map(Number); return new Date(year, month - 1, 1).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }); }
+    function missingMonths(member, keys) { return keys.filter(key => !reportWasSubmitted(member.id, key)).map(formatMonthKey).join(', ') || '-'; }
+    function sortMembers(members) { return members.slice().sort((a, b) => { const groupCompare = String(a.groupe || '').localeCompare(String(b.groupe || ''), 'fr', { numeric: true, sensitivity: 'base' }); return groupCompare || memberName(a).localeCompare(memberName(b), 'fr', { sensitivity: 'base' }); }); }
+    function statusTable(members, keys, emptyText) {
+      if (!members.length) return `<div class="empty-state">${emptyText}</div>`;
+      const rows = sortMembers(members).map(member => `<tr><td>${escapeHtml(memberName(member))}<br><small class="text-muted">${escapeHtml(member.id)}</small></td><td>${escapeHtml(member.groupe || '-')}</td><td>${escapeHtml(groupLeader(member))}</td><td>${escapeHtml(member.telephone || '-')}</td><td>${escapeHtml(missingMonths(member, keys))}</td></tr>`).join('');
+      return `<div class="table-responsive"><table class="table table-sm table-striped status-table mb-0"><thead><tr><th>Nom</th><th>Groupe</th><th>Responsable</th><th>Téléphone</th><th>Mois sans OUI</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    }
+    function renderStatusLists(inactiveMembers, irregularMembers, tendingIrregularMembers, tendingInactiveMembers, keys, periodLabel) {
+      const categories = [
+        { key: 'inactive', label: 'Proclamateurs inactifs', count: inactiveMembers.length, color: 'status-accent', table: statusTable(inactiveMembers, keys, 'Aucun proclamateur inactif pour cette période.'), subtitle: 'exactement 6 mois consécutifs' },
+        { key: 'irregular', label: 'Proclamateurs irréguliers', count: irregularMembers.length, color: 'status-accent', table: statusTable(irregularMembers, keys, 'Aucun proclamateur irrégulier pour cette période.'), subtitle: 'exactement 3 mois consécutifs' },
+        { key: 'tendingIrregular', label: 'Proclamateurs qui tendent à devenir irréguliers', count: tendingIrregularMembers.length, color: 'status-accent', table: statusTable(tendingIrregularMembers, keys, 'Aucun proclamateur dans cette catégorie.'), subtitle: 'exactement 2 mois consécutifs' },
+        { key: 'tendingInactive', label: 'Proclamateurs qui tendent à devenir inactifs', count: tendingInactiveMembers.length, color: 'status-accent', table: statusTable(tendingInactiveMembers, keys, 'Aucun proclamateur dans cette catégorie.'), subtitle: '4 ou 5 mois consécutifs' }
+      ];
+
+      const tabButtons = categories.map(({ key, label, count }) => `
+        <button type="button" class="category-tab" data-category="${key}" aria-pressed="false">
+          ${label} <span class="badge bg-light text-dark">${count}</span>
+        </button>
+      `).join('');
+
+      const panels = categories.map(({ key, label, color, table, subtitle, count }) => `
+        <div class="category-panel" data-panel="${key}">
+          <div class="status-list">
+            <h3 class="h6 ${color}">${label} (${subtitle}) : ${count}</h3>
+            ${table}
+          </div>
+        </div>
+      `).join('');
+
+      $('statusLists').innerHTML = `
+        <div class="category-tabs">${tabButtons}</div>
+        <div class="tab-panels">${panels}</div>
+      `;
+
+      const tabs = $('statusLists').querySelectorAll('.category-tab');
+      const panelsEls = $('statusLists').querySelectorAll('.category-panel');
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(item => {
+            const isActive = item === tab;
+            item.classList.toggle('active', isActive);
+            item.setAttribute('aria-pressed', String(isActive));
+          });
+          panelsEls.forEach(panel => {
+            panel.classList.toggle('active', panel.dataset.panel === tab.dataset.category);
+          });
+          $('statusLists').classList.add('has-active-category');
+        });
+      });
+
+      $('pdfReport').innerHTML = `<h1>ASSEMBLÉE LOCALE DE MATETE DE BONHOMME 2 FRANÇAIS (55954)</h1><h2>Liste des proclamateurs à suivre</h2><p>Période : ${escapeHtml(periodLabel)}</p>${categories.map(({ label, color, count, table, subtitle }) => `<h3 class="${color}">${label} (${subtitle}) : ${count}</h3>${table}`).join('')}`;
+    }
+    function render() {
+      const range = selectedRange(); const keys = monthsBetween(range.start, range.end).filter(key => key <= currentMonthKey); const historyEnd = new Date(range.end.getFullYear(), range.end.getMonth(), 1); const historyStart = new Date(historyEnd); historyStart.setMonth(historyStart.getMonth() - 5); const serviceYearEnd = historyEnd.getMonth() >= 8 ? historyEnd.getFullYear() + 1 : historyEnd.getFullYear(); const serviceStart = new Date(serviceYearEnd - 1, 8, 1); if (historyStart < serviceStart) historyStart.setTime(serviceStart.getTime()); const historyKeys = monthsBetween(historyStart, historyEnd).filter(key => key <= currentMonthKey);
+      const pp = proclamateurs.filter(item => ['PP', 'Ancien PP', 'Assistant PP'].includes(String(item.service || '').trim())).length;
+      const statusKeys = $('periodType').value === 'month' ? historyKeys : keys;
+      const active = proclamateurs.filter(item => isActiveProclamateur(item, keys) && keys.some(key => reportWasSubmitted(item.id, key))).length;
+      const irregularMembers = proclamateurs.filter(item => longestNoRun(item.id, statusKeys) === 3);
+      const inactiveMembers = proclamateurs.filter(item => longestNoRun(item.id, statusKeys) === 6);
+      const tendingIrregularMembers = proclamateurs.filter(item => longestNoRun(item.id, statusKeys) === 2);
+      const tendingInactiveMembers = proclamateurs.filter(item => [4, 5].includes(longestNoRun(item.id, statusKeys)));
+      const inactive = inactiveMembers.length;
+      const irregular = irregularMembers.length;
+      if ($('activeCount')) $('activeCount').textContent = active;
+      if ($('inactiveCount')) $('inactiveCount').textContent = inactive;
+      if ($('irregularCount')) $('irregularCount').textContent = irregular;
+      if ($('ppCount')) $('ppCount').textContent = pp;
+      if ($('weekAverage')) $('weekAverage').textContent = averageAttendance('week', range).toFixed(1).replace('.', ',');
+      if ($('weekendAverage')) $('weekendAverage').textContent = averageAttendance('weekend', range).toFixed(1).replace('.', ',');
+      $('periodLabel').textContent = `Période analysée : ${range.start.toLocaleDateString('fr-FR')} au ${range.end.toLocaleDateString('fr-FR')}`;
+      updateHomeStats();
+      if (chart) { chart.data.datasets[0].data = [active, inactive, irregular, pp]; chart.update(); }
+    }
+    async function exportStatusPdf() { const type = $('periodType').value; const suffix = type === 'serviceYear' ? `annee-service-${$('serviceYearSelect').value}` : type === 'month' ? $('monthPicker').value : `${type}-${$('endMonthPicker').value}`; const source = $('pdfReport'); const clone = source.cloneNode(true); clone.style.position = 'static'; clone.style.left = 'auto'; clone.style.width = '180mm'; clone.style.display = 'block'; document.body.appendChild(clone); try { await html2pdf().set({ margin: 10, filename: `proclamateurs-a-suivre-${suffix}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, useCORS: true }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' } }).from(clone).save(); } finally { clone.remove(); } }
+    const managedFeatures = [
+      ['proclamateurs', 'Proclamateurs'], ['proclamateurs:liste', '  Liste'], ['proclamateurs:maj', '  Mise à jour'], ['proclamateurs:import', '  Importer'], ['proclamateurs:contact', '  Contact d’urgence'],
+      ['rapports', 'Rapports'], ['rapports:details', '  Saisir rapport'], ['rapports:analyseAssemblee', '  Rapports saisis'], ['rapports:attention', '  Attention pastorale'], ['rapports:assemblee', '  Moyennes assemblée'], ['rapports:groupe', '  Moyennes groupe'], ['rapports:proclamateurs', '  Moyennes proclamateurs'], ['rapports:pp', '  Pionniers permanents'], ['rapports:pa', '  Pionniers auxiliaires'],
+      ['programmation', 'Programmation'], ['programmation:epreuve', '  Mise à l’épreuve'], ['programmation:formation', '  Formation'], ['programmation:suivi', '  Visites pastorales'],
+      ['souscription', 'Souscription'], ['souscription:permanent', '  Pionniers permanents'], ['souscription:auxiliaire', '  Pionniers auxiliaires'], ['souscription:listePermanent', '    Liste permanente'], ['souscription:candidaturePermanent', '    Candidatures'],
+      ['assistance', 'Assistance aux réunions'], ['assistance:week', '  Réunions de la semaine'], ['assistance:weekend', '  Réunion du week-end'], ['assistance:memorial', '  Mémorial'],
+      ['pdf', 'Fichiers PDF'], ['pdf:resp', '  Modifier responsable de groupe'], ['pdf:allgroups', '  Groupes de prédication']
+    ];
+    const featureLabels = Object.fromEntries(managedFeatures);
+    const productionAppOrigin = 'https://kinmatetedebononhomme2fr.netlify.app';
+
+    function setupAccessAdmin() {
+      const panel = $('accessAdmin');
+      const pageContainer = $('accessPages');
+      if (!panel || !pageContainer) return;
+      const accessLink = $('accessAdminLink');
+      pageContainer.innerHTML = managedFeatures.map(([key, label]) => `<label><input type="checkbox" value="${key}"> ${label}</label>`).join('');
+      window.setTimeout(() => {
+        if (window.appAuthAccess?.isAdmin()) accessLink?.classList.add('is-visible');
+      }, 700);
+      window.addEventListener('app-access-ready', event => {
+        if (['owner', 'coordinateur', 'secretaire'].includes(event.detail?.role)) accessLink?.classList.add('is-visible');
+      }, { once: true });
+      accessLink?.addEventListener('click', event => { event.preventDefault(); panel.classList.add('is-visible'); });
+      $('closeAccessAdmin')?.addEventListener('click', () => panel.classList.remove('is-visible'));
+      function setEditor(user) {
+        $('accessUserEmail').value = user.email || '';
+        $('accessUserRole').value = user.role || 'proclamateur';
+        populateAccessMemberOptions(user.proclamateur_id || '');
+        pageContainer.querySelectorAll('input').forEach(input => { input.checked = (user.pages || []).includes(input.value); });
+        $('accessAdminStatus').textContent = user.email ? `Modification de ${user.email}.` : '';
+      }
+      function renderAccessLists(data) {
+        const requests = $('accessRequests');
+        const users = $('accessUsers');
+        requests.innerHTML = data.requests?.length ? data.requests.map(user => `<div class="d-flex justify-content-between align-items-center border-bottom py-2"><span>${user.name || user.email}<br><small>${user.email}</small></span><button type="button" class="btn btn-sm btn-outline-primary" data-access-edit="${user.user_id}">Configurer</button></div>`).join('') : 'Aucune demande en attente.';
+        users.innerHTML = data.users?.length ? data.users.map(user => {
+          const member = proclamateurs.find(item => String(item.id) === String(user.proclamateur_id));
+          return `<div class="d-flex justify-content-between align-items-center border-bottom py-2"><span>${user.name || user.email}<br><small>${user.email} · ${user.role}</small><br><small>Fiche associée : ${member ? escapeHtml(memberFullName(member)) : 'Aucune'}</small><br><small>${(user.pages || []).map(page => featureLabels[page] || page).join(', ') || 'Aucune fonctionnalité'}</small></span><span class="d-flex gap-1"><button type="button" class="btn btn-sm btn-outline-primary" data-access-edit="${user.user_id}">Modifier</button><button type="button" class="btn btn-sm btn-outline-danger" data-access-revoke="${user.user_id}">Retirer</button></span></div>`;
+        }).join('') : 'Aucun utilisateur autorisé.';
+        [...document.querySelectorAll('[data-access-edit]')].forEach(button => button.addEventListener('click', () => {
+          const user = [...(data.requests || []), ...(data.users || [])].find(item => item.user_id === button.dataset.accessEdit);
+          if (user) setEditor(user);
+        }));
+        [...document.querySelectorAll('[data-access-revoke]')].forEach(button => button.addEventListener('click', async () => {
+          if (!window.confirm('Retirer complètement l’accès de cet utilisateur ?')) return;
+          const { error } = await window.appAuth.client.rpc('revoke_assembly_user', { target_assembly_id: window.appAuth.config.assemblyId, target_user_id: button.dataset.accessRevoke });
+          if (error) { $('accessAdminStatus').textContent = error.message; return; }
+          await loadAccessLists();
+        }));
+      }
+      async function loadAccessLists() {
+        const { data, error } = await window.appAuth.client.rpc('list_assembly_access', { target_assembly_id: window.appAuth.config.assemblyId });
+        if (error) { $('accessRequests').textContent = error.message; $('accessUsers').textContent = 'Impossible de charger les utilisateurs.'; return; }
+        renderAccessLists(data || { requests: [], users: [] });
+      }
+      window.addEventListener('app-proclamateurs-loaded', loadAccessLists);
+      $('saveAccessBtn').addEventListener('click', async () => {
+        const email = $('accessUserEmail').value.trim();
+        const role = $('accessUserRole').value;
+        const proclamateurId = $('accessUserMemberId').value;
+        const pages = Array.from(pageContainer.querySelectorAll('input:checked')).map(input => input.value);
+        const status = $('accessAdminStatus');
+        if (!email) { status.textContent = 'Saisissez un email.'; return; }
+        if (['proclamateur', 'assistant', 'ancien'].includes(role) && pages.some(page => page === 'rapports' || page.startsWith('rapports:')) && !proclamateurId) {
+          status.textContent = 'Associez ce compte à sa fiche de proclamateur pour lui donner accès aux rapports.';
+          return;
+        }
+        status.textContent = 'Enregistrement...';
+        try {
+          const { error } = await window.appAuth.client.rpc('manage_assembly_user', { target_email: email, target_role: role, target_pages: pages, target_proclamateur_id: proclamateurId || null });
+          if (error) throw error;
+          status.textContent = 'Accès enregistré.';
+          $('accessUserEmail').value = '';
+          $('accessUserMemberId').value = '';
+          pageContainer.querySelectorAll('input').forEach(input => { input.checked = false; });
+          await loadAccessLists();
+        } catch (error) {
+          status.textContent = error.message || 'Impossible d’enregistrer cet accès.';
+        }
+      });
+      $('createMemberInviteBtn').addEventListener('click', async () => {
+        const proclamateurId = $('inviteMemberId').value;
+        const email = $('inviteMemberEmail').value.trim().toLowerCase();
+        const status = $('memberInviteStatus');
+        const result = $('memberInviteResult');
+        if (!proclamateurId || !email || !$('inviteMemberEmail').checkValidity()) {
+          status.textContent = !proclamateurId ? 'Sélectionnez le membre à inviter.' : 'Saisissez une adresse e-mail valide pour ce membre.';
+          result.classList.remove('d-none');
+          return;
+        }
+        status.textContent = 'Création du lien sécurisé…';
+        result.classList.remove('d-none');
+        $('createMemberInviteBtn').disabled = true;
+        try {
+          const { data: token, error } = await window.appAuth.client.rpc('issue_assembly_member_invitation', {
+            target_assembly_id: window.appAuth.config.assemblyId,
+            target_proclamateur_id: proclamateurId,
+            target_email: email
+          });
+          if (error) throw error;
+          const inviteUrl = new URL('/connexion.html', productionAppOrigin);
+          inviteUrl.searchParams.set('invitation', token);
+          $('memberInviteUrl').value = inviteUrl.href;
+          status.textContent = 'Lien créé pour le site officiel. Il est à usage unique et expirera dans 7 jours.';
+        } catch (error) {
+          $('memberInviteUrl').value = '';
+          status.textContent = error.message || 'Impossible de créer le lien d’invitation.';
+        } finally {
+          $('createMemberInviteBtn').disabled = false;
+        }
+      });
+      $('copyMemberInviteBtn').addEventListener('click', async () => {
+        const link = $('memberInviteUrl');
+        if (!link.value) return;
+        try {
+          await navigator.clipboard.writeText(link.value);
+          $('memberInviteStatus').textContent = 'Lien copié.';
+        } catch (error) {
+          link.focus();
+          link.select();
+          $('memberInviteStatus').textContent = 'Copie automatique indisponible : copiez le lien sélectionné.';
+        }
+      });
+      loadAccessLists();
+    }
+    function populateAccessMemberOptions(selectedId = '') {
+      const select = $('accessUserMemberId');
+      const inviteSelect = $('inviteMemberId');
+      const options = proclamateurs
+        .slice()
+        .sort((a, b) => memberFullName(a).localeCompare(memberFullName(b), 'fr', { sensitivity: 'base' }))
+        .map(member => `<option value="${escapeHtml(String(member.id))}">${escapeHtml(memberFullName(member))} — ${escapeHtml(member.groupe || 'Sans groupe')}</option>`)
+        .join('');
+      if (select) {
+        const currentSelection = selectedId || select.value;
+        select.innerHTML = '<option value="">Aucune association</option>' + options;
+        select.value = currentSelection;
+      }
+      if (inviteSelect) {
+        const currentSelection = inviteSelect.value;
+        inviteSelect.innerHTML = '<option value="">Choisir un proclamateur</option>' + options;
+        inviteSelect.value = currentSelection;
+      }
+    }
+    function setup() {
+      $('monthPicker').value = currentMonthKey;
+      $('endMonthPicker').value = currentMonthKey;
+      for (let year = currentYear - 3; year <= currentYear + 1; year++) {
+        $('serviceYearSelect').add(new Option(`${year} (1 sept. ${year - 1} - 31 août ${year})`, year));
+      }
+      $('serviceYearSelect').value = currentYear;
+      $('periodType').addEventListener('change', () => {
+        const type = $('periodType').value;
+        $('monthWrapper').classList.toggle('d-none', type !== 'month');
+        $('endMonthWrapper').classList.toggle('d-none', type !== 'last3' && type !== 'last6');
+        $('serviceYearWrapper').classList.toggle('d-none', type !== 'serviceYear');
+        render();
+      });
+      $('refreshBtn').addEventListener('click', render);
+      $('exportDataBtn').addEventListener('click', handleDataExport);
+      $('importDataBtn').addEventListener('click', () => $('importDataInput').click());
+      $('importDataInput').addEventListener('change', handleDataImport);
+      setupAccessAdmin();
+      loadData();
+    }
+    window.addEventListener('DOMContentLoaded', setup);
+  </script>
+</body>
+</html>
