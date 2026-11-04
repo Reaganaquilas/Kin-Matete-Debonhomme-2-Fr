@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="app-theme.css">
   <script src="vendor/supabase.js"></script>
   <script src="auth-config.js"></script>
+  <script src="realtime-manager.js"></script>
   <script src="sync-engine.js"></script>
   <script src="auth-guard.js"></script>
   <style>
@@ -797,20 +798,49 @@
         await Promise.all([loadReportStatus(), loadMessages()]);
       }
 
+      function unsubscribeRealtime() {
+        if (inboxChannel) {
+          window.appRealtimeManager?.clearChannel(`inbox-page-${assemblyId}`);
+          inboxChannel = null;
+        }
+        if (reportChannel) {
+          window.appRealtimeManager?.clearChannel(`inbox-reports-${assemblyId}`);
+          reportChannel = null;
+        }
+      }
+
       function subscribeRealtime() {
-        if (!client || !assemblyId) return;
-        inboxChannel = client.channel(`inbox-page-${assemblyId}`)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'assembly_inbox_messages', filter: `assembly_id=eq.${assemblyId}` }, () => loadMessages())
-          .subscribe();
-        if (isSecretary()) {
-          reportChannel = client.channel(`inbox-reports-${assemblyId}`)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'app_sync_records', filter: `assembly_id=eq.${assemblyId}` }, payload => {
+        if (!client || !assemblyId) {
+          unsubscribeRealtime();
+          return;
+        }
+        const needsReportChannel = isSecretary();
+        if (inboxChannel && (!needsReportChannel || reportChannel)) return;
+        unsubscribeRealtime();
+
+        inboxChannel = window.appRealtimeManager?.ensureChannel(`inbox-page-${assemblyId}`, channel => {
+          channel.on('postgres_changes', {
+            event: '*',
+            schema: 'public',
+            table: 'assembly_inbox_messages',
+            filter: `assembly_id=eq.${assemblyId}`
+          }, () => loadMessages());
+        }, { client });
+
+        if (needsReportChannel) {
+          reportChannel = window.appRealtimeManager?.ensureChannel(`inbox-reports-${assemblyId}`, channel => {
+            channel.on('postgres_changes', {
+              event: '*',
+              schema: 'public',
+              table: 'app_sync_records',
+              filter: `assembly_id=eq.${assemblyId}`
+            }, payload => {
               if (['proclamateurs', 'detailPredication'].includes(payload.new?.store_name)) {
                 loadReportStatus();
                 loadMessages();
               }
-            })
-            .subscribe();
+            });
+          }, { client });
         }
       }
 

@@ -630,6 +630,7 @@
   <link rel="stylesheet" href="app-theme.css">
   <script src="vendor/supabase.js"></script>
   <script src="auth-config.js"></script>
+  <script src="realtime-manager.js"></script>
   <script src="sync-engine.js"></script>
   <script src="auth-guard.js"></script>
 </head>
@@ -1284,6 +1285,7 @@
       ['pdf', 'Fichiers PDF'], ['pdf:resp', '  Modifier responsable de groupe'], ['pdf:allgroups', '  Groupes de prédication']
     ];
     const featureLabels = Object.fromEntries(managedFeatures);
+    const productionAppOrigin = 'https://kinmatetedebononhomme2fr.netlify.app';
 
     function setupAccessAdmin() {
       const panel = $('accessAdmin');
@@ -1375,10 +1377,10 @@
             target_email: email
           });
           if (error) throw error;
-          const inviteUrl = new URL('connexion.html', window.location.href);
+          const inviteUrl = new URL('/connexion.html', productionAppOrigin);
           inviteUrl.searchParams.set('invitation', token);
           $('memberInviteUrl').value = inviteUrl.href;
-          status.textContent = 'Lien créé. Il est à usage unique et expirera dans 7 jours.';
+          status.textContent = 'Lien créé pour le site officiel. Il est à usage unique et expirera dans 7 jours.';
         } catch (error) {
           $('memberInviteUrl').value = '';
           status.textContent = error.message || 'Impossible de créer le lien d’invitation.';
