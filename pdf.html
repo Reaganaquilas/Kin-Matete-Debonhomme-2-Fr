@@ -47,7 +47,7 @@
       align-items:stretch;
     }
     .pdf-card {
-      grid-column:span 12;
+      grid-column:span 4;
       min-width:0;
       height:100%;
       background:var(--app-surface);
@@ -56,8 +56,8 @@
       overflow:hidden;
       box-shadow:0 12px 28px rgba(19,34,43,.07);
     }
-    .pdf-card-large { grid-column:span 12; }
-    .pdf-card-wide { grid-column:span 12; }
+    .pdf-card-large { grid-column:span 4; }
+    .pdf-card-wide { grid-column:span 8; }
     .pdf-card-header {
       display:flex;
       align-items:center;
@@ -80,16 +80,11 @@
       padding:22px 20px 24px;
       text-align:center;
       background:linear-gradient(180deg, #ffffff 0%, #f7fafb 100%);
-      min-height:170px;
+      min-height:220px;
       display:flex;
-      flex-direction:row;
-      align-items:center;
-      justify-content:space-between;
-      gap:24px;
-      text-align:left;
+      flex-direction:column;
+      justify-content:center;
     }
-    .pdf-card-description { max-width:650px; margin:0; color:var(--app-muted); line-height:1.6; }
-    .pdf-card .pdf-btn { min-width:min(320px, 100%); }
     .pdf-btn {
       margin:8px 0;
       min-height:52px;
@@ -149,14 +144,12 @@
     }
     @media (max-width:900px) {
       .pdf-row { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-      .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 2; }
+      .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 1; }
     }
     @media (max-width:576px) {
       .container { padding:14px; }
       .pdf-row { grid-template-columns:1fr; gap:14px; }
       .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 1; }
-      .pdf-card-body { align-items:stretch; flex-direction:column; gap:14px; text-align:center; }
-      .pdf-card .pdf-btn { width:100%; }
       .modal-body { padding:14px; }
     }
     .attendance-card .pdf-card-header {
@@ -565,10 +558,7 @@
 <body>
   <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-3">
-      <div>
-        <div class="text-uppercase small fw-bold text-primary mb-1">Documents de l’assemblée</div>
-        <h3>Fichiers PDF</h3>
-      </div>
+      <h3>Fichiers PDF</h3>
       <a href="index.html" class="btn btn-outline-secondary">Retour</a>
     </div>
 
@@ -576,10 +566,33 @@
       <div class="pdf-card">
         <div class="pdf-card-header">S-21 des proclamateurs</div>
         <div class="pdf-card-body">
-          <p class="pdf-card-description">Générez, consultez, enregistrez ou imprimez les fiches S-21 selon le proclamateur, le groupe ou le type de service sélectionné.</p>
           <button id="proclBtn" class="btn btn-primary pdf-btn">S-21 des proclamateurs</button>
         </div>
       </div>
+
+      <div class="pdf-card pdf-card-large attendance-card">
+        <div class="pdf-card-header">Assistance aux réunions</div>
+        <div class="pdf-card-body text-start">
+          <div class="attendance-tools">
+            <label class="form-label">Mois</label>
+            <input id="assistMonthPicker" type="month" class="form-control" />
+            <div class="attendance-actions mt-3">
+              <button id="showAttendanceBtn" class="btn btn-primary pdf-btn">Afficher</button>
+              <button id="saveAttendancePdfBtn" class="btn btn-outline-secondary pdf-btn">Enregistrer</button>
+              <button id="printAttendanceBtn" class="btn btn-outline-secondary pdf-btn">Imprimer</button>
+            </div>
+          </div>
+          <div id="assistancePreview" class="attendance-preview"></div>
+        </div>
+      </div>
+
+      <div class="pdf-card">
+        <div class="pdf-card-header">Pionniers à encourager</div>
+        <div class="pdf-card-body">
+          <button id="encourageBtn" class="btn btn-outline-secondary pdf-btn">Pionniers à encourager</button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Modal S-21 des proclamateurs -->
@@ -661,6 +674,12 @@
   </div>
 
   <script>
+    document.getElementById('showAttendanceBtn')?.addEventListener('click', displayAttendanceSummary);
+    document.getElementById('saveAttendancePdfBtn')?.addEventListener('click', saveAttendanceSummaryPdf);
+    document.getElementById('printAttendanceBtn')?.addEventListener('click', printAttendanceSummary);
+    document.getElementById('encourageBtn')?.addEventListener('click', () => {
+      window.open('pionnier_encourager.html', '_blank');
+    });
     document.getElementById('csvBtn')?.addEventListener('click', () => alert('Export CSV'));
     document.getElementById('pdfListBtn')?.addEventListener('click', () => alert('Export PDF'));
     document.getElementById('docxBtn')?.addEventListener('click', () => alert('Export DOCX'));
@@ -1352,9 +1371,7 @@
         return;
       }
       const list = window.__PROCL_LIST || [];
-      const members = list
-        .filter(p => p.groupe && String(p.groupe).toLowerCase().includes(groupVal))
-        .sort(compareS21Members);
+      const members = list.filter(p => p.groupe && String(p.groupe).toLowerCase().includes(groupVal));
 
       if (members.length === 0) {
         alert('Aucun membre trouvé dans ce groupe.');
@@ -1583,7 +1600,7 @@
       });
     }
 
-    document.getElementById('loadGroupMembersBtn')?.addEventListener('click', () => {
+    document.getElementById('loadGroupMembersBtn').addEventListener('click', () => {
       const grp = document.getElementById('groupSelectMgmt').value;
       if (!grp) {
         alert('Sélectionnez un groupe.');
@@ -1800,16 +1817,9 @@
 
         const participated = rec && ['yes', 'oui', 'true', '1'].includes(String(rec.aprecher || '').trim().toLowerCase());
         const courses = rec ? (rec.coursBiblique || rec.cours || '') : '';
+        const isAux = !isPP && isAuxiliaireForMonth(p, key, rec);
         const hours = rec ? (rec.heures || rec.hours || '') : '';
-        const hasAuxiliarySubscription = !isPP && isAuxiliaireForMonth(p, key, rec);
-        const isAux = hasAuxiliarySubscription && Number(hours || 0) >= 15;
-        let obsText = String(rec?.observation || '')
-          .replace(/\bPionnier auxiliaire\b/gi, '')
-          .replace(/\s{2,}/g, ' ')
-          .replace(/^[,;.\s]+|[,;.\s]+$/g, '');
-        if (isAux && !/\bPionnier auxiliaire\b/i.test(String(rec?.observation || ''))) {
-          obsText = [obsText, 'Pionnier auxiliaire'].filter(Boolean).join(' — ');
-        }
+        const obsText = rec ? (rec.observation || '') : '';
 
         tr.innerHTML = `
           <td>${monthNames[idx]}</td>
@@ -1839,6 +1849,9 @@
       pageDiv.querySelector('.tot-pa').textContent = totalPA;
       pageDiv.querySelector('.tot-hours').textContent = totalHours;
 
+      // Laisser la colonne Observations vide par défaut (aucune insertion automatique)
+      // (Observation content intentionally left untouched)
+
       return pageDiv;
     }
 
@@ -1867,11 +1880,6 @@
       if (prt) prt.textContent = label ? `IMPRIMER S-21 ${label}` : 'IMPRIMER S-21';
     }
 
-    function compareS21Members(left, right) {
-      return String(left.groupe || '').localeCompare(String(right.groupe || ''), 'fr', { numeric: true, sensitivity: 'base' }) ||
-        getMemberFullName(left).localeCompare(getMemberFullName(right), 'fr', { sensitivity: 'base' });
-    }
-
     function generateByType(type) {
       const list = window.__PROCL_LIST || [];
       let members = [];
@@ -1887,9 +1895,8 @@
       } else if (type === 'assistants') {
         members = list.filter(p => /assistant/i.test([p.service, ...(p.roles||[])].join(' ')));
       } else if (type === 'global') {
-        members = list.slice().sort(compareS21Members);
+        members = list.slice();
       }
-
       if (!members.length) {
         alert('Aucun membre trouvé pour ce type.');
         return;
