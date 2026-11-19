@@ -30,6 +30,12 @@
     .action-buttons { display: inline-flex; gap: .35rem; flex-wrap: wrap; justify-content: center; }
     .action-buttons .btn { min-width: 100px; }
     .table-responsive { overflow-x: auto; }
+    .contact-report-header { overflow: hidden; border: 1px solid #d9e1e6; border-radius: 12px; background: #fff; box-shadow: 0 6px 18px rgba(31,55,68,0.08); }
+    .contact-report-banner { padding: 1rem; background: linear-gradient(120deg, #c8efff, #a9e2f8); color: #173b4e; text-align: center; }
+    .contact-report-assembly { margin-bottom: .25rem; color: #355b70; font-size: .72rem; font-weight: 700; letter-spacing: .03em; }
+    .contact-report-title { margin: 0; color: #173b4e; font-size: 1.1rem; font-weight: 800; letter-spacing: .03em; }
+    .contact-report-meta { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem 1.5rem; padding: .75rem 1rem; background: #f0f9fd; color: #294d60; text-align: center; font-size: .85rem; }
+    .contact-address { min-width: 18rem; max-width: 34rem; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
     .sortable { cursor: pointer; user-select: none; }
     .sortable span { font-size: 0.85rem; }
     .stats-summary { display: grid; grid-template-columns: minmax(220px, 320px); gap: 18px; }
@@ -41,6 +47,7 @@
   <link rel="stylesheet" href="app-theme.css">
   <script src="vendor/supabase.js"></script>
   <script src="auth-config.js"></script>
+  <script src="realtime-manager.js"></script>
   <script src="sync-engine.js"></script>
   <script src="auth-guard.js"></script>
 </head>
@@ -175,22 +182,46 @@
 
     <div class="tab-pane fade" id="contact">
       <div class="card p-3">
-        <h5 class="text-primary">Contacts d’urgence</h5>
+        <div class="contact-report-header mb-3">
+          <div class="contact-report-banner">
+            <div class="contact-report-assembly" id="contactReportAssembly"></div>
+            <h5 class="contact-report-title">Contacts d’urgence</h5>
+          </div>
+          <div class="contact-report-meta">
+            <span><strong>Groupe :</strong> <span id="contactReportGroup">Tous les groupes</span></span>
+            <span id="contactReportLeadership" hidden>
+              <strong>Responsable :</strong> <span id="contactReportLeader"></span>
+              <span class="ms-3"><strong>Adjoint :</strong> <span id="contactReportAdjoint"></span></span>
+            </span>
+          </div>
+        </div>
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-md-4">
+            <label class="form-label" for="contactGroupFilter">Afficher les contacts du groupe</label>
+            <select id="contactGroupFilter" class="form-select">
+              <option value="">Tous les groupes</option>
+            </select>
+          </div>
+          <div class="col-md-8 text-muted small">Tri alphabétique par nom, postnom et prénom.</div>
+        </div>
         <div class="d-flex flex-wrap gap-2 mb-3">
           <button type="button" class="btn btn-outline-primary" id="exportContactsExcelBtn">Enregistrer les contacts en Excel</button>
           <button type="button" class="btn btn-outline-primary" id="exportContactsPdfBtn">Enregistrer les contacts en PDF</button>
         </div>
-        <table class="table table-striped">
-          <thead class="table-primary">
-            <tr>
-              <th>ID</th><th>Nom</th><th>Postnom</th><th>Prénom</th>
-              <th>Adresse complète</th><th>Personne à contacter</th><th>Numéro à contacter</th>
-            </tr>
-          </thead>
-          <tbody id="contactTableBody">
-            <tr><td colspan="7" class="text-center">Chargement...</td></tr>
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table table-striped align-middle">
+            <thead class="table-primary">
+              <tr>
+                <th>ID</th><th>Nom</th><th>Postnom</th><th>Prénom</th>
+                <th>Adresse complète</th><th>Personne à contacter</th><th>Numéro à contacter</th>
+                <th id="contactGroupHeader">Groupe</th>
+              </tr>
+            </thead>
+            <tbody id="contactTableBody">
+              <tr><td colspan="8" class="text-center">Chargement...</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -213,11 +244,13 @@
   let importRows = [];
   const toastEl = document.getElementById('toastNotification');
   const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+  const contactReportAssembly = 'ASSEMBLÉE LOCALE DE KIN MATETE DE BONHOMME 2 FRANÇAIS (55954)';
   let currentSearchText = '';
   let currentGroup = '';
   let showAllProclamateurs = false;
   let currentSortField = 'nom';
   let currentSortDirection = 'asc';
+  let groupLeaders = [];
   const identityAliases = [
     ['KALOMBO ESTHER', 'KALOMBO NGOYA ESTHER'],
     ['KALOMBO REGINE', 'KALOMBO KAPINGA REGINE'],
@@ -282,6 +315,20 @@
     });
   }
 
+  function sortContactItems(items) {
+    return items.slice().sort((a, b) => {
+      for (const field of ['nom', 'postnom', 'prenom']) {
+        const comparison = String(a[field] || '').trim().localeCompare(
+          String(b[field] || '').trim(),
+          'fr',
+          { numeric: true, sensitivity: 'base' }
+        );
+        if (comparison) return comparison;
+      }
+      return 0;
+    });
+  }
+
   function filterProclamateurs(items, requireSelection = true) {
     if (requireSelection && !showAllProclamateurs && !currentSearchText.trim() && !currentGroup) return [];
     return items.filter(item =>
@@ -290,15 +337,52 @@
     );
   }
 
+  function getGroupOption(group) {
+    const escapedGroup = group
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    return `<option value="${escapedGroup}">${escapedGroup}</option>`;
+  }
+
   function updateGroupFilter(items) {
-    const select = document.getElementById('groupFilter');
-    const selectedGroup = currentGroup;
     const groups = [...new Set(items.map(item => String(item.groupe || '').trim()).filter(Boolean))]
       .sort((a, b) => a.localeCompare(b, 'fr', { sensitivity: 'base' }));
-    select.innerHTML = '<option value="">Choisir un groupe</option>' +
-      groups.map(group => `<option value="${group.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}">${group.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</option>`).join('');
-    if (groups.includes(selectedGroup)) select.value = selectedGroup;
+    const groupFilter = document.getElementById('groupFilter');
+    groupFilter.innerHTML = '<option value="">Choisir un groupe</option>' +
+      groups.map(getGroupOption).join('');
+    if (groups.includes(currentGroup)) groupFilter.value = currentGroup;
     else currentGroup = '';
+
+    const contactGroupFilter = document.getElementById('contactGroupFilter');
+    const selectedContactGroup = contactGroupFilter.value;
+    contactGroupFilter.innerHTML = '<option value="">Tous les groupes</option>' +
+      groups.map(getGroupOption).join('');
+    if (groups.includes(selectedContactGroup)) contactGroupFilter.value = selectedContactGroup;
+  }
+
+  function getContactReportDetails() {
+    const selectedGroup = document.getElementById('contactGroupFilter').value;
+    const leadership = selectedGroup
+      ? groupLeaders.find(item => normalizeIdentityValue(item.group) === normalizeIdentityValue(selectedGroup)) || {}
+      : {};
+    return {
+      assembly: contactReportAssembly,
+      group: selectedGroup || 'Tous les groupes',
+      hasSelectedGroup: Boolean(selectedGroup),
+      leader: selectedGroup ? leadership.leaderName || 'Non défini' : '',
+      adjoint: selectedGroup ? leadership.adjointName || 'Non défini' : ''
+    };
+  }
+
+  function renderContactReportHeader() {
+    const details = getContactReportDetails();
+    document.getElementById('contactReportAssembly').textContent = details.assembly;
+    document.getElementById('contactReportGroup').textContent = details.group;
+    document.getElementById('contactReportLeadership').hidden = !details.hasSelectedGroup;
+    document.getElementById('contactReportLeader').textContent = details.leader;
+    document.getElementById('contactReportAdjoint').textContent = details.adjoint;
   }
 
   function renderImportPreview(rows) {
@@ -807,6 +891,15 @@
     request.onerror = () => callback([]);
   }
 
+  function getAllGroupLeaders(callback) {
+    const request = db.transaction('groupLeaders', 'readonly').objectStore('groupLeaders').getAll();
+    request.onsuccess = () => callback(request.result || []);
+    request.onerror = () => {
+      showToast('Impossible de charger les responsables de groupe.', 'warning');
+      callback([]);
+    };
+  }
+
   function getAllDetailRecords(callback) {
     const transaction = db.transaction('detailPredication', 'readonly');
     const store = transaction.objectStore('detailPredication');
@@ -853,25 +946,56 @@
   function refreshAllLists() {
     getAllProclamateurs(items => {
       updateGroupFilter(items);
-      getAllDetailRecords(() => {
-        const filtered = filterProclamateurs(items);
-        const sorted = sortProclamateurs(filtered, currentSortField, currentSortDirection);
-        renderTable(sorted);
-        const contactMatches = items.filter(item => itemMatchesSearch(item, currentSearchText));
-        renderContactTable(sortProclamateurs(contactMatches, currentSortField, currentSortDirection));
-        renderStatsSummary();
-        const status = document.getElementById('listFilterStatus');
-        if (showAllProclamateurs || currentSearchText.trim() || currentGroup) {
-          status.textContent = `${sorted.length} proclamateur(s) affiché(s).`;
-        } else {
-          status.textContent = 'Recherchez un proclamateur ou choisissez un groupe. Cliquez sur « Afficher tous » pour voir la liste complète.';
-        }
+      getAllGroupLeaders(leaders => {
+        groupLeaders = leaders;
+        renderContactReportHeader();
+        getAllDetailRecords(() => {
+          const filtered = filterProclamateurs(items);
+          const sorted = sortProclamateurs(filtered, currentSortField, currentSortDirection);
+          renderTable(sorted);
+          renderContactTable(getContactItems(items));
+          renderStatsSummary();
+          const status = document.getElementById('listFilterStatus');
+          if (showAllProclamateurs || currentSearchText.trim() || currentGroup) {
+            status.textContent = `${sorted.length} proclamateur(s) affiché(s).`;
+          } else {
+            status.textContent = 'Recherchez un proclamateur ou choisissez un groupe. Cliquez sur « Afficher tous » pour voir la liste complète.';
+          }
+        });
       });
     });
   }
 
   function getExportItems() {
     return sortProclamateurs(filterProclamateurs(window.__PROCL_LIST || []), currentSortField, currentSortDirection);
+  }
+
+  function getContactItems(items = window.__PROCL_LIST || []) {
+    const selectedGroup = document.getElementById('contactGroupFilter').value;
+    const filteredItems = selectedGroup
+      ? items.filter(item => String(item.groupe || '').trim() === selectedGroup)
+      : items;
+    return sortContactItems(filteredItems);
+  }
+
+  function wrapAddressForExport(value, maxLineLength = 36) {
+    const words = String(value || '').trim().split(/\s+/).filter(Boolean);
+    const lines = [];
+    let line = '';
+    words.forEach(valueWord => {
+      let word = valueWord;
+      if (line && line.length + word.length + 1 > maxLineLength) {
+        lines.push(line);
+        line = '';
+      }
+      while (word.length > maxLineLength) {
+        lines.push(word.slice(0, maxLineLength));
+        word = word.slice(maxLineLength);
+      }
+      line = line ? `${line} ${word}` : word;
+    });
+    if (line) lines.push(line);
+    return lines.join('\n');
   }
 
   async function saveExportFile(blob, fileName, mimeType) {
@@ -937,36 +1061,156 @@
   }
 
   async function exportContactsExcel() {
-    const items = getExportItems();
-    const rows = items.map(item => ({
-      ID: item.id || '',
-      Nom: item.nom || '',
-      Postnom: item.postnom || '',
-      Prénom: item.prenom || '',
-      'Adresse complète': item.adresse || '',
-      'Personne à contacter': item.contactName || '',
-      'Numéro à contacter': item.contactPhone || ''
+    const items = getContactItems();
+    const details = getContactReportDetails();
+    const headers = [
+      'ID', 'Nom', 'Postnom', 'Prénom', 'Adresse complète', 'Personne à contacter',
+      'Numéro à contacter'
+    ];
+    if (!details.hasSelectedGroup) headers.push('Groupe');
+    const rows = items.map(item => [
+      item.id || '',
+      item.nom || '',
+      item.postnom || '',
+      item.prenom || '',
+      wrapAddressForExport(item.adresse),
+      item.contactName || '',
+      item.contactPhone || '',
+      ...(!details.hasSelectedGroup ? [item.groupe || ''] : [])
+    ]);
+    const metadataRows = [
+      [details.assembly],
+      ['CONTACTS D’URGENCE'],
+      [`Groupe : ${details.group}`],
+      ...(details.hasSelectedGroup
+        ? [[`Responsable : ${details.leader}`], [`Adjoint : ${details.adjoint}`]]
+        : [])
+    ];
+    const reportRows = [
+      ...metadataRows,
+      [],
+      headers,
+      ...rows
+    ];
+    const worksheet = XLSX.utils.aoa_to_sheet(reportRows);
+    const metadataRowCount = metadataRows.length;
+    const headerRowIndex = metadataRowCount + 1;
+    worksheet['!merges'] = Array.from({ length: metadataRowCount }, (_, row) => ({
+      s: { r: row, c: 0 },
+      e: { r: row, c: headers.length - 1 }
     }));
-    const headers = ['ID', 'Nom', 'Postnom', 'Prénom', 'Adresse complète', 'Personne à contacter', 'Numéro à contacter'];
-    const worksheet = XLSX.utils.json_to_sheet(rows, { header: headers });
-    worksheet['!cols'] = [14, 18, 18, 18, 34, 26, 22].map(wch => ({ wch }));
+    worksheet['!cols'] = [14, 18, 18, 18, 54, 30, 22, ...(!details.hasSelectedGroup ? [18] : [])]
+      .map(wch => ({ wch }));
+    worksheet['!rows'] = [
+      ...metadataRows.map((_, index) => ({ hpt: index === 0 ? 20 : 16 })),
+      { hpt: 8 }, { hpt: 20 },
+      ...items.map(item => ({ hpt: Math.max(20, wrapAddressForExport(item.adresse).split('\n').length * 14) }))
+    ];
+    items.forEach((item, index) => {
+      const cellAddress = XLSX.utils.encode_cell({ r: headerRowIndex + 1 + index, c: 4 });
+      if (worksheet[cellAddress]) {
+        worksheet[cellAddress].s = { alignment: { wrapText: true, vertical: 'top' } };
+      }
+    });
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Contacts urgence');
-    const data = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+    const data = XLSX.write(workbook, { bookType: 'xlsx', type: 'array', cellStyles: true });
     await saveExportFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'CONTACTS D URGENCE.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   }
 
   async function exportContactsPdf() {
-    const items = getExportItems();
+    const items = getContactItems();
+    const details = getContactReportDetails();
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const headers = ['ID', 'Nom', 'Postnom', 'Prénom', 'Adresse complète', 'Personne à contacter', 'Numéro à contacter'];
-    const values = item => [item.id, item.nom, item.postnom, item.prenom, item.adresse, item.contactName, item.contactPhone].map(value => String(value || '-'));
-    const margin = 10; const pageWidth = 297; const rowHeight = 8; const widths = [20, 34, 34, 34, 65, 45, 35];
-    let y = 12;
-    const drawRow = (row, header = false) => { let x = margin; row.forEach((value, index) => { pdf.setFillColor(header ? 220 : 255, header ? 232 : 255, header ? 246 : 255); pdf.rect(x, y, widths[index], rowHeight, 'FD'); pdf.setFontSize(header ? 6 : 6.5); pdf.setTextColor(20, 20, 20); pdf.text(pdf.splitTextToSize(value, widths[index] - 2)[0] || '', x + 1, y + 5); x += widths[index]; }); y += rowHeight; };
-    pdf.setFontSize(14); pdf.text('CONTACTS D URGENCE', pageWidth / 2, y, { align: 'center' }); y += 9; pdf.setFontSize(8); pdf.text(`Total : ${items.length}`, margin, y); y += 5; drawRow(headers, true);
-    items.forEach(item => { if (y > 195) { pdf.addPage(); y = 12; drawRow(headers, true); } drawRow(values(item)); });
+    const headers = [
+      'ID', 'Nom', 'Postnom', 'Prénom', 'Adresse complète', 'Personne à contacter',
+      'Numéro à contacter'
+    ];
+    if (!details.hasSelectedGroup) headers.push('Groupe');
+    const widths = details.hasSelectedGroup
+      ? [16, 30, 30, 30, 92, 48, 35]
+      : [16, 30, 30, 30, 65, 48, 35, 27];
+    const margin = 8;
+    const pageWidth = 297;
+    const pageHeight = 210;
+    let y = 10;
+
+    function drawRow(row, header = false) {
+      const fontSize = header ? 5.4 : 5.8;
+      pdf.setFont('helvetica', header ? 'bold' : 'normal');
+      pdf.setFontSize(fontSize);
+      const lines = row.map((value, index) =>
+        pdf.splitTextToSize(String(value || '-'), widths[index] - 2)
+      );
+      const lineCount = Math.max(...lines.map(cellLines => cellLines.length));
+      const rowHeight = Math.max(8, lineCount * 3 + 4);
+
+      if (!header && y + rowHeight > pageHeight - margin) {
+        pdf.addPage();
+        drawPageHeader();
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(fontSize);
+      }
+
+      let x = margin;
+      lines.forEach((cellLines, index) => {
+        pdf.setFillColor(header ? 194 : 255, header ? 232 : 255, header ? 248 : 255);
+        pdf.rect(x, y, widths[index], rowHeight, 'FD');
+        pdf.setTextColor(header ? 23 : 35, header ? 59 : 55, header ? 78 : 70);
+        pdf.text(cellLines, x + 2, y + 3);
+        x += widths[index];
+      });
+      y += rowHeight;
+    }
+
+    function drawPageHeader() {
+      y = 10;
+      const bannerHeight = 25;
+      pdf.setFillColor(200, 239, 255);
+      pdf.roundedRect(margin, y, pageWidth - margin * 2, bannerHeight, 2, 2, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(23, 59, 78);
+      pdf.setFontSize(8);
+      const assemblyLines = pdf.splitTextToSize(details.assembly, pageWidth - margin * 2 - 8);
+      pdf.text(assemblyLines, pageWidth / 2, y + 7, { align: 'center' });
+      pdf.setFontSize(11);
+      pdf.text('CONTACTS D’URGENCE', pageWidth / 2, y + 17, { align: 'center' });
+      y += bannerHeight + 4;
+
+      const reportDetails = [
+        `GROUPE : ${details.group}`,
+        ...(details.hasSelectedGroup
+          ? [`RESPONSABLE : ${details.leader}`, `ADJOINT : ${details.adjoint}`]
+          : [])
+      ].join('   |   ');
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7.5);
+      const groupLines = pdf.splitTextToSize(reportDetails, pageWidth - margin * 2 - 8);
+      const metadataHeight = Math.max(14, 8 + groupLines.length * 3);
+      pdf.setFillColor(240, 249, 253);
+      pdf.roundedRect(margin, y, pageWidth - margin * 2, metadataHeight, 2, 2, 'F');
+      pdf.setTextColor(35, 55, 70);
+      pdf.text(groupLines, pageWidth / 2, y + 9, { align: 'center' });
+      y += metadataHeight + 3;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.setTextColor(75, 90, 100);
+      pdf.text(`Total : ${items.length}`, margin, y);
+      y += 4;
+      drawRow(headers, true);
+    }
+
+    drawPageHeader();
+    items.forEach(item => {
+      const row = [
+        item.id, item.nom, item.postnom, item.prenom, wrapAddressForExport(item.adresse, 36),
+        item.contactName, item.contactPhone
+      ];
+      if (!details.hasSelectedGroup) row.push(item.groupe || 'Non défini');
+      drawRow(row);
+    });
     await saveExportFile(pdf.output('blob'), 'CONTACTS D URGENCE.pdf', 'application/pdf');
   }
 
@@ -1001,20 +1245,31 @@
 
   function renderContactTable(items) {
     const tbody = document.getElementById('contactTableBody');
+    const hasSelectedGroup = Boolean(document.getElementById('contactGroupFilter').value);
+    document.getElementById('contactGroupHeader').hidden = hasSelectedGroup;
+    const columnCount = hasSelectedGroup ? 7 : 8;
     if (!items.length) {
-      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state">Aucun contact d’urgence.</div></td></tr>';
+      tbody.innerHTML = `<tr><td colspan="${columnCount}"><div class="empty-state">Aucun contact d’urgence.</div></td></tr>`;
       return;
     }
 
+    const escapeHtml = value => String(value || '').replace(/[&<>'"]/g, character => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#039;',
+      '"': '&quot;'
+    })[character]);
     tbody.innerHTML = items.map(item => `
       <tr>
-        <td>${item.id}</td>
-        <td>${item.nom}</td>
-        <td>${item.postnom}</td>
-        <td>${item.prenom}</td>
-        <td>${item.adresse}</td>
-        <td>${item.contactName || '-'}</td>
-        <td>${item.contactPhone || '-'}</td>
+        <td>${escapeHtml(item.id)}</td>
+        <td>${escapeHtml(item.nom)}</td>
+        <td>${escapeHtml(item.postnom)}</td>
+        <td>${escapeHtml(item.prenom)}</td>
+        <td class="contact-address">${escapeHtml(item.adresse)}</td>
+        <td>${escapeHtml(item.contactName || '-')}</td>
+        <td>${escapeHtml(item.contactPhone || '-')}</td>
+        ${hasSelectedGroup ? '' : `<td>${escapeHtml(item.groupe || 'Non défini')}</td>`}
       </tr>`).join('');
   }
 
@@ -1072,6 +1327,15 @@
     currentGroup = event.target.value;
     showAllProclamateurs = false;
     refreshAllLists();
+  });
+  document.getElementById('contactGroupFilter').addEventListener('change', () => {
+    renderContactReportHeader();
+    renderContactTable(getContactItems());
+  });
+  window.addEventListener('app-sync-updated', event => {
+    if (event.detail?.database_name === 'ProclamateursDB' && event.detail?.store_name === 'groupLeaders') {
+      refreshAllLists();
+    }
   });
   document.getElementById('showAllBtn').addEventListener('click', () => {
     document.getElementById('searchInput').value = '';

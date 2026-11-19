@@ -264,27 +264,44 @@
     window.dispatchEvent(new CustomEvent('app-sync-updated', { detail: row }));
   }
 
+  function unsubscribeRealtime() {
+    if (!realtimeChannel) return;
+    try {
+      realtimeChannel.unsubscribe();
+    } catch (_) {
+      // ignorer si le canal a déjà été détruit
+    }
+    realtimeChannel = null;
+  }
+
   function subscribeToRealtime() {
     const client = getSupabaseClient();
     const assemblyId = window.appAuth?.config?.assemblyId;
-    if (!client || !assemblyId || realtimeChannel) return;
+    if (!client || !assemblyId) {
+      unsubscribeRealtime();
+      return;
+    }
+    if (realtimeChannel) return;
 
-    realtimeChannel = client
-      .channel(`assembly-sync-${assemblyId}`)
-      .on('postgres_changes', {
+    const channelName = `assembly-sync-${assemblyId}`;
+    realtimeChannel = window.appRealtimeManager?.ensureChannel(channelName, channel => {
+      channel.on('postgres_changes', {
         event: '*', schema: 'public', table: 'app_sync_records',
         filter: `assembly_id=eq.${assemblyId}`
       }, payload => {
         if (payload.eventType === 'DELETE') return;
         applyRemoteRecord(payload.new).catch(error => console.warn('Mise à jour temps réel indisponible :', error));
-      })
-      .subscribe(status => {
+      });
+    }, {
+      client,
+      onStatus: status => {
         if (status === 'SUBSCRIBED') appSyncStatus('Synchronisation en temps réel active.');
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          realtimeChannel = null;
+          unsubscribeRealtime();
           appSyncStatus('Synchronisation en attente. Nouvelle tentative automatique.', true);
         }
-      });
+      }
+    });
   }
 
   async function readRemoteRecords(client, assemblyId) {

@@ -1,7 +1,7 @@
 (function () {
   const config = {
-    url: 'https://fmffzzmlsnmlxfuwnmka.supabase.co',
-    anonKey: 'sb_publishable_S3FGkO2RSeftLSDeOvbCjw_MLUS3cUt',
+    url: 'https://grrxlasibdntcjuqqfjl.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdycnhsYXNpYmRudGNqdXFxZmpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTAyMjUsImV4cCI6MjEwNDYyNjIyNX0.njcj0kHqjv6hwyLgJZ-6WP8DEUrTcofQ_-_0pkaBfDY',
     assemblyId: '55954'
   };
 
@@ -29,7 +29,7 @@
 
   function hasRealSupabaseShape() {
     const urlLooksValid = /^https:\/\/[-a-z0-9]+\.supabase\.co\/?$/i.test(config.url || '');
-    const anonLooksValid = /^sb_[A-Za-z0-9_-]+$/i.test(config.anonKey || '');
+    const anonLooksValid = /^(?:sb_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i.test(config.anonKey || '');
     return Boolean(config.url && config.anonKey && urlLooksValid && anonLooksValid);
   }
 

@@ -47,7 +47,7 @@
       align-items:stretch;
     }
     .pdf-card {
-      grid-column:span 4;
+      grid-column:span 12;
       min-width:0;
       height:100%;
       background:var(--app-surface);
@@ -56,8 +56,8 @@
       overflow:hidden;
       box-shadow:0 12px 28px rgba(19,34,43,.07);
     }
-    .pdf-card-large { grid-column:span 4; }
-    .pdf-card-wide { grid-column:span 8; }
+    .pdf-card-large { grid-column:span 12; }
+    .pdf-card-wide { grid-column:span 12; }
     .pdf-card-header {
       display:flex;
       align-items:center;
@@ -80,11 +80,16 @@
       padding:22px 20px 24px;
       text-align:center;
       background:linear-gradient(180deg, #ffffff 0%, #f7fafb 100%);
-      min-height:220px;
+      min-height:170px;
       display:flex;
-      flex-direction:column;
-      justify-content:center;
+      flex-direction:row;
+      align-items:center;
+      justify-content:space-between;
+      gap:24px;
+      text-align:left;
     }
+    .pdf-card-description { max-width:650px; margin:0; color:var(--app-muted); line-height:1.6; }
+    .pdf-card .pdf-btn { min-width:min(320px, 100%); }
     .pdf-btn {
       margin:8px 0;
       min-height:52px;
@@ -144,12 +149,14 @@
     }
     @media (max-width:900px) {
       .pdf-row { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-      .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 1; }
+      .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 2; }
     }
     @media (max-width:576px) {
       .container { padding:14px; }
       .pdf-row { grid-template-columns:1fr; gap:14px; }
       .pdf-card, .pdf-card-large, .pdf-card-wide { grid-column:span 1; }
+      .pdf-card-body { align-items:stretch; flex-direction:column; gap:14px; text-align:center; }
+      .pdf-card .pdf-btn { width:100%; }
       .modal-body { padding:14px; }
     }
     .attendance-card .pdf-card-header {
@@ -302,6 +309,15 @@
       break-inside: avoid;
       orphans: 3;
       widows: 3;
+    }
+    .s21-year-sheet {
+      page-break-inside:avoid;
+      break-inside:avoid;
+    }
+    .s21-year-sheet + .s21-year-sheet {
+      margin-top:12px;
+      padding-top:10px;
+      border-top:1px solid #777;
     }
     .s21-page:not(:last-child) {
       page-break-after: always !important;
@@ -549,50 +565,496 @@
     .status-actif { background: #198754; color: #fff; }
     .status-irregulier { background: #ffc107; color: #000; }
     .status-inactive, .status-inactif { background: #dc3545; color: #fff; }
+
+    /* Interface de la page */
+    :root {
+      --app-accent:#237b68;
+      --app-accent-dark:#195d50;
+      --app-accent-soft:#e8f4ef;
+      --app-ink:#172a27;
+      --app-muted:#667873;
+      --app-border:#e1e9e5;
+      --app-bg:#f3f7f4;
+    }
+    body {
+      min-height:100vh;
+      background:
+        radial-gradient(ellipse at 12% 0%, rgba(214,237,226,.7), transparent 38rem),
+        var(--app-bg);
+      color:var(--app-ink);
+      font-family:Inter, "Segoe UI", Tahoma, sans-serif;
+      -webkit-font-smoothing:antialiased;
+    }
+    .container {
+      max-width:1100px;
+      padding:54px 24px 64px;
+    }
+    .container > .d-flex {
+      margin-bottom:34px !important;
+      align-items:flex-end !important;
+    }
+    .container > .d-flex .text-primary {
+      color:var(--app-accent) !important;
+      font-size:.72rem;
+      letter-spacing:.14em;
+    }
+    h3 {
+      color:var(--app-ink);
+      font-size:clamp(2.25rem, 5vw, 3.25rem);
+      letter-spacing:-.055em;
+    }
+    .container > .d-flex > a.btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      min-height:44px;
+      padding:0 18px;
+      border:1px solid #d5e1db;
+      border-radius:12px;
+      background:rgba(255,255,255,.72);
+      color:#36534a;
+      font-weight:700;
+      transition:background .18s ease, border-color .18s ease, transform .18s ease;
+    }
+    .container > .d-flex > a.btn:hover {
+      border-color:#adc9bb;
+      background:#fff;
+      color:var(--app-accent-dark);
+      transform:translateY(-1px);
+    }
+    .pdf-row { gap:20px; }
+    .pdf-card {
+      border:1px solid #e0e9e3;
+      border-radius:22px;
+      background:#fff;
+      box-shadow:0 20px 55px rgba(34,66,54,.09), 0 2px 8px rgba(34,66,54,.04);
+      transition:box-shadow .2s ease, transform .2s ease;
+    }
+    .pdf-card:hover {
+      box-shadow:0 25px 64px rgba(34,66,54,.13), 0 4px 12px rgba(34,66,54,.05);
+      transform:translateY(-2px);
+    }
+    .pdf-card-header {
+      position:relative;
+      gap:16px;
+      min-height:104px;
+      padding:22px 28px;
+      background:linear-gradient(112deg, #173b34 0%, #205b4d 62%, #26745f 100%);
+      border:0;
+      font-size:1.28rem;
+      letter-spacing:-.025em;
+    }
+    .pdf-card-header::before {
+      display:grid;
+      width:48px;
+      height:48px;
+      flex:0 0 48px;
+      place-items:center;
+      border:1px solid rgba(255,255,255,.24);
+      border-radius:14px;
+      background:rgba(255,255,255,.12);
+      color:#fff;
+      content:"S-21";
+      font-size:.83rem;
+      font-weight:800;
+      letter-spacing:.01em;
+    }
+    .pdf-card-header::after {
+      color:#c8e4d8;
+      content:none;
+      font-size:.63rem;
+      font-weight:700;
+      letter-spacing:.13em;
+      white-space:nowrap;
+    }
+    .pdf-card-body {
+      min-height:190px;
+      padding:30px 32px;
+      background:linear-gradient(180deg, #fff 0%, #fbfdfb 100%);
+      gap:36px;
+    }
+    .pdf-card-description {
+      max-width:590px;
+      color:#667873;
+      font-size:1rem;
+      line-height:1.75;
+    }
+    .pdf-card .pdf-btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:18px;
+      width:auto;
+      min-width:280px;
+      min-height:54px;
+      margin:0;
+      padding:0 22px;
+      border:0;
+      border-radius:13px;
+      background:linear-gradient(135deg, #27836c, #1d6b58);
+      box-shadow:0 8px 18px rgba(35,123,104,.2);
+      color:#fff;
+      font-size:.96rem;
+      font-weight:750;
+      letter-spacing:0;
+      transition:background .18s ease, box-shadow .18s ease, transform .18s ease;
+    }
+    .pdf-card .pdf-btn::after {
+      content:"→";
+      font-size:1.15rem;
+      transition:transform .18s ease;
+    }
+    .pdf-card .pdf-btn:hover {
+      background:linear-gradient(135deg, #216f5c, #185846);
+      box-shadow:0 11px 22px rgba(35,123,104,.27);
+      transform:translateY(-1px);
+    }
+    .pdf-card .pdf-btn:hover::after { transform:translateX(3px); }
+    .modal-content {
+      overflow:hidden;
+      border:1px solid rgba(30,73,60,.12);
+      border-radius:20px;
+      box-shadow:0 28px 80px rgba(20,42,34,.24);
+    }
+    .modal-header {
+      min-height:76px;
+      padding:20px 26px;
+      background:linear-gradient(112deg, #173b34, #26745f);
+    }
+    .modal-title {
+      font-size:.88rem;
+      font-weight:800;
+      letter-spacing:.12em;
+    }
+    .modal-body {
+      padding:24px;
+      background:#f6f9f7;
+    }
+    .s21-controls,
+    .s21-search-panel,
+    .s21-actions-panel {
+      border:1px solid #e1e9e5;
+      border-radius:14px;
+      background:#fff;
+      box-shadow:0 3px 12px rgba(37,71,58,.035);
+    }
+    .s21-controls { padding:20px; }
+    .s21-search-panel,
+    .s21-actions-panel { padding:18px 20px; }
+    .modal-body .form-label {
+      margin-bottom:8px;
+      color:#40564d;
+      font-size:.73rem;
+      font-weight:750;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+    }
+    .modal-body .form-select,
+    .modal-body .form-control {
+      min-height:46px;
+      border-color:#dbe5df;
+      border-radius:10px;
+      background-color:#fcfdfc;
+      color:var(--app-ink);
+    }
+    .modal-body .form-select:focus,
+    .modal-body .form-control:focus {
+      border-color:#7bb49d;
+      background-color:#fff;
+      box-shadow:0 0 0 .22rem rgba(35,123,104,.12);
+    }
+    .s21-actions-panel .btn {
+      min-height:44px;
+      padding:0 17px;
+      border-radius:10px;
+      font-size:.88rem;
+      font-weight:700;
+    }
+    .s21-actions-panel .btn-primary {
+      border-color:var(--app-accent);
+      background:var(--app-accent);
+    }
+    .s21-actions-panel .btn-primary:hover {
+      border-color:var(--app-accent-dark);
+      background:var(--app-accent-dark);
+    }
+    .s21-actions-panel .btn-outline-secondary {
+      border-color:#d1dfd7;
+      background:#fff;
+      color:#36534a;
+    }
+    .s21-actions-panel .btn-outline-secondary:hover {
+      border-color:#b9d1c4;
+      background:var(--app-accent-soft);
+      color:var(--app-accent-dark);
+    }
+    .s21-preview-container {
+      border-color:#dfe8e2;
+      border-radius:14px;
+      background:#edf3ef;
+      padding:18px;
+    }
+    @media (max-width:700px) {
+      .container { padding:32px 18px 44px; }
+      .container > .d-flex { margin-bottom:24px !important; }
+      .pdf-card-header { min-height:88px; padding:18px 20px; }
+      .pdf-card-header::after { font-size:.56rem; }
+      .pdf-card-body { padding:24px; }
+      .modal-dialog { margin:12px; }
+      .modal-body { padding:16px; }
+      .s21-controls { padding:16px; }
+    }
+    @media (max-width:576px) {
+      .container { padding:24px 16px 36px; }
+      .container > .d-flex { align-items:flex-start !important; gap:14px; }
+      .container > .d-flex > a.btn { min-height:40px; padding:0 13px; }
+      .pdf-card-header { gap:12px; padding:17px 18px; font-size:1.08rem; }
+      .pdf-card-header::before { width:42px; height:42px; flex-basis:42px; }
+      .pdf-card-header::after { display:none; }
+      .pdf-card-body { padding:22px 20px; }
+      .pdf-card .pdf-btn { min-width:0; }
+      .s21-actions-panel { justify-content:stretch; }
+      .s21-actions-panel .btn { flex:1 1 100%; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      .pdf-card, .pdf-card .pdf-btn, .pdf-card .pdf-btn::after,
+      .container > .d-flex > a.btn { transition:none; }
+    }
+    :root {
+      --app-accent:#35a8df;
+      --app-accent-dark:#177eae;
+      --app-accent-soft:#e8f6fc;
+      --app-ink:#123b55;
+      --app-muted:#5c7584;
+      --app-border:#d8eaf3;
+      --app-bg:#f1f8fc;
+    }
+    body {
+      background:
+        radial-gradient(ellipse at 86% 6%, rgba(196,231,247,.52), transparent 30rem),
+        var(--app-bg);
+      color:var(--app-ink);
+    }
+    .container { padding-top:38px; padding-bottom:44px; }
+    .pdf-page-heading { margin-bottom:20px; }
+    .pdf-page-heading .text-primary {
+      color:#208bbd !important;
+      font-size:.72rem;
+      letter-spacing:.16em;
+    }
+    .pdf-card {
+      display:grid;
+      grid-template-columns:minmax(240px, .82fr) minmax(0, 1.35fr);
+      min-height:190px;
+      border:1px solid #d7e8f1;
+      border-radius:22px;
+      box-shadow:0 22px 60px rgba(32,91,124,.1), 0 3px 10px rgba(32,91,124,.04);
+      transition:box-shadow .2s ease, transform .2s ease;
+    }
+    .pdf-card:hover {
+      box-shadow:0 27px 70px rgba(32,91,124,.14), 0 5px 14px rgba(32,91,124,.05);
+      transform:translateY(-2px);
+    }
+    .pdf-card-header {
+      position:relative;
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      justify-content:center;
+      gap:14px;
+      min-height:190px;
+      padding:24px;
+      overflow:hidden;
+      background:linear-gradient(145deg, #36a9dc 0%, #208dc4 56%, #187eaf 100%);
+      color:#fff;
+      font-size:1.42rem;
+      font-weight:800;
+      letter-spacing:-.035em;
+    }
+    .pdf-card-header::before {
+      display:grid;
+      width:58px;
+      height:58px;
+      flex:0 0 58px;
+      place-items:center;
+      border:1px solid rgba(255,255,255,.48);
+      border-radius:17px;
+      background:rgba(255,255,255,.18);
+      color:#fff;
+      content:"S-21";
+      font-size:.9rem;
+      font-weight:800;
+      letter-spacing:.02em;
+    }
+    .pdf-card-header::after {
+      position:absolute;
+      top:-220px;
+      right:-110px;
+      width:280px;
+      height:280px;
+      border:1px solid rgba(255,255,255,.2);
+      border-radius:50%;
+      background:rgba(255,255,255,.07);
+      content:"";
+      pointer-events:none;
+    }
+    .pdf-card-body {
+      display:flex;
+      flex-direction:column;
+      align-items:flex-start;
+      justify-content:center;
+      gap:16px;
+      min-height:190px;
+      padding:24px clamp(24px, 4vw, 48px);
+      background:#fff;
+    }
+    .pdf-card-description {
+      max-width:540px;
+      color:#5c7584;
+      font-size:1.05rem;
+      line-height:1.8;
+    }
+    .pdf-card .pdf-btn {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:22px;
+      min-width:280px;
+      min-height:54px;
+      padding:0 22px;
+      border:1px solid #208fc2;
+      border-radius:12px;
+      background:linear-gradient(110deg, #35a8df, #238fc3);
+      box-shadow:0 10px 22px rgba(35,145,194,.22);
+      font-size:.95rem;
+      font-weight:750;
+      transition:box-shadow .18s ease, transform .18s ease, background .18s ease;
+    }
+    .pdf-card .pdf-btn::after { content:"→"; font-size:1.15rem; }
+    .pdf-card .pdf-btn:hover {
+      border-color:#177eae;
+      background:linear-gradient(110deg, #278fc3, #177eae);
+      box-shadow:0 13px 26px rgba(35,145,194,.29);
+      transform:translateY(-2px);
+    }
+    .modal-content {
+      overflow:hidden;
+      border:1px solid #d7e8f1;
+      border-radius:20px;
+      box-shadow:0 28px 80px rgba(22,67,92,.24);
+    }
+    .modal-header {
+      min-height:78px;
+      padding:20px 26px;
+      background:linear-gradient(110deg, #177eae, #36a9dc);
+    }
+    .modal-title { font-weight:800; letter-spacing:.1em; }
+    .modal-body { padding:24px; background:#f2f8fc; }
+    .s21-controls,
+    .s21-search-panel,
+    .s21-actions-panel {
+      border-color:#d8e8f0;
+      border-radius:13px;
+      background:#fff;
+      box-shadow:0 4px 16px rgba(34,84,112,.04);
+    }
+    .modal-body .form-label { color:#31556b; font-weight:750; }
+    .modal-body .form-select,
+    .modal-body .form-control {
+      min-height:46px;
+      border-color:#d5e5ed;
+      border-radius:9px;
+      background:#fff;
+    }
+    .modal-body .form-select:focus,
+    .modal-body .form-control:focus {
+      border-color:#5bb7e2;
+      box-shadow:0 0 0 .22rem rgba(53,168,223,.15);
+    }
+    .s21-actions-panel .btn {
+      min-height:44px;
+      padding:0 17px;
+      border-radius:9px;
+      font-weight:700;
+    }
+    .s21-actions-panel .btn-primary {
+      border-color:#258fbe;
+      background:#2d9dce;
+    }
+    .s21-actions-panel .btn-primary:hover {
+      border-color:#177eae;
+      background:#2186b6;
+    }
+    .s21-actions-panel .btn-outline-secondary {
+      border-color:#cfe1eb;
+      background:#fff;
+      color:#31566b;
+    }
+    .s21-actions-panel .btn-outline-secondary:hover {
+      border-color:#9bcfe6;
+      background:#edf8fd;
+      color:#176f9d;
+    }
+    .s21-preview-container {
+      border-color:#d8e8f0;
+      border-radius:13px;
+      background:#eaf5fa;
+    }
+    @media (max-width:760px) {
+      .pdf-card { grid-template-columns:1fr; }
+      .pdf-card-header {
+        flex-direction:row;
+        align-items:center;
+        gap:16px;
+        min-height:112px;
+        padding:22px;
+      }
+      .pdf-card-body {
+        align-items:stretch;
+        flex-direction:column;
+        gap:18px;
+        min-height:0;
+        padding:24px;
+        text-align:left;
+      }
+      .pdf-card .pdf-btn { width:100%; }
+    }
+    @media (max-width:576px) {
+      .container { padding:26px 16px 38px; }
+      .container > .d-flex { align-items:flex-start !important; gap:14px; }
+      .container > .d-flex > a.btn { min-height:40px; padding:0 13px; }
+      .pdf-card { border-radius:17px; }
+      .pdf-card-header { min-height:100px; padding:19px; font-size:1.15rem; }
+      .pdf-card-header::before { width:46px; height:46px; flex-basis:46px; }
+      .pdf-card-body { padding:22px 20px; }
+      .modal-dialog { margin:12px; }
+      .modal-body { padding:16px; }
+      .s21-controls { padding:16px; }
+    }
+    @media (prefers-reduced-motion:reduce) {
+      .pdf-card, .pdf-card .pdf-btn { transition:none; }
+    }
   </style>
   <script src="vendor/supabase.js"></script>
   <script src="auth-config.js"></script>
+  <script src="realtime-manager.js"></script>
   <script src="sync-engine.js"></script>
   <script src="auth-guard.js"></script>
 </head>
 <body>
   <div class="container">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <h3>Fichiers PDF</h3>
-      <a href="index.html" class="btn btn-outline-secondary">Retour</a>
+    <div class="pdf-page-heading">
+      <div class="text-uppercase small fw-bold text-primary">Documents de l’assemblée</div>
     </div>
 
     <div class="pdf-row">
       <div class="pdf-card">
         <div class="pdf-card-header">S-21 des proclamateurs</div>
         <div class="pdf-card-body">
+          <p class="pdf-card-description">Générez, consultez, enregistrez ou imprimez les fiches S-21 selon le proclamateur, le groupe ou le type de service sélectionné.</p>
           <button id="proclBtn" class="btn btn-primary pdf-btn">S-21 des proclamateurs</button>
         </div>
       </div>
-
-      <div class="pdf-card pdf-card-large attendance-card">
-        <div class="pdf-card-header">Assistance aux réunions</div>
-        <div class="pdf-card-body text-start">
-          <div class="attendance-tools">
-            <label class="form-label">Mois</label>
-            <input id="assistMonthPicker" type="month" class="form-control" />
-            <div class="attendance-actions mt-3">
-              <button id="showAttendanceBtn" class="btn btn-primary pdf-btn">Afficher</button>
-              <button id="saveAttendancePdfBtn" class="btn btn-outline-secondary pdf-btn">Enregistrer</button>
-              <button id="printAttendanceBtn" class="btn btn-outline-secondary pdf-btn">Imprimer</button>
-            </div>
-          </div>
-          <div id="assistancePreview" class="attendance-preview"></div>
-        </div>
-      </div>
-
-      <div class="pdf-card">
-        <div class="pdf-card-header">Pionniers à encourager</div>
-        <div class="pdf-card-body">
-          <button id="encourageBtn" class="btn btn-outline-secondary pdf-btn">Pionniers à encourager</button>
-        </div>
-      </div>
-
     </div>
 
     <!-- Modal S-21 des proclamateurs -->
@@ -609,27 +1071,33 @@
                   <!-- Bloc 1: Sélections -->
                   <div class="col-12">
                     <div class="s21-controls row g-2 align-items-end">
-                      <div class="col-md-3">
-                        <label class="form-label">Année de service</label>
-                        <select id="serviceYear" class="form-select"></select>
+                      <div class="col-md-6 col-lg-3">
+                        <label class="form-label" for="s21StartMonth">Du mois</label>
+                        <input id="s21StartMonth" type="month" class="form-control">
                       </div>
-                      <div class="col-md-4">
-                        <label class="form-label">Type de S-21</label>
+                      <div class="col-md-6 col-lg-3">
+                        <label class="form-label" for="s21EndMonth">Au mois</label>
+                        <input id="s21EndMonth" type="month" class="form-control">
+                      </div>
+                      <div class="col-md-6 col-lg-3">
+                        <label class="form-label" for="s21TypeSelect">Type de S-21</label>
                         <select id="s21TypeSelect" class="form-select">
                           <option value="">-- Choisir un type --</option>
                           <option value="pp">S-21 Pour les Pionniers Permanents</option>
-                          <option value="pa">S-21 pour les Pionniers auxiliaires</option>
                           <option value="proclamateurs">S-21 pour tous les Proclamateurs (excl. PP)</option>
                           <option value="anciens">S-21 Anciens</option>
                           <option value="assistants">S-21 Assistants</option>
                           <option value="global">S-21 Global (tout le monde)</option>
                         </select>
                       </div>
-                      <div class="col-md-5">
-                        <label class="form-label">Filtrer par groupe</label>
+                      <div class="col-md-6 col-lg-3">
+                        <label class="form-label" for="groupSelect">Filtrer par groupe</label>
                         <select id="groupSelect" class="form-select">
                           <option value="">-- Choisir un groupe --</option>
                         </select>
+                      </div>
+                      <div class="col-12">
+                        <div class="form-text">Tous les mois compris entre ces deux dates seront inclus.</div>
                       </div>
                     </div>
                   </div>
@@ -674,12 +1142,6 @@
   </div>
 
   <script>
-    document.getElementById('showAttendanceBtn')?.addEventListener('click', displayAttendanceSummary);
-    document.getElementById('saveAttendancePdfBtn')?.addEventListener('click', saveAttendanceSummaryPdf);
-    document.getElementById('printAttendanceBtn')?.addEventListener('click', printAttendanceSummary);
-    document.getElementById('encourageBtn')?.addEventListener('click', () => {
-      window.open('pionnier_encourager.html', '_blank');
-    });
     document.getElementById('csvBtn')?.addEventListener('click', () => alert('Export CSV'));
     document.getElementById('pdfListBtn')?.addEventListener('click', () => alert('Export PDF'));
     document.getElementById('docxBtn')?.addEventListener('click', () => alert('Export DOCX'));
@@ -1354,10 +1816,7 @@
       const found = list.find(p => [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ').toLowerCase().includes(q));
 
       if (found) {
-        const container = document.getElementById('s21Container');
-        container.innerHTML = '';
-        container.appendChild(createS21Element(found));
-        container.classList.remove('d-none');
+        renderS21Pages([found]);
       } else {
         alert('Aucun proclamateur trouvé.');
       }
@@ -1371,19 +1830,16 @@
         return;
       }
       const list = window.__PROCL_LIST || [];
-      const members = list.filter(p => p.groupe && String(p.groupe).toLowerCase().includes(groupVal));
+      const members = list
+        .filter(p => p.groupe && String(p.groupe).toLowerCase().includes(groupVal))
+        .sort(compareS21Members);
 
       if (members.length === 0) {
         alert('Aucun membre trouvé dans ce groupe.');
         return;
       }
 
-      const container = document.getElementById('s21Container');
-      container.innerHTML = '';
-      members.forEach(p => {
-        container.appendChild(createS21Element(p));
-      });
-      container.classList.remove('d-none');
+      renderS21Pages(members);
     });
 
     // Générer pour tous les Pionniers Permanents (Ancien PP, Assistant PP, PP)
@@ -1400,12 +1856,7 @@
         return;
       }
 
-      const container = document.getElementById('s21Container');
-      container.innerHTML = '';
-      ppMembers.forEach(p => {
-        container.appendChild(createS21Element(p));
-      });
-      container.classList.remove('d-none');
+      renderS21Pages(ppMembers);
     });
 
     // --- Gestion des groupes : UI, responsables et statistiques ---
@@ -1600,7 +2051,7 @@
       });
     }
 
-    document.getElementById('loadGroupMembersBtn').addEventListener('click', () => {
+    document.getElementById('loadGroupMembersBtn')?.addEventListener('click', () => {
       const grp = document.getElementById('groupSelectMgmt').value;
       if (!grp) {
         alert('Sélectionnez un groupe.');
@@ -1652,11 +2103,50 @@
     }
 
 
-    function monthKeysForServiceYear(year) {
-      const keys = [];
-      for (let m = 9; m <= 12; m++) keys.push(`${year-1}-${String(m).padStart(2,'0')}`);
-      for (let m = 1; m <= 8; m++) keys.push(`${year}-${String(m).padStart(2,'0')}`);
-      return keys;
+    function initializeS21MonthRange() {
+      const startInput = document.getElementById('s21StartMonth');
+      const endInput = document.getElementById('s21EndMonth');
+      if (!startInput || !endInput) return;
+      const serviceYear = new Date().getFullYear();
+      if (!startInput.value) startInput.value = `${serviceYear - 1}-09`;
+      if (!endInput.value) endInput.value = `${serviceYear}-08`;
+    }
+
+    function getSelectedS21MonthRange() {
+      const start = normalizeMonthKey(document.getElementById('s21StartMonth')?.value);
+      const end = normalizeMonthKey(document.getElementById('s21EndMonth')?.value);
+      if (!start || !end) {
+        alert('Veuillez sélectionner le mois de début et le mois de fin.');
+        return null;
+      }
+      if (start > end) {
+        alert('Le mois de début doit précéder ou correspondre au mois de fin.');
+        return null;
+      }
+
+      const [startYear, startMonth] = start.split('-').map(Number);
+      const [endYear, endMonth] = end.split('-').map(Number);
+      const startIndex = startYear * 12 + startMonth - 1;
+      const endIndex = endYear * 12 + endMonth - 1;
+      const monthKeys = [];
+      for (let index = startIndex; index <= endIndex; index++) {
+        const year = Math.floor(index / 12);
+        const month = index % 12 + 1;
+        monthKeys.push(`${year}-${String(month).padStart(2, '0')}`);
+      }
+
+      const serviceYearGroups = [];
+      monthKeys.forEach(monthKey => {
+        const [year, month] = monthKey.split('-').map(Number);
+        const serviceYear = month >= 9 ? year + 1 : year;
+        const currentGroup = serviceYearGroups[serviceYearGroups.length - 1];
+        if (currentGroup?.serviceYear === serviceYear) {
+          currentGroup.monthKeys.push(monthKey);
+        } else {
+          serviceYearGroups.push({ serviceYear, monthKeys: [monthKey] });
+        }
+      });
+      return { serviceYearGroups };
     }
 
     function normalizeMonthKey(value) {
@@ -1734,10 +2224,10 @@
       return subscribed || (!isPermanentPioneer(person) && report?.special === true);
     }
 
-    // Création d'une fiche S-21 sous forme d'élément HTML rigoureusement aligné sur le design photo
-    function createS21Element(p) {
-      const pageDiv = document.createElement('div');
-      pageDiv.className = 's21-page';
+    // Création d'une fiche S-21 pour une année de service
+    function createS21YearSection(p, serviceYear, monthKeys, includePersonInfo) {
+      const sectionDiv = document.createElement('div');
+      sectionDiv.className = 's21-year-sheet';
 
       const fullName = [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ');
       const dob = getPersonDateValue(p, ['birth', 'naissance']);
@@ -1756,7 +2246,7 @@
       const isPS = allRoles.some(r => r.includes('ps') || r.includes('pionnier spécial') || r.includes('sspt'));
       const isMissionnaire = allRoles.some(r => r.includes('missionnaire'));
 
-      pageDiv.innerHTML = `
+      const personInfoHtml = includePersonInfo ? `
         <div class="s21-title">ACTIVITÉ DU PROCLAMATEUR (DOSSIER DE L'ASSEMBLÉE)</div>
         <div class="s21-header-info">
           <div class="s21-col-info" style="flex: 1.2;">
@@ -1776,7 +2266,10 @@
             <label><input type="checkbox" ${isMissionnaire ? 'checked' : ''}> Missionnaire affecté dans le territoire</label>
           </div>
         </div>
+      ` : '';
 
+      sectionDiv.innerHTML = `
+        ${personInfoHtml}
         <table class="s21-table">
           <thead>
             <tr>
@@ -1802,27 +2295,33 @@
         </table>
       `;
 
-      const serviceYear = Number(document.getElementById('serviceYear').value) || new Date().getFullYear();
-      pageDiv.querySelector('.s21-year-label').textContent = serviceYear;
-      const monthKeys = monthKeysForServiceYear(serviceYear);
-      const monthNames = ['septembre','octobre','novembre','décembre','janvier','février','mars','avril','mai','juin','juillet','août'];
-      const tbody = pageDiv.querySelector('tbody');
+      sectionDiv.querySelector('.s21-year-label').textContent = serviceYear;
+      const monthNames = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+      const tbody = sectionDiv.querySelector('tbody');
 
       let totalPreach = 0, totalCourses = 0, totalPA = 0, totalHours = 0;
       let maxMissing = 0, curMissing = 0;
 
-      monthKeys.forEach((key, idx) => {
+      monthKeys.forEach(key => {
+        const month = Number(key.split('-')[1]);
         const rec = getMonthlyReport(p, key);
         const tr = document.createElement('tr');
 
         const participated = rec && ['yes', 'oui', 'true', '1'].includes(String(rec.aprecher || '').trim().toLowerCase());
         const courses = rec ? (rec.coursBiblique || rec.cours || '') : '';
-        const isAux = !isPP && isAuxiliaireForMonth(p, key, rec);
         const hours = rec ? (rec.heures || rec.hours || '') : '';
-        const obsText = rec ? (rec.observation || '') : '';
+        const hasAuxiliarySubscription = !isPP && isAuxiliaireForMonth(p, key, rec);
+        const isAux = hasAuxiliarySubscription && Number(hours || 0) >= 15;
+        let obsText = String(rec?.observation || '')
+          .replace(/\bPionnier auxiliaire\b/gi, '')
+          .replace(/\s{2,}/g, ' ')
+          .replace(/^[,;.\s]+|[,;.\s]+$/g, '');
+        if (isAux && !/\bPionnier auxiliaire\b/i.test(String(rec?.observation || ''))) {
+          obsText = [obsText, 'Pionnier auxiliaire'].filter(Boolean).join(' — ');
+        }
 
         tr.innerHTML = `
-          <td>${monthNames[idx]}</td>
+          <td>${monthNames[month - 1]}</td>
           <td><input type="checkbox" ${participated ? 'checked' : ''}></td>
           <td>${courses}</td>
           <td><input type="checkbox" ${isAux ? 'checked' : ''}></td>
@@ -1844,14 +2343,20 @@
         }
       });
 
-      pageDiv.querySelector('.tot-preach').textContent = totalPreach;
-      pageDiv.querySelector('.tot-courses').textContent = totalCourses;
-      pageDiv.querySelector('.tot-pa').textContent = totalPA;
-      pageDiv.querySelector('.tot-hours').textContent = totalHours;
+      sectionDiv.querySelector('.tot-preach').textContent = totalPreach;
+      sectionDiv.querySelector('.tot-courses').textContent = totalCourses;
+      sectionDiv.querySelector('.tot-pa').textContent = totalPA;
+      sectionDiv.querySelector('.tot-hours').textContent = totalHours;
 
-      // Laisser la colonne Observations vide par défaut (aucune insertion automatique)
-      // (Observation content intentionally left untouched)
+      return sectionDiv;
+    }
 
+    function createS21Element(p, monthRange) {
+      const pageDiv = document.createElement('div');
+      pageDiv.className = 's21-page';
+      monthRange.serviceYearGroups.forEach((group, index) => {
+        pageDiv.appendChild(createS21YearSection(p, group.serviceYear, group.monthKeys, index === 0));
+      });
       return pageDiv;
     }
 
@@ -1880,14 +2385,16 @@
       if (prt) prt.textContent = label ? `IMPRIMER S-21 ${label}` : 'IMPRIMER S-21';
     }
 
+    function compareS21Members(left, right) {
+      return String(left.groupe || '').localeCompare(String(right.groupe || ''), 'fr', { numeric: true, sensitivity: 'base' }) ||
+        getMemberFullName(left).localeCompare(getMemberFullName(right), 'fr', { sensitivity: 'base' });
+    }
+
     function generateByType(type) {
       const list = window.__PROCL_LIST || [];
       let members = [];
       if (type === 'pp') {
         members = list.filter(p => isPermanentPioneer(p));
-      } else if (type === 'pa') {
-        const re = /pionnier auxiliaire|pa|pionnier aux/i;
-        members = list.filter(p => re.test([p.service, ...(p.roles||[])].join(' ')));
       } else if (type === 'proclamateurs') {
         members = list.filter(p => !isPermanentPioneer(p));
       } else if (type === 'anciens') {
@@ -1895,8 +2402,9 @@
       } else if (type === 'assistants') {
         members = list.filter(p => /assistant/i.test([p.service, ...(p.roles||[])].join(' ')));
       } else if (type === 'global') {
-        members = list.slice();
+        members = list.slice().sort(compareS21Members);
       }
+
       if (!members.length) {
         alert('Aucun membre trouvé pour ce type.');
         return;
@@ -1931,22 +2439,6 @@
       }
       document.getElementById('generateAllBtn')?.click();
     });
-
-    function populateServiceYearOptions() {
-      const yearSelect = document.getElementById('serviceYear');
-      if (!yearSelect) return;
-      const current = Number(yearSelect.value || new Date().getFullYear());
-      const startYear = 2020;
-      const endYear = new Date().getFullYear() + 15;
-      const years = [];
-      for (let year = startYear; year <= endYear; year++) {
-        years.push(year);
-      }
-      yearSelect.innerHTML = years.map(year => `<option value="${year}" ${year === current ? 'selected' : ''}>${year}</option>`).join('');
-      if (!years.includes(current)) {
-        yearSelect.value = String(endYear);
-      }
-    }
 
     function exportS21PdfDirect() {
       const htmlContent = buildS21ExportSource();
@@ -1989,11 +2481,8 @@
     const saveBtn = document.getElementById('saveS21Btn');
     if (saveBtn) saveBtn.addEventListener('click', exportS21PdfDirect);
 
-    // Initial update des labels
-    setTimeout(() => {
-      populateServiceYearOptions();
-      updateS21ButtonsLabel();
-    }, 120);
+    initializeS21MonthRange();
+    updateS21ButtonsLabel();
 
     function buildS21ExportSource() {
       const container = document.getElementById('s21Container');
@@ -2123,7 +2612,10 @@
       const container = document.getElementById('s21Container');
       if (!container) return;
       container.innerHTML = '';
-      members.forEach(p => container.appendChild(createS21Element(p)));
+      container.classList.add('d-none');
+      const monthRange = getSelectedS21MonthRange();
+      if (!monthRange) return;
+      members.forEach(p => container.appendChild(createS21Element(p, monthRange)));
       container.classList.remove('d-none');
     }
 
