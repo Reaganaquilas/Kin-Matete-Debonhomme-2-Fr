@@ -503,19 +503,7 @@
   window.appSyncStatus = function (message, isError) {
     const element = document.getElementById('syncStatus');
     if (element) { element.textContent = message; element.dataset.error = isError ? 'true' : 'false'; }
-    let notice = document.getElementById('appSyncErrorNotice');
-    if (!isError) {
-      notice?.remove();
-      return;
-    }
-    if (!notice) {
-      notice = document.createElement('div');
-      notice.id = 'appSyncErrorNotice';
-      notice.setAttribute('role', 'alert');
-      notice.style.cssText = 'position:fixed;left:16px;right:16px;bottom:16px;z-index:2200;padding:12px 16px;border:1px solid #d8a4a4;border-radius:8px;background:#fff0f0;color:#7c2525;font:600 13px/1.4 Arial,sans-serif;box-shadow:0 8px 20px rgba(0,0,0,.12)';
-      document.body.appendChild(notice);
-    }
-    notice.textContent = message;
+    if (isError) console.warn('Synchronisation indisponible :', message);
   };
   window.appSync = { syncNow, subscribeToRealtime };
   document.addEventListener('input', event => {

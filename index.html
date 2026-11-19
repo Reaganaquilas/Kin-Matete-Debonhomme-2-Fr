@@ -1323,16 +1323,17 @@
       const accessLink = $('accessAdminLink');
       const resetApprovalSection = $('passwordResetApprovalSection');
       pageContainer.innerHTML = managedFeatures.map(([key, label]) => `<label><input type="checkbox" value="${key}"> ${label}</label>`).join('');
+      const isAdminRole = role => ['owner', 'coordinateur', 'secretaire'].includes(role);
       function updateResetApprovalVisibility(role) {
-        resetApprovalSection.hidden = !['owner', 'coordinateur', 'secretaire'].includes(role);
+        resetApprovalSection.hidden = !isAdminRole(role);
       }
-      updateResetApprovalVisibility(window.appAuthAccess?.getCached()?.role);
-      window.setTimeout(() => {
-        if (window.appAuthAccess?.isAdmin()) accessLink?.classList.add('is-visible');
-      }, 700);
+      accessLink?.classList.remove('is-visible');
+      resetApprovalSection.hidden = true;
       window.addEventListener('app-access-ready', event => {
         const role = event.detail?.role;
-        if (['owner', 'coordinateur', 'secretaire'].includes(role)) accessLink?.classList.add('is-visible');
+        const isAdmin = isAdminRole(role);
+        accessLink?.classList.toggle('is-visible', isAdmin);
+        if (!isAdmin) panel.classList.remove('is-visible');
         updateResetApprovalVisibility(role);
       }, { once: true });
       accessLink?.addEventListener('click', event => {
