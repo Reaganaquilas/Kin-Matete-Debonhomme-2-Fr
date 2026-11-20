@@ -211,6 +211,11 @@
     return proclamateurs.find(person => String(person.id) === String(id));
   }
 
+  function canViewBirthdateFor(proclamateurId) {
+    const access = window.appAuthAccess?.getCached() || {};
+    return access.isElder || String(access.proclamateurId || '') === String(proclamateurId || '');
+  }
+
   function buildPeopleFromReports(records) {
     const peopleById = new Map();
     records.forEach(record => {
@@ -249,8 +254,9 @@
     document.getElementById('epreuveNom').value = person.nom || '';
     document.getElementById('epreuvePostnom').value = person.postnom || '';
     document.getElementById('epreuvePrenom').value = person.prenom || '';
-    document.getElementById('epreuveNaissance').value = person.birthdate || '';
-    document.getElementById('epreuveAge').value = calculateAge(person.birthdate);
+    const birthdate = canViewBirthdateFor(person.id) ? person.birthdate : '';
+    document.getElementById('epreuveNaissance').value = birthdate || '';
+    document.getElementById('epreuveAge').value = calculateAge(birthdate);
     document.getElementById('epreuveBapteme').value = person.baptismDate || '';
   }
 
@@ -281,11 +287,15 @@
 
   function renderEpreuves() {
     const tbody = document.querySelector('#epreuvesTable tbody');
-    tbody.innerHTML = epreuves.map(record => `<tr>
-      <td>${escapeHtml(record.nomComplet)}</td><td>${escapeHtml(record.objectif)}</td><td>${escapeHtml(record.birthdate || '-')}</td><td>${escapeHtml(record.age || '-')}</td><td>${escapeHtml(record.baptismDate || '-')}</td>
+    tbody.innerHTML = epreuves.map(record => {
+      const person = getPersonById(record.frereId);
+      const birthdate = canViewBirthdateFor(record.frereId) ? person?.birthdate || '' : '';
+      return `<tr>
+      <td>${escapeHtml(record.nomComplet)}</td><td>${escapeHtml(record.objectif)}</td><td>${escapeHtml(birthdate || '-')}</td><td>${escapeHtml(calculateAge(birthdate) || '-')}</td><td>${escapeHtml(record.baptismDate || '-')}</td>
       <td>${escapeHtml(record.ancien1 || '-')}<br>${escapeHtml(record.ancien2 || '-')}</td>
       <td><button type="button" class="btn btn-sm btn-outline-primary" onclick="editEpreuve(${record.id})">Modifier</button><button type="button" class="btn btn-sm btn-outline-danger" onclick="removeEpreuve(${record.id})">Supprimer</button></td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
     document.getElementById('epreuvesEmpty').classList.toggle('d-none', epreuves.length > 0);
   }
 
@@ -517,7 +527,7 @@
     const id = document.getElementById('epreuveId').value;
     await putRecord('epreuves', {
       frereId: brother.id, nomComplet: getFullName(brother), nom: brother.nom || '', postnom: brother.postnom || '', prenom: brother.prenom || '',
-      birthdate: brother.birthdate || '', age: calculateAge(brother.birthdate), baptismDate: brother.baptismDate || '', objectif: document.getElementById('epreuveObjectif').value,
+      baptismDate: brother.baptismDate || '', objectif: document.getElementById('epreuveObjectif').value,
       ancien1Id: ancien1.id, ancien1: getFullName(ancien1), ancien2Id: ancien2.id, ancien2: getFullName(ancien2)
     }, id ? Number(id) : null);
     resetEpreuveForm();
@@ -556,6 +566,7 @@
   document.getElementById('exportEpreuvesPdfBtn').addEventListener('click', () => exportSectionPdf('epreuvesReport', 'Mises à l\'épreuve', 'mises-a-lepreuve.pdf'));
   document.getElementById('exportFormationsPdfBtn').addEventListener('click', () => exportSectionPdf('formationsReport', 'Formation des frères', 'formations-freres.pdf'));
 
+  window.addEventListener('app-access-ready', loadData, { once: true });
   Promise.all([
     openDatabase('ProgrammationDB', 2, database => {
       if (!database.objectStoreNames.contains('visites')) database.createObjectStore('visites', { keyPath: 'id', autoIncrement: true });

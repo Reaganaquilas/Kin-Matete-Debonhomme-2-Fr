@@ -806,7 +806,14 @@
   }
 
   function isUnrestrictedReportRole(role) {
-    return ['owner', 'coordinateur', 'secretaire', 'responsable_predication'].includes(role);
+    return ['owner', 'coordinateur', 'secretaire', 'responsable_predication'].includes(role)
+      || (reportAccess?.pages || []).includes('rapports:all');
+  }
+
+  function isGroupReportPrivileged(groupName) {
+    const member = allProclamateurs.find(item => String(item.id) === String(reportAccess?.proclamateurId || ''));
+    return (reportAccess?.isElder || reportAccess?.role === 'assistant')
+      && normalizeReportGroup(member?.groupe) === normalizeReportGroup(groupName);
   }
 
   function isGroupManager(memberId, groupName) {
@@ -819,7 +826,8 @@
 
   function canManageGroupReports(groupName) {
     return isUnrestrictedReportRole(reportAccess?.role)
-      || isGroupManager(reportAccess?.proclamateurId, groupName);
+      || isGroupManager(reportAccess?.proclamateurId, groupName)
+      || isGroupReportPrivileged(groupName);
   }
 
   function setReportAccessNotice(message, visible = true) {
@@ -862,7 +870,7 @@
       } else {
         const groupName = String(member.groupe || '').trim();
         const managesGroup = Boolean(groupName && isGroupManager(memberId, groupName));
-        const canViewGroup = managesGroup || ['ancien', 'assistant'].includes(reportAccess.role);
+          const canViewGroup = managesGroup || isGroupReportPrivileged(groupName);
         canViewGroupReports = canViewGroup && Boolean(groupName);
         const visibleMembers = canViewGroup && groupName
           ? allProclamateurs.filter(item => normalizeReportGroup(item.groupe) === normalizeReportGroup(groupName))
@@ -888,13 +896,15 @@
     if (isUnrestrictedReportRole(reportAccess?.role)) return true;
     const memberId = String(member.id);
     if (memberId === String(reportAccess?.proclamateurId || '')) return true;
-    return isGroupManager(reportAccess?.proclamateurId, member.groupe);
+    return isGroupManager(reportAccess?.proclamateurId, member.groupe)
+      || isGroupReportPrivileged(member.groupe);
   }
 
   function canManageMemberReport(member) {
     if (!member || !reportScopeReady) return false;
     if (isUnrestrictedReportRole(reportAccess?.role)) return true;
-    return isGroupManager(reportAccess?.proclamateurId, member.groupe);
+    return isGroupManager(reportAccess?.proclamateurId, member.groupe)
+      || isGroupReportPrivileged(member.groupe);
   }
 
   function normalizeIdentityName(value) {
@@ -1787,7 +1797,7 @@
 
   function startSelectedGroupReportBatch() {
     if (!detailGroup || !canManageGroupReports(detailGroup)) {
-      showToast('Seul le responsable ou son adjoint peut saisir les rapports des autres membres du groupe.', 'warning');
+      showToast('Seul le responsable, son adjoint, un ancien ou un assistant du groupe peut saisir les rapports des autres membres.', 'warning');
       return;
     }
     const groupMembers = proclamateurs
@@ -1958,7 +1968,7 @@
 
   function beginEditDetailRecord(record) {
     if (!detailSelected || !canManageMemberReport(detailSelected)) {
-      showToast('Seul le responsable ou son adjoint peut modifier ce rapport.', 'warning');
+      showToast('Seul le responsable, son adjoint, un ancien ou un assistant du groupe peut modifier ce rapport.', 'warning');
       return;
     }
     editOriginalRecordId = record.id;
@@ -2060,7 +2070,7 @@
 
   function startGroupReportBatch(id) {
     if (!canManageGroupReports(detailGroup)) {
-      showToast('Seul le responsable ou son adjoint peut saisir les rapports des autres membres du groupe.', 'warning');
+      showToast('Seul le responsable, son adjoint, un ancien ou un assistant du groupe peut saisir les rapports des autres membres.', 'warning');
       return false;
     }
     const groupMembers = proclamateurs
@@ -2354,7 +2364,7 @@
       return;
     }
     if (editOriginalRecordId && !canManageMemberReport(detailSelected)) {
-      showToast('Seul le responsable ou son adjoint peut modifier un rapport déjà enregistré.', 'warning');
+      showToast('Seul le responsable, son adjoint, un ancien ou un assistant du groupe peut modifier un rapport déjà enregistré.', 'warning');
       return;
     }
     if (!editOriginalRecordId && !canCreateReportFor(detailSelected)) {
@@ -2511,7 +2521,7 @@
     const record = detailRecords.find(item => String(item.id) === String(id));
     const member = record && proclamateurs.find(item => String(item.id) === String(record.proclamateurId));
     if (!record || !canManageMemberReport(member)) {
-      showToast('Seul le responsable ou son adjoint peut supprimer ce rapport.', 'warning');
+      showToast('Seul le responsable, son adjoint, un ancien ou un assistant du groupe peut supprimer ce rapport.', 'warning');
       return;
     }
     const store = getObjectStore('detailPredication', 'readwrite');
@@ -2529,7 +2539,7 @@
     // find proclamateur
     const p = proclamateurs.find(pr => pr.id === rec.proclamateurId);
     if (!p) return showToast('Proclamateur introuvable.', 'warning');
-    if (!canManageMemberReport(p)) return showToast('Seul le responsable ou son adjoint peut modifier ce rapport.', 'warning');
+    if (!canManageMemberReport(p)) return showToast('Seul le responsable, son adjoint, un ancien ou un assistant du groupe peut modifier ce rapport.', 'warning');
     editOriginalRecordId = rec.id;
     selectedDetailMonthKey = rec.month || selectedDetailMonthKey || currentMonthKey;
     setSelectedDetailMonthValue(selectedDetailMonthKey);

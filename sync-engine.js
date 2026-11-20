@@ -7,6 +7,14 @@
   ];
   const stateKey = 'assemblee-sync-state-v2';
   const localBroadcastKey = 'assemblee-local-sync';
+  const memberPrivateFields = [
+    'birthdate', 'age', 'contactName', 'contactPhone', 'dateNaissance', 'date_naissance',
+    'datenaissance', 'datedenaissance', 'dateDeNaissance', 'date_of_birth', 'dateOfBirth',
+    'naissance', 'birth', 'dob', 'personne_a_contacter', 'personneContact', 'personne_contact',
+    'personne', 'contact_telephone', 'contact_tel', 'telephone_contact', 'numero_contact',
+    'contactNumber', 'contact_name', 'emergencyContactName', 'emergency_contact_name',
+    'emergencyContactPhone', 'emergency_contact_phone', 'contact'
+  ];
   let running = false;
   let realtimeChannel = null;
   let hasUnsavedChanges = false;
@@ -54,6 +62,44 @@
       return value;
     }
     return JSON.stringify(sortKeys(record));
+  }
+
+  function getMemberPrivateData(payload) {
+    const privateData = {};
+    const birthdate = payload.birthdate || payload.dateNaissance || payload.date_naissance || payload.datenaissance || payload.datedenaissance || payload.dateDeNaissance || payload.date_of_birth || payload.dateOfBirth || payload.naissance || payload.birth || payload.dob;
+    const contactName = payload.contactName || payload.personne_a_contacter || payload.personneContact || payload.personne_contact || payload.personne || payload.contact_name || payload.emergencyContactName || payload.emergency_contact_name;
+    const contactPhone = payload.contactPhone || payload.contact_telephone || payload.contact_tel || payload.telephone_contact || payload.numero_contact || payload.contactNumber || payload.emergencyContactPhone || payload.emergency_contact_phone || payload.contact;
+    if (memberPrivateFields.some(field => Object.prototype.hasOwnProperty.call(payload, field) && ['birthdate', 'dateNaissance', 'date_naissance', 'datenaissance', 'datedenaissance', 'dateDeNaissance', 'date_of_birth', 'dateOfBirth', 'naissance', 'birth', 'dob'].includes(field))) {
+      privateData.birthdate = birthdate || '';
+    }
+    if (memberPrivateFields.some(field => Object.prototype.hasOwnProperty.call(payload, field) && ['contactName', 'personne_a_contacter', 'personneContact', 'personne_contact', 'personne', 'contact_name', 'emergencyContactName', 'emergency_contact_name'].includes(field))) {
+      privateData.contactName = contactName || '';
+    }
+    if (memberPrivateFields.some(field => Object.prototype.hasOwnProperty.call(payload, field) && ['contactPhone', 'contact_telephone', 'contact_tel', 'telephone_contact', 'numero_contact', 'contactNumber', 'emergencyContactPhone', 'emergency_contact_phone', 'contact'].includes(field))) {
+      privateData.contactPhone = contactPhone || '';
+    }
+    return privateData;
+  }
+
+  function stripMemberPrivateData(payload) {
+    const sanitized = { ...payload };
+    memberPrivateFields.forEach(field => delete sanitized[field]);
+    return sanitized;
+  }
+
+  function privateStateKey(item) {
+    return `private|${recordKey(item)}`;
+  }
+
+  function isPrivateMemberRecord(item) {
+    return (item.database_name === 'ProclamateursDB' && item.store_name === 'proclamateurs')
+      || (item.database_name === 'ProgrammationDB' && item.store_name === 'epreuves');
+  }
+
+  function privateMemberId(item) {
+    return item.store_name === 'epreuves'
+      ? String(item.payload.frereId || '')
+      : String(item.record_id || '');
   }
 
   function recordTimestamp(record, fallback) {
@@ -324,6 +370,71 @@
     }
   }
 
+  async function preparePrivateMemberData(client, assemblyId, localRows, remote, state) {
+    const changedRecords = [];
+    const pendingHashes = new Map();
+    for (const item of localRows) {
+      if (!isPrivateMemberRecord(item)) continue;
+      const remoteRow = remote.get(recordKey(item));
+      if (remoteRow?.deleted_at) continue;
+      if (item.store_name === 'epreuves') continue;
+      const privateData = getMemberPrivateData(item.payload);
+      if (!Object.keys(privateData).length) continue;
+      const key = privateStateKey(item);
+      const hash = fingerprint(privateData);
+      if (state[key]?.hash !== hash) {
+        changedRecords.push({ id: privateMemberId(item), ...privateData });
+        pendingHashes.set(privateMemberId(item), { key, hash });
+      }
+    }
+
+    let deniedCount = 0;
+    if (changedRecords.length) {
+      const { data, error } = await client.rpc('save_assembly_member_private_data', {
+        target_assembly_id: assemblyId,
+        target_records: changedRecords
+      });
+      if (error) throw error;
+      const deniedIds = new Set((data?.denied_ids || []).map(String));
+      deniedCount = Number(data?.denied || 0);
+      pendingHashes.forEach((value, id) => {
+        state[value.key] = { hash: deniedIds.has(id) ? fingerprint({}) : value.hash };
+      });
+    }
+
+    for (const item of localRows) {
+      if (!isPrivateMemberRecord(item)) continue;
+      const sanitized = stripMemberPrivateData(item.payload);
+      if (fingerprint(sanitized) !== fingerprint(item.payload)) {
+        item.payload = sanitized;
+        await writeLocalRecord(item);
+      }
+    }
+    return deniedCount;
+  }
+
+  async function refreshPrivateMemberData(client, assemblyId, localRows, state) {
+    const { data, error } = await client.rpc('get_assembly_member_private_data', {
+      target_assembly_id: assemblyId
+    });
+    if (error) throw error;
+    const privateById = new Map((Array.isArray(data) ? data : []).map(item => [String(item.id), item]));
+
+    for (const item of localRows) {
+      if (!isPrivateMemberRecord(item)) continue;
+      const personId = privateMemberId(item);
+      if (!personId) continue;
+      const privateData = item.store_name === 'proclamateurs' ? privateById.get(personId) || {} : {};
+      const sanitized = stripMemberPrivateData(item.payload);
+      const merged = { ...sanitized, ...privateData };
+      if (fingerprint(merged) !== fingerprint(item.payload)) {
+        item.payload = merged;
+        await writeLocalRecord(item);
+      }
+      state[privateStateKey(item)] = { hash: fingerprint(getMemberPrivateData(privateData)) };
+    }
+  }
+
   function registerServiceWorker() {
     if (!('serviceWorker' in navigator)) return;
     function showAppUpdateNotice(registration) {
@@ -407,8 +518,9 @@
       const remoteRows = await readRemoteRecords(client, assemblyId);
       const remote = new Map(remoteRows.map(row => [recordKey(row), row]));
       const localRows = await readLocalRecords();
-      const local = new Map(localRows.map(row => [recordKey(row), row]));
       const state = readState();
+      const privateDataDenied = await preparePrivateMemberData(client, assemblyId, localRows, remote, state);
+      const local = new Map(localRows.map(row => [recordKey(row), row]));
       const outgoing = [];
       let remoteApplied = 0;
       const now = new Date().toISOString();
@@ -418,6 +530,12 @@
         const localHash = fingerprint(item.payload);
         const previous = state[key];
         const remoteRow = remote.get(key);
+        if (item.store_name === 'detailPredication' && previous && !remoteRow) {
+          await deleteLocalRecord(item);
+          delete state[key];
+          remoteApplied += 1;
+          continue;
+        }
         if (!previous) {
           if (!remoteRow) {
             const localUpdatedAt = recordTimestamp(item.payload, now);
@@ -487,7 +605,9 @@
 
       writeState(state);
       if (remoteApplied) refreshForRemoteUpdate();
-      if (status) status(`Synchronisation terminée${reason ? ` (${reason})` : ''}.`);
+      await refreshPrivateMemberData(client, assemblyId, await readLocalRecords(), state);
+      writeState(state);
+      if (status) status(`Synchronisation terminée${reason ? ` (${reason})` : ''}.${privateDataDenied ? ' Certaines données privées n’ont pas été modifiées faute d’autorisation.' : ''}`);
     } catch (error) {
       console.warn('Synchronisation indisponible :', error);
       if (status) status(`Données locales conservées. Échec de synchronisation : ${error.message || error}`, true);

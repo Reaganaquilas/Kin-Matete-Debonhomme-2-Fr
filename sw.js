@@ -1,4 +1,4 @@
-const CACHE_NAME = 'assemblee-cache-v6';
+const CACHE_NAME = 'assemblee-cache-v8';
 const APP_SHELL = [
   './',
   './index.html',

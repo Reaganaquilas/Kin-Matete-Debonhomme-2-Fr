@@ -38,13 +38,20 @@
 
   function applyMenuPermissions(access) {
     document.querySelectorAll('[data-page]').forEach(link => {
-      const allowed = ['owner', 'coordinateur', 'secretaire'].includes(access.role) || access.pages.some(page => page === link.dataset.page || page.startsWith(`${link.dataset.page}:`));
+      const allowed = ['owner', 'coordinateur', 'secretaire'].includes(access.role)
+        || access.pages.some(page => page === link.dataset.page || page.startsWith(`${link.dataset.page}:`))
+        || (link.dataset.page === 'rapports' && access.pages.includes('rapports:all'))
+        || (link.dataset.page === 'proclamateurs' && access.isElder);
       link.hidden = !allowed;
     });
     document.querySelectorAll('[data-access-feature]').forEach(element => {
       const feature = element.dataset.accessFeature;
       const parent = feature.split(':')[0];
-      const allowed = ['owner', 'coordinateur', 'secretaire'].includes(access.role) || access.pages.includes(feature) || access.pages.includes(parent);
+      const allowed = ['owner', 'coordinateur', 'secretaire'].includes(access.role)
+        || access.pages.includes(feature)
+        || access.pages.includes(parent)
+        || (parent === 'rapports' && access.pages.includes('rapports:all'))
+        || (feature === 'proclamateurs:contact' && access.isElder);
       element.hidden = !allowed;
     });
     document.querySelectorAll('[data-access-feature].active[hidden]').forEach(active => {
@@ -56,7 +63,11 @@
 
   function hasPageAccess(access, page) {
     const parent = page.split(':')[0];
-    return page === 'home' || ['owner', 'coordinateur', 'secretaire'].includes(access.role) || access.pages.some(item => item === page || item === parent || item.startsWith(`${page}:`));
+    return page === 'home'
+      || ['owner', 'coordinateur', 'secretaire'].includes(access.role)
+      || access.pages.some(item => item === page || item === parent || item.startsWith(`${page}:`))
+      || (parent === 'rapports' && access.pages.includes('rapports:all'))
+      || (page === 'proclamateurs' && access.isElder);
   }
 
   function showAccessStatus(access) {
@@ -103,7 +114,13 @@
     const { data: permissions, error: permissionsError } = await window.appAuth.client
       .from('assembly_page_permissions').select('page_key').eq('assembly_id', assemblyId).eq('user_id', userId);
     if (permissionsError) throw permissionsError;
-    return { role: membership.role, pages: (permissions || []).map(item => item.page_key), proclamateurId: membership.proclamateur_id || '' };
+    const pages = (permissions || []).map(item => item.page_key);
+    return {
+      role: membership.role,
+      pages,
+      proclamateurId: membership.proclamateur_id || '',
+      isElder: membership.role === 'ancien' || pages.includes('proclamateurs:elder')
+    };
   }
 
   function denyPage() {

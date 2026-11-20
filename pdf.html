@@ -1225,6 +1225,34 @@
       return db.transaction(name, mode).objectStore(name);
     }
 
+    function secureMemberRecords(items) {
+      const privateFields = [
+        'birthdate', 'age', 'contactName', 'contactPhone', 'dateNaissance', 'date_naissance',
+        'datenaissance', 'datedenaissance', 'dateDeNaissance', 'date_of_birth', 'dateOfBirth',
+        'naissance', 'birth', 'dob', 'personne_a_contacter', 'personneContact', 'personne_contact',
+        'personne', 'contact_telephone', 'contact_tel', 'telephone_contact', 'numero_contact',
+        'contactNumber', 'contact_name', 'emergencyContactName', 'emergency_contact_name',
+        'emergencyContactPhone', 'emergency_contact_phone', 'contact'
+      ];
+      const publicItems = items.map(item => {
+        const sanitized = { ...item };
+        privateFields.forEach(field => delete sanitized[field]);
+        return sanitized;
+      });
+      const client = window.appAuth?.client;
+      if (!client || !window.appAuth?.config?.assemblyId) return Promise.resolve(publicItems);
+      return client.rpc('get_assembly_member_private_data', {
+        target_assembly_id: window.appAuth.config.assemblyId
+      }).then(({ data, error }) => {
+        if (error) throw error;
+        const privateById = new Map((Array.isArray(data) ? data : []).map(item => [String(item.id), item]));
+        return publicItems.map(item => ({ ...item, ...(privateById.get(String(item.id)) || {}) }));
+      }).catch(error => {
+        console.error('Chargement des données personnelles protégées impossible :', error);
+        return publicItems;
+      });
+    }
+
     function loadAllStores(callback) {
       if (!db) {
         if (callback) callback();
@@ -1232,15 +1260,17 @@
       }
       const pReq = getObjectStore('proclamateurs').getAll();
       pReq.onsuccess = () => { 
-        proclamateurs = pReq.result || []; 
-        window.__PROCL_LIST = proclamateurs; 
-        fillProclamateursDatalist(); 
-        initGroupsList();
-        populateContactGroupSelect();
-        loadGroupMgmtOptions();
-        loadGroupLeadersCache(() => {
-          if (typeof renderAllGroupsView === 'function') renderAllGroupsView();
-          if (callback) callback();
+        secureMemberRecords(pReq.result || []).then(items => {
+          proclamateurs = items;
+          window.__PROCL_LIST = proclamateurs;
+          fillProclamateursDatalist();
+          initGroupsList();
+          populateContactGroupSelect();
+          loadGroupMgmtOptions();
+          loadGroupLeadersCache(() => {
+            if (typeof renderAllGroupsView === 'function') renderAllGroupsView();
+            if (callback) callback();
+          });
         });
       };
       pReq.onerror = () => {
@@ -1301,6 +1331,8 @@
     }
 
     function filterContacts() {
+      const access = window.appAuthAccess?.getCached() || {};
+      if (!access.isElder && !(access.pages || []).includes('proclamateurs:contact')) return [];
       const search = (document.getElementById('contactSearchInput')?.value || '').trim().toLowerCase();
       const group = (document.getElementById('contactGroupSelect')?.value || '').trim().toLowerCase();
       const fullList = (window.__PROCL_LIST || []).slice();
@@ -1340,6 +1372,12 @@
     function renderContactList(items) {
       const container = document.getElementById('contactsContainer');
       if (!container) return;
+      const access = window.appAuthAccess?.getCached() || {};
+      if (!access.isElder && !(access.pages || []).includes('proclamateurs:contact')) {
+        container.innerHTML = '<div class="alert alert-warning">Demandez au secrétaire ou au coordinateur l’accès aux contacts d’urgence.</div>';
+        document.getElementById('contactSelectionInfo').textContent = '';
+        return;
+      }
       if (!items.length) {
         container.innerHTML = '<div class="alert alert-info">Aucun contact d’urgence trouvé.</div>';
         document.getElementById('contactSelectionInfo').textContent = '';
@@ -1798,6 +1836,9 @@
         assistMonthPicker.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       }
     });
+    window.addEventListener('app-access-ready', () => {
+      if (db) loadAllStores();
+    }, { once: true });
     proclBtn.addEventListener('click', () => { 
       proclModal.show(); 
       if (!db) openDatabase(); 
@@ -2230,7 +2271,9 @@
       sectionDiv.className = 's21-year-sheet';
 
       const fullName = [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ');
-      const dob = getPersonDateValue(p, ['birth', 'naissance']);
+      const access = window.appAuthAccess?.getCached() || {};
+      const canViewBirthdate = access.isElder || String(access.proclamateurId || '') === String(p.id || '');
+      const dob = canViewBirthdate ? getPersonDateValue(p, ['birth', 'naissance']) : '';
       const bapt = getPersonDateValue(p, ['bapt', 'baptism', 'baptismdate', 'datebapteme', 'datedebapteme', 'datebapt', 'datebaptisme']);
       const sexe = (p.sexe || p.sex || '').toString().toUpperCase();
 

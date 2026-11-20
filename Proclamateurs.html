@@ -251,6 +251,7 @@
   let currentSortField = 'nom';
   let currentSortDirection = 'asc';
   let groupLeaders = [];
+  const privateMemberFields=['birthdate','age','contactName','contactPhone','dateNaissance','date_naissance','datenaissance','datedenaissance','dateDeNaissance','date_of_birth','dateOfBirth','naissance','birth','dob','personne_a_contacter','personneContact','personne_contact','personne','contact_telephone','contact_tel','telephone_contact','numero_contact','contactNumber','contact_name','emergencyContactName','emergency_contact_name','emergencyContactPhone','emergency_contact_phone','contact'];
   const identityAliases = [
     ['KALOMBO ESTHER', 'KALOMBO NGOYA ESTHER'],
     ['KALOMBO REGINE', 'KALOMBO KAPINGA REGINE'],
@@ -884,9 +885,32 @@
     const request = store.getAll();
 
     request.onsuccess = () => {
-      const res = request.result || [];
-      window.__PROCL_LIST = res;
-      callback(res);
+      const items = request.result || [];
+      const publicItems = items.map(item => {
+        const sanitized = { ...item };
+        privateMemberFields.forEach(field => delete sanitized[field]);
+        return sanitized;
+      });
+      const client = window.appAuth?.client;
+      if (!client || !window.appAuth?.config?.assemblyId) {
+        window.__PROCL_LIST = publicItems;
+        callback(publicItems);
+        return;
+      }
+      client.rpc('get_assembly_member_private_data', {
+        target_assembly_id: window.appAuth.config.assemblyId
+      }).then(({ data, error }) => {
+        if (error) throw error;
+        const privateById = new Map((Array.isArray(data) ? data : []).map(item => [String(item.id), item]));
+        const securedItems = publicItems.map(item => ({ ...item, ...(privateById.get(String(item.id)) || {}) }));
+        window.__PROCL_LIST = securedItems;
+        callback(securedItems);
+      }).catch(error => {
+        console.error('Chargement des données personnelles protégées impossible :', error);
+        showToast('Les dates de naissance et contacts privés n’ont pas pu être chargés.', 'warning');
+        window.__PROCL_LIST = publicItems;
+        callback(publicItems);
+      });
     };
     request.onerror = () => callback([]);
   }
@@ -1279,14 +1303,16 @@
     const request = store.get(id);
 
     request.onsuccess = () => {
-      const item = request.result;
-      if (!item) {
-        showToast('Proclamateur introuvable.', 'warning');
-        return;
-      }
-      fillForm(item);
-      const tabTrigger = new bootstrap.Tab(document.querySelector('#proclamateursTabs button[data-bs-target="#maj"]'));
-      tabTrigger.show();
+      getAllProclamateurs(items => {
+        const item = items.find(person => String(person.id) === String(id));
+        if (!item) {
+          showToast('Proclamateur introuvable.', 'warning');
+          return;
+        }
+        fillForm(item);
+        const tabTrigger = new bootstrap.Tab(document.querySelector('#proclamateursTabs button[data-bs-target="#maj"]'));
+        tabTrigger.show();
+      });
     };
 
     request.onerror = () => showToast('Impossible de charger le proclamateur.', 'danger');
@@ -1337,6 +1363,7 @@
       refreshAllLists();
     }
   });
+  window.addEventListener('app-access-ready', refreshAllLists, { once: true });
   document.getElementById('showAllBtn').addEventListener('click', () => {
     document.getElementById('searchInput').value = '';
     document.getElementById('groupFilter').value = '';
@@ -1347,6 +1374,12 @@
   });
 
   function fillForm(item) {
+    const access = window.appAuthAccess?.getCached() || {};
+    const isOwnRecord = String(access.proclamateurId || '') === String(item.id);
+    const canEditProfile = ['owner', 'coordinateur', 'secretaire'].includes(access.role)
+      || (access.pages || []).some(page => ['proclamateurs', 'proclamateurs:maj', 'proclamateurs:import'].includes(page));
+    const canEditBirthdate = canEditProfile && (access.isElder || isOwnRecord);
+    const canEditEmergencyContacts = canEditProfile && (access.isElder || (access.pages || []).includes('proclamateurs:contact'));
     document.getElementById('proclamateurId').value = item.id;
     document.getElementById('idDisplay').value = item.id;
     document.getElementById('nom').value = item.nom || '';
@@ -1356,11 +1389,14 @@
     document.getElementById('telephone').value = item.telephone || '';
     document.getElementById('adresse').value = item.adresse || '';
     document.getElementById('birthdate').value = item.birthdate || '';
-    document.getElementById('age').value = item.age || '';
+    document.getElementById('age').value = item.birthdate ? calculateAgeValue(item.birthdate) : '';
+    document.getElementById('birthdate').disabled = !canEditBirthdate;
     document.getElementById('baptismDate').value = item.baptismDate || '';
     document.getElementById('service').value = item.service || 'Ancien';
     document.getElementById('contactName').value = item.contactName || '';
     document.getElementById('contactPhone').value = item.contactPhone || '';
+    document.getElementById('contactName').disabled = !canEditEmergencyContacts;
+    document.getElementById('contactPhone').disabled = !canEditEmergencyContacts;
     document.getElementById('groupe').value = item.groupe || '';
     document.getElementById('saveButton').textContent = 'Mettre à jour';
   }
@@ -1370,6 +1406,9 @@
     document.getElementById('proclamateurId').value = '';
     document.getElementById('idDisplay').value = '';
     document.getElementById('age').value = '';
+    document.getElementById('birthdate').disabled = false;
+    document.getElementById('contactName').disabled = false;
+    document.getElementById('contactPhone').disabled = false;
     document.getElementById('saveButton').textContent = 'Enregistrer';
   }
 
