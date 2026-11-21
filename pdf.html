@@ -827,12 +827,10 @@
       --app-ink:#123b55;
       --app-muted:#5c7584;
       --app-border:#d8eaf3;
-      --app-bg:#f1f8fc;
+      --app-bg:#f1f4f6;
     }
     body {
-      background:
-        radial-gradient(ellipse at 86% 6%, rgba(196,231,247,.52), transparent 30rem),
-        var(--app-bg);
+      background:var(--app-bg);
       color:var(--app-ink);
     }
     .container { padding-top:38px; padding-bottom:44px; }
@@ -2271,9 +2269,7 @@
       sectionDiv.className = 's21-year-sheet';
 
       const fullName = [p.nom, p.postnom, p.prenom].filter(Boolean).join(' ');
-      const access = window.appAuthAccess?.getCached() || {};
-      const canViewBirthdate = access.isElder || String(access.proclamateurId || '') === String(p.id || '');
-      const dob = canViewBirthdate ? getPersonDateValue(p, ['birth', 'naissance']) : '';
+      const dob = getPersonDateValue(p, ['birth', 'naissance']);
       const bapt = getPersonDateValue(p, ['bapt', 'baptism', 'baptismdate', 'datebapteme', 'datedebapteme', 'datebapt', 'datebaptisme']);
       const sexe = (p.sexe || p.sex || '').toString().toUpperCase();
 
